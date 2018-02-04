@@ -28,10 +28,10 @@ class LavaLink extends EventEmitter {
             }
         });
 
-        this.on("open", () => this._onOpen());
-        this.on("close", (code, reason) => this._onClose(code, reason));
-        this.on("message", data => this._onMessage(data));
-        this.on("error", error => this.emit("error", error));
+        this.ws.on("open", () => this._onOpen());
+        this.ws.on("close", (code, reason) => this._onClose(code, reason));
+        this.ws.on("message", data => this._onMessage(data));
+        this.ws.on("error", error => this.emit("error", error));
     }
 
     send(data) {
