@@ -5,7 +5,7 @@ Docma.create()
     .build({
         app: {
             title: Package.name,
-            base: "/",
+            base: "/discord.js-lavalink",
             entrance: "content:readme",
             routing: "query",
             server: Docma.ServerType.GITHUB
