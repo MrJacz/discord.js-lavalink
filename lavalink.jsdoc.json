@@ -1,0 +1,472 @@
+[
+  {
+    "comment": "/**\n * Lavalink Websocket\n * @extends {EventEmitter}\n */",
+    "meta": {
+      "range": [
+        135,
+        2869
+      ],
+      "filename": "LavaLink.js",
+      "lineno": 8,
+      "columnno": 0,
+      "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+      "code": {
+        "id": "astnode100000016",
+        "name": "LavaLink",
+        "type": "ClassDeclaration",
+        "paramnames": [
+          "options"
+        ]
+      }
+    },
+    "classdesc": "Lavalink Websocket",
+    "augments": [
+      "EventEmitter"
+    ],
+    "name": "LavaLink",
+    "longname": "LavaLink",
+    "kind": "class",
+    "scope": "global",
+    "description": "LavaLink options",
+    "params": [
+      {
+        "type": {
+          "names": [
+            "Object"
+          ]
+        },
+        "description": "LavaLink options",
+        "name": "options"
+      }
+    ],
+    "$longname": "LavaLink",
+    "$members": [
+      {
+        "comment": "/**\n         * Address\n         * @type {String}\n         */",
+        "meta": {
+          "range": [
+            596,
+            649
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 30,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000047",
+            "name": "this.address",
+            "type": "TemplateLiteral",
+            "value": "",
+            "paramnames": []
+          }
+        },
+        "description": "Address",
+        "type": {
+          "names": [
+            "String"
+          ]
+        },
+        "name": "address",
+        "longname": "LavaLink#address",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#address"
+      },
+      {
+        "comment": "/**\n     * Connects to the WebSocket server\n     * @returns {void}\n     */",
+        "meta": {
+          "range": [
+            1530,
+            2030
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 68,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000114",
+            "name": "LavaLink#connect",
+            "type": "MethodDefinition",
+            "paramnames": []
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Connects to the WebSocket server",
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "void"
+              ]
+            }
+          }
+        ],
+        "name": "connect",
+        "longname": "LavaLink#connect",
+        "kind": "function",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "params": [],
+        "$longname": "LavaLink#connect"
+      },
+      {
+        "comment": "/**\n         * If the lavalink websocket is connected or not\n         * @type {Boolean}\n         */",
+        "meta": {
+          "range": [
+            1290,
+            1312
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 55,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000098",
+            "name": "this.connected",
+            "type": "Literal",
+            "value": false,
+            "paramnames": []
+          }
+        },
+        "description": "If the lavalink websocket is connected or not",
+        "type": {
+          "names": [
+            "Boolean"
+          ]
+        },
+        "name": "connected",
+        "longname": "LavaLink#connected",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#connected"
+      },
+      {
+        "comment": "/**\n         * Host\n         * @type {String}\n         */",
+        "meta": {
+          "range": [
+            380,
+            404
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 20,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000029",
+            "name": "this.host",
+            "type": "MemberExpression",
+            "value": "options.host",
+            "paramnames": []
+          }
+        },
+        "description": "Host",
+        "type": {
+          "names": [
+            "String"
+          ]
+        },
+        "name": "host",
+        "longname": "LavaLink#host",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#host"
+      },
+      {
+        "comment": "/**\n         * Lavalink Node(Shard) Password\n         * @type {String}\n         */",
+        "meta": {
+          "range": [
+            1119,
+            1172
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 50,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000088",
+            "name": "this.password",
+            "type": "LogicalExpression",
+            "value": "",
+            "paramnames": []
+          }
+        },
+        "description": "Lavalink Node(Shard) Password",
+        "type": {
+          "names": [
+            "String"
+          ]
+        },
+        "name": "password",
+        "longname": "LavaLink#password",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#password"
+      },
+      {
+        "comment": "/**\n         * Port\n         * @type {Number|String}\n         */",
+        "meta": {
+          "range": [
+            487,
+            517
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 25,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000037",
+            "name": "this.port",
+            "type": "LogicalExpression",
+            "value": "",
+            "paramnames": []
+          }
+        },
+        "description": "Port",
+        "type": {
+          "names": [
+            "Number",
+            "String"
+          ]
+        },
+        "name": "port",
+        "longname": "LavaLink#port",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#port"
+      },
+      {
+        "comment": "/**\n         * Region\n         * @type {?String}\n         */",
+        "meta": {
+          "range": [
+            728,
+            764
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 35,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000062",
+            "name": "this.region",
+            "type": "LogicalExpression",
+            "value": "",
+            "paramnames": []
+          }
+        },
+        "description": "Region",
+        "type": {
+          "names": [
+            "String"
+          ]
+        },
+        "nullable": true,
+        "name": "region",
+        "longname": "LavaLink#region",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#region"
+      },
+      {
+        "comment": "/**\n         * Lavalink node(Shard) count\n         * @type {Number}\n         */",
+        "meta": {
+          "range": [
+            982,
+            1018
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 45,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000080",
+            "name": "this.shardCount",
+            "type": "MemberExpression",
+            "value": "options.shardCount",
+            "paramnames": []
+          }
+        },
+        "description": "Lavalink node(Shard) count",
+        "type": {
+          "names": [
+            "Number"
+          ]
+        },
+        "name": "shardCount",
+        "longname": "LavaLink#shardCount",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#shardCount"
+      },
+      {
+        "comment": "/**\n         * User ID from Discord\n         * @type {String}\n         */",
+        "meta": {
+          "range": [
+            856,
+            884
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 40,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000072",
+            "name": "this.userId",
+            "type": "MemberExpression",
+            "value": "options.userId",
+            "paramnames": []
+          }
+        },
+        "description": "User ID from Discord",
+        "type": {
+          "names": [
+            "String"
+          ]
+        },
+        "name": "userId",
+        "longname": "LavaLink#userId",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#userId"
+      },
+      {
+        "comment": "/**\n         * The WebSocket\n         * @type {WebSocket}\n         */",
+        "meta": {
+          "range": [
+            1400,
+            1414
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 60,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000104",
+            "name": "this.ws",
+            "type": "Literal",
+            "value": null,
+            "paramnames": []
+          }
+        },
+        "description": "The WebSocket",
+        "type": {
+          "names": [
+            "WebSocket"
+          ]
+        },
+        "name": "ws",
+        "longname": "LavaLink#ws",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#ws"
+      }
+    ],
+    "$constructor": {
+      "comment": "/**\n     * LavaLink options\n     * @param {Object} options LavaLink options\n     */",
+      "meta": {
+        "range": [
+          266,
+          1446
+        ],
+        "filename": "LavaLink.js",
+        "lineno": 14,
+        "columnno": 4,
+        "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+        "code": {
+          "id": "astnode100000020",
+          "name": "LavaLink",
+          "type": "MethodDefinition",
+          "paramnames": [
+            "options"
+          ]
+        },
+        "vars": {
+          "": null
+        }
+      },
+      "description": "LavaLink options",
+      "params": [
+        {
+          "type": {
+            "names": [
+              "Object"
+            ]
+          },
+          "description": "LavaLink options",
+          "name": "options"
+        }
+      ],
+      "name": "LavaLink",
+      "longname": "LavaLink",
+      "kind": "class",
+      "scope": "global",
+      "undocumented": true,
+      "$longname": "LavaLink"
+    }
+  },
+  {
+    "kind": "package",
+    "name": "discord.js-lavalink",
+    "longname": "package:discord.js-lavalink",
+    "author": "Jacz",
+    "bugs": {
+      "url": "https://github.com/MrJacz/discord.js-lavalink/issues"
+    },
+    "dependencies": {
+      "discord.js": "^11.3.0",
+      "ws": "^4.0.0"
+    },
+    "description": "A discord.js lavalink client",
+    "devDependencies": {
+      "docma": "^1.5.3",
+      "eslint": "^4.17.0",
+      "eslint-plugin-node": "^5.2.1",
+      "eslint-plugin-promise": "^3.6.0"
+    },
+    "files": [
+      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/Client.js",
+      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/LavaLink.js"
+    ],
+    "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
+    "keywords": [
+      "Discord",
+      "Discord",
+      "Bot",
+      "Discord",
+      "Music",
+      "Discord.js",
+      "Discord.js",
+      "music",
+      "music",
+      "discord",
+      "api",
+      "lava",
+      "lavalink",
+      "lavalink.js",
+      "discord.js",
+      "lavalink"
+    ],
+    "licenses": [
+      {
+        "type": "MIT"
+      }
+    ],
+    "main": "src/index.js",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/MrJacz/discord.js-lavalink.git"
+    },
+    "version": "0.0.1",
+    "$longname": "package:discord.js-lavalink"
+  }
+]
