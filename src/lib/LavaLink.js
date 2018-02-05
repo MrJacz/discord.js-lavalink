@@ -1,6 +1,10 @@
 const WebSocket = require("ws");
 const { EventEmitter } = require("events");
 
+/**
+ * Lavalink Websocket
+ * @extends {EventEmitter}
+ */
 class LavaLink extends EventEmitter {
 
     constructor(options) {
@@ -18,7 +22,10 @@ class LavaLink extends EventEmitter {
 
         this.connect();
     }
-
+    /**
+     * Connects to the WebSocket server
+     * @returns {void}
+     */
     connect() {
         this.ws = new WebSocket(this.address, {
             headers: {

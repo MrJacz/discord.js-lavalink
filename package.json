@@ -4,7 +4,9 @@
   "description": "A discord.js lavalink client",
   "main": "src/index.js",
   "scripts": {
-    "test": "eslint src"
+    "test": "eslint src",
+    "lint": "eslint --fix src",
+    "docs": "node docs.js"
   },
   "repository": {
     "type": "git",
