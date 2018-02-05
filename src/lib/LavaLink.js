@@ -7,17 +7,56 @@ const { EventEmitter } = require("events");
  */
 class LavaLink extends EventEmitter {
 
+    /**
+     * LavaLink options
+     * @param {Object} options LavaLink options
+     */
     constructor(options) {
         super();
-
+        /**
+         * Host
+         * @type {String}
+         */
         this.host = options.host;
+        /**
+         * Port
+         * @type {Number|String}
+         */
         this.port = options.port || 80;
+        /**
+         * Address
+         * @type {String}
+         */
         this.address = `ws://${options.host}:${options.port}`;
+        /**
+         * Region
+         * @type {?String}
+         */
         this.region = options.region || null;
+        /**
+         * User ID from Discord
+         * @type {String}
+         */
         this.userId = options.userId;
+        /**
+         * Lavalink node(Shard) count
+         * @type {Number}
+         */
         this.shardCount = options.shardCount;
+        /**
+         * Lavalink Node(Shard) Password
+         * @type {String}
+         */
         this.password = options.password || "youshallnotpass";
+        /**
+         * If the lavalink websocket is connected or not
+         * @type {Boolean}
+         */
         this.connected = false;
+        /**
+         * The WebSocket
+         * @type {WebSocket}
+         */
         this.ws = null;
 
         this.connect();
