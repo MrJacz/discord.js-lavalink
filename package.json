@@ -37,6 +37,7 @@
   },
   "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
   "devDependencies": {
+    "docma": "^1.5.3",
     "eslint": "^4.17.0",
     "eslint-plugin-node": "^5.2.1",
     "eslint-plugin-promise": "^3.6.0"
