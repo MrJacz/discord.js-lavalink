@@ -1,5 +1,6 @@
 const WebSocket = require("ws");
 const { EventEmitter } = require("events");
+const { parse, stringify } = require("./util/util");
 
 /**
  * Lavalink Websocket
@@ -80,16 +81,14 @@ class LavaLink extends EventEmitter {
         this.ws.onclose = this._onClose.bind(this);
     }
 
-    send(data) {
+    async send(data) {
         if (!this.ws) return false;
-        let payload;
-        try {
-            payload = JSON.stringify(data);
-        } catch (error) {
-            this.emit("error", error);
-            return false;
-        }
-
+        const payload = await stringify(data)
+            .catch(error => {
+                this.emit("error", error);
+                return null;
+            });
+        if (!payload) return false;
         this.ws.send(payload);
         return true;
     }
@@ -115,13 +114,13 @@ class LavaLink extends EventEmitter {
         this.emit("disconnect", code, reason);
     }
 
-    _onMessage(msg) {
-        let data;
-        try {
-            data = JSON.parse(msg);
-        } catch (error) {
-            return this.emit("error", error);
-        }
+    async _onMessage(msg) {
+        const data = await parse(msg)
+            .catch(error => {
+                this.emit("error", error);
+                return null;
+            });
+        if (!data) return;
 
         this.emit("message", data);
     }
