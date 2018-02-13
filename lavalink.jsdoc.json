@@ -4,7 +4,7 @@
     "meta": {
       "range": [
         135,
-        2869
+        2964
       ],
       "filename": "LavaLink.js",
       "lineno": 8,
@@ -143,6 +143,45 @@
         "memberof": "LavaLink",
         "scope": "instance",
         "$longname": "LavaLink#connected"
+      },
+      {
+        "comment": "/**\n     * Destroys the WebSocket\n     * @returns {Boolean}\n     */",
+        "meta": {
+          "range": [
+            2400,
+            2523
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 100,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000249",
+            "name": "LavaLink#destroy",
+            "type": "MethodDefinition",
+            "paramnames": []
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Destroys the WebSocket",
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "Boolean"
+              ]
+            }
+          }
+        ],
+        "name": "destroy",
+        "longname": "LavaLink#destroy",
+        "kind": "function",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "params": [],
+        "$longname": "LavaLink#destroy"
       },
       {
         "comment": "/**\n         * Host\n         * @type {String}\n         */",
@@ -476,14 +515,14 @@
     "meta": {
       "range": [
         172,
-        311
+        342
       ],
       "filename": "PlayerManager.js",
       "lineno": 7,
       "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000363",
+        "id": "astnode100000369",
         "name": "PlayerManager",
         "type": "ClassDeclaration",
         "paramnames": [
@@ -507,14 +546,14 @@
       "meta": {
         "range": [
           226,
-          308
+          339
         ],
         "filename": "PlayerManager.js",
         "lineno": 9,
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
-          "id": "astnode100000367",
+          "id": "astnode100000373",
           "name": "PlayerManager",
           "type": "MethodDefinition",
           "paramnames": [
@@ -536,65 +575,34 @@
     }
   },
   {
-    "comment": "/**\n * Player Manager Store\n * @extends {Collection}\n */",
+    "comment": "",
     "meta": {
       "range": [
-        103,
-        527
+        166,
+        241
       ],
       "filename": "PlayerManagerStore.js",
-      "lineno": 6,
-      "columnno": 0,
+      "lineno": 9,
+      "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
       "code": {
-        "id": "astnode100000399",
+        "id": "astnode100000415",
         "name": "PlayerManagerStore",
-        "type": "ClassDeclaration",
+        "type": "MethodDefinition",
         "paramnames": [
           "Player"
         ]
+      },
+      "vars": {
+        "": null
       }
     },
-    "classdesc": "Player Manager Store",
-    "augments": [
-      "Collection"
-    ],
+    "undocumented": true,
     "name": "PlayerManagerStore",
     "longname": "PlayerManagerStore",
     "kind": "class",
     "scope": "global",
     "params": [],
-    "$longname": "PlayerManagerStore",
-    "$constructor": {
-      "comment": "",
-      "meta": {
-        "range": [
-          154,
-          229
-        ],
-        "filename": "PlayerManagerStore.js",
-        "lineno": 8,
-        "columnno": 4,
-        "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
-        "code": {
-          "id": "astnode100000403",
-          "name": "PlayerManagerStore",
-          "type": "MethodDefinition",
-          "paramnames": [
-            "Player"
-          ]
-        },
-        "vars": {
-          "": null
-        }
-      },
-      "undocumented": true,
-      "name": "PlayerManagerStore",
-      "longname": "PlayerManagerStore",
-      "kind": "class",
-      "scope": "global",
-      "params": [],
-      "$longname": "PlayerManagerStore"
-    }
+    "$longname": "PlayerManagerStore"
   }
 ]
