@@ -2,6 +2,7 @@ const { Collection } = require("discord.js");
 /**
  * Player Manager Store
  * @extends {Collection}
+ * @private
  */
 class PlayerManagerStore extends Collection {
 

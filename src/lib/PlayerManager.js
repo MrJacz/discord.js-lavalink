@@ -8,6 +8,8 @@ class PlayerManager extends PlayerManagerStore {
 
     constructor(client, options = {}) {
         super(options.player || Player);
+
+        this.client = client;
     }
 
 }

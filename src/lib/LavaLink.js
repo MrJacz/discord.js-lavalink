@@ -93,10 +93,14 @@ class LavaLink extends EventEmitter {
         this.ws.send(payload);
         return true;
     }
-
+    /**
+     * Destroys the WebSocket
+     * @returns {Boolean}
+     */
     destroy() {
         if (!this.ws) return false;
         this.ws.close();
+        this.ws = null;
         return true;
     }
 
