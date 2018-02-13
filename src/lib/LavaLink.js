@@ -28,7 +28,7 @@ class LavaLink extends EventEmitter {
          * Address
          * @type {String}
          */
-        this.address = `ws://${options.host}:${options.port}`;
+        this.address = options.address || `ws://${options.host}:${options.port}`;
         /**
          * Region
          * @type {?String}
@@ -109,7 +109,6 @@ class LavaLink extends EventEmitter {
     }
 
     reconnect() {
-        this.ws.removeAllListeners();
         setTimeout(() => {
             this.emit("reconnecting");
             this.connect();
@@ -123,9 +122,9 @@ class LavaLink extends EventEmitter {
 
     _onClose(code, reason) {
         this.connected = false;
-        delete this.ws;
         if (code !== 1000) return this.reconnect();
-        this.emit("disconnect", code, reason);
+        this.ws = null;
+        this.emit("disconnect", reason);
     }
 
     async _onMessage(msg) {
@@ -140,7 +139,7 @@ class LavaLink extends EventEmitter {
     }
 
     _onError(error) {
-        if (error.code === "ECONNREFUSED") this.reconnect();
+        if (error.message.includes("ECONNREFUSED")) this.reconnect();
         this.emit("error", error);
     }
 

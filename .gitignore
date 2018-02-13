@@ -59,4 +59,5 @@ typings/
 
 # Custom
 package-lock.json
+testing/config.json
 

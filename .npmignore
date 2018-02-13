@@ -21,3 +21,6 @@ package-lock.json
 testing
 docs
 .github
+scripts
+.gitattributes
+

@@ -1,0 +1,7 @@
+{ 
+    "token": "",
+    "owner": "",
+    "nodes": [
+        { "host": "localhost", "port": 80, "region": "eu", "password": "youshallnotpass" }
+    ]
+}
