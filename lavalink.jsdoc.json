@@ -4,7 +4,7 @@
     "meta": {
       "range": [
         135,
-        2964
+        2985
       ],
       "filename": "LavaLink.js",
       "lineno": 8,
@@ -78,7 +78,7 @@
         "meta": {
           "range": [
             1530,
-            2030
+            1987
           ],
           "filename": "LavaLink.js",
           "lineno": 68,
@@ -148,15 +148,15 @@
         "comment": "/**\n     * Destroys the WebSocket\n     * @returns {Boolean}\n     */",
         "meta": {
           "range": [
-            2400,
-            2523
+            2357,
+            2480
           ],
           "filename": "LavaLink.js",
           "lineno": 100,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000249",
+            "id": "astnode100000244",
             "name": "LavaLink#destroy",
             "type": "MethodDefinition",
             "paramnames": []
@@ -522,7 +522,7 @@
       "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000369",
+        "id": "astnode100000376",
         "name": "PlayerManager",
         "type": "ClassDeclaration",
         "paramnames": [
@@ -553,7 +553,7 @@
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
-          "id": "astnode100000373",
+          "id": "astnode100000380",
           "name": "PlayerManager",
           "type": "MethodDefinition",
           "paramnames": [
@@ -586,7 +586,7 @@
       "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
       "code": {
-        "id": "astnode100000415",
+        "id": "astnode100000422",
         "name": "PlayerManagerStore",
         "type": "MethodDefinition",
         "paramnames": [
