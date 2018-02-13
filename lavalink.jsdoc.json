@@ -434,8 +434,10 @@
       "eslint-plugin-promise": "^3.6.0"
     },
     "files": [
-      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/Client.js",
-      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/LavaLink.js"
+      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/LavaLink.js",
+      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/Player.js",
+      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/PlayerManager.js",
+      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures/PlayerManagerStore.js"
     ],
     "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
     "keywords": [
@@ -468,5 +470,131 @@
     },
     "version": "0.0.1",
     "$longname": "package:discord.js-lavalink"
+  },
+  {
+    "comment": "/**\n * Player Manager class\n * @extends {PlayerManagerStore}\n */",
+    "meta": {
+      "range": [
+        172,
+        311
+      ],
+      "filename": "PlayerManager.js",
+      "lineno": 7,
+      "columnno": 0,
+      "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+      "code": {
+        "id": "astnode100000363",
+        "name": "PlayerManager",
+        "type": "ClassDeclaration",
+        "paramnames": [
+          "client",
+          "options"
+        ]
+      }
+    },
+    "classdesc": "Player Manager class",
+    "augments": [
+      "PlayerManagerStore"
+    ],
+    "name": "PlayerManager",
+    "longname": "PlayerManager",
+    "kind": "class",
+    "scope": "global",
+    "params": [],
+    "$longname": "PlayerManager",
+    "$constructor": {
+      "comment": "",
+      "meta": {
+        "range": [
+          226,
+          308
+        ],
+        "filename": "PlayerManager.js",
+        "lineno": 9,
+        "columnno": 4,
+        "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+        "code": {
+          "id": "astnode100000367",
+          "name": "PlayerManager",
+          "type": "MethodDefinition",
+          "paramnames": [
+            "client",
+            "options"
+          ]
+        },
+        "vars": {
+          "": null
+        }
+      },
+      "undocumented": true,
+      "name": "PlayerManager",
+      "longname": "PlayerManager",
+      "kind": "class",
+      "scope": "global",
+      "params": [],
+      "$longname": "PlayerManager"
+    }
+  },
+  {
+    "comment": "/**\n * Player Manager Store\n * @extends {Collection}\n */",
+    "meta": {
+      "range": [
+        103,
+        527
+      ],
+      "filename": "PlayerManagerStore.js",
+      "lineno": 6,
+      "columnno": 0,
+      "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
+      "code": {
+        "id": "astnode100000399",
+        "name": "PlayerManagerStore",
+        "type": "ClassDeclaration",
+        "paramnames": [
+          "Player"
+        ]
+      }
+    },
+    "classdesc": "Player Manager Store",
+    "augments": [
+      "Collection"
+    ],
+    "name": "PlayerManagerStore",
+    "longname": "PlayerManagerStore",
+    "kind": "class",
+    "scope": "global",
+    "params": [],
+    "$longname": "PlayerManagerStore",
+    "$constructor": {
+      "comment": "",
+      "meta": {
+        "range": [
+          154,
+          229
+        ],
+        "filename": "PlayerManagerStore.js",
+        "lineno": 8,
+        "columnno": 4,
+        "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
+        "code": {
+          "id": "astnode100000403",
+          "name": "PlayerManagerStore",
+          "type": "MethodDefinition",
+          "paramnames": [
+            "Player"
+          ]
+        },
+        "vars": {
+          "": null
+        }
+      },
+      "undocumented": true,
+      "name": "PlayerManagerStore",
+      "longname": "PlayerManagerStore",
+      "kind": "class",
+      "scope": "global",
+      "params": [],
+      "$longname": "PlayerManagerStore"
+    }
   }
 ]
