@@ -56,9 +56,14 @@ class LavaLink extends EventEmitter {
         this.connected = false;
         /**
          * The WebSocket
-         * @type {WebSocket}
+         * @type {?WebSocket}
          */
         this.ws = null;
+        /**
+         * The interval to use for auto Reconnecting
+         * @type {Number}
+         */
+        this.autoReconnectInterval = options.reconnectInterval || 5000;
 
         this.connect();
     }
@@ -98,9 +103,17 @@ class LavaLink extends EventEmitter {
      */
     destroy() {
         if (!this.ws) return false;
-        this.ws.close();
+        this.ws.close(1000);
         this.ws = null;
         return true;
+    }
+
+    reconnect() {
+        this.ws.removeAllListeners();
+        setTimeout(() => {
+            this.emit("reconnecting");
+            this.connect();
+        }, this.autoReconnectInterval);
     }
 
     _onOpen() {
@@ -111,6 +124,7 @@ class LavaLink extends EventEmitter {
     _onClose(code, reason) {
         this.connected = false;
         delete this.ws;
+        if (code !== 1000) return this.reconnect();
         this.emit("disconnect", code, reason);
     }
 
@@ -126,6 +140,7 @@ class LavaLink extends EventEmitter {
     }
 
     _onError(error) {
+        if (error.code === "ECONNREFUSED") this.reconnect();
         this.emit("error", error);
     }
 
