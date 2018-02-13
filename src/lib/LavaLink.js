@@ -74,10 +74,10 @@ class LavaLink extends EventEmitter {
             }
         });
 
-        this.ws.on("open", () => this._onOpen());
-        this.ws.on("close", (code, reason) => this._onClose(code, reason));
-        this.ws.on("message", data => this._onMessage(data));
-        this.ws.on("error", error => this.emit("error", error));
+        this.ws.onmessage = this._onMessage.bind(this);
+        this.ws.onopen = this._onOpen.bind(this);
+        this.ws.onerror = this._onError.bind(this);
+        this.ws.onclose = this._onClose.bind(this);
     }
 
     send(data) {
@@ -124,6 +124,10 @@ class LavaLink extends EventEmitter {
         }
 
         this.emit("message", data);
+    }
+
+    _onError(error) {
+        this.emit("error", error);
     }
 
 
