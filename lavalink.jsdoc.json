@@ -4,7 +4,7 @@
     "meta": {
       "range": [
         188,
-        3102
+        3592
       ],
       "filename": "LavaLink.js",
       "lineno": 9,
@@ -74,18 +74,50 @@
         "$longname": "LavaLink#address"
       },
       {
+        "comment": "/**\n         * The interval to use for auto Reconnecting\n         * @type {Number}\n         */",
+        "meta": {
+          "range": [
+            1581,
+            1643
+          ],
+          "filename": "LavaLink.js",
+          "lineno": 66,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000120",
+            "name": "this.autoReconnectInterval",
+            "type": "LogicalExpression",
+            "value": "",
+            "paramnames": []
+          }
+        },
+        "description": "The interval to use for auto Reconnecting",
+        "type": {
+          "names": [
+            "Number"
+          ]
+        },
+        "name": "autoReconnectInterval",
+        "longname": "LavaLink#autoReconnectInterval",
+        "kind": "member",
+        "memberof": "LavaLink",
+        "scope": "instance",
+        "$longname": "LavaLink#autoReconnectInterval"
+      },
+      {
         "comment": "/**\n     * Connects to the WebSocket server\n     * @returns {void}\n     */",
         "meta": {
           "range": [
-            1583,
-            2040
+            1759,
+            2216
           ],
           "filename": "LavaLink.js",
-          "lineno": 69,
+          "lineno": 74,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000124",
+            "id": "astnode100000134",
             "name": "LavaLink#connect",
             "type": "MethodDefinition",
             "paramnames": []
@@ -148,15 +180,15 @@
         "comment": "/**\n     * Destroys the WebSocket\n     * @returns {Boolean}\n     */",
         "meta": {
           "range": [
-            2435,
-            2558
+            2611,
+            2738
           ],
           "filename": "LavaLink.js",
-          "lineno": 99,
+          "lineno": 104,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000258",
+            "id": "astnode100000268",
             "name": "LavaLink#destroy",
             "type": "MethodDefinition",
             "paramnames": []
@@ -378,11 +410,11 @@
         "$longname": "LavaLink#userId"
       },
       {
-        "comment": "/**\n         * The WebSocket\n         * @type {WebSocket}\n         */",
+        "comment": "/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */",
         "meta": {
           "range": [
-            1453,
-            1467
+            1454,
+            1468
           ],
           "filename": "LavaLink.js",
           "lineno": 61,
@@ -402,6 +434,7 @@
             "WebSocket"
           ]
         },
+        "nullable": true,
         "name": "ws",
         "longname": "LavaLink#ws",
         "kind": "member",
@@ -415,7 +448,7 @@
       "meta": {
         "range": [
           319,
-          1499
+          1675
         ],
         "filename": "LavaLink.js",
         "lineno": 15,
@@ -523,7 +556,7 @@
       "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000395",
+        "id": "astnode100000456",
         "name": "PlayerManager",
         "type": "ClassDeclaration",
         "paramnames": [
@@ -554,7 +587,7 @@
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
-          "id": "astnode100000399",
+          "id": "astnode100000460",
           "name": "PlayerManager",
           "type": "MethodDefinition",
           "paramnames": [
@@ -587,7 +620,7 @@
       "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
       "code": {
-        "id": "astnode100000441",
+        "id": "astnode100000502",
         "name": "PlayerManagerStore",
         "type": "MethodDefinition",
         "paramnames": [
