@@ -579,15 +579,15 @@
     "comment": "/**\n * Player Manager class\n * @extends {PlayerManagerStore}\n */",
     "meta": {
       "range": [
-        265,
-        6663
+        251,
+        6618
       ],
       "filename": "PlayerManager.js",
       "lineno": 10,
       "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000800",
+        "id": "astnode100000798",
         "name": "PlayerManager",
         "type": "ClassDeclaration",
         "paramnames": [
@@ -611,15 +611,15 @@
       "comment": "",
       "meta": {
         "range": [
-          319,
-          1007
+          305,
+          1156
         ],
         "filename": "PlayerManager.js",
         "lineno": 12,
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
-          "id": "astnode100000804",
+          "id": "astnode100000802",
           "name": "PlayerManager",
           "type": "MethodDefinition",
           "paramnames": [
@@ -653,7 +653,7 @@
       "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
       "code": {
-        "id": "astnode100001788",
+        "id": "astnode100001784",
         "name": "PlayerManagerStore",
         "type": "MethodDefinition",
         "paramnames": [
