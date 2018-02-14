@@ -28,6 +28,12 @@ class PlayerManager extends PlayerManagerStore {
 
         client.on("raw", message => {
             if (message.t === "VOICE_SERVER_UPDATE") this.voiceStateUpdate(message.d);
+            if (message.t === "VOICE_STATE_UPDATE") {
+                const player = this.get(message.d.guild_id);
+                if (player && player.channel.id !== message.d.channel_id) {
+                    player.switchChannel(message.d.channel_id);
+                }
+            }
         });
     }
 
@@ -98,14 +104,14 @@ class PlayerManager extends PlayerManagerStore {
 
         if (region) {
             const regionalNodes = nodes.filter(node => node.region === region);
-            if (regionalNodes && regionalNodes.length) nodes = regionalNodes;
+            if (regionalNodes && regionalNodes.size) nodes = regionalNodes;
         }
 
-        nodes = nodes.sort((a, b) => {
-            const aload = a.stats.cpu ? (a.stats.cpu.systemLoad / a.stats.cpu.cores) * 100 : 0;
-            const bload = b.stats.cpu ? (b.stats.cpu.systemLoad / b.stats.cpu.cores) * 100 : 0;
-            return aload - bload;
-        });
+        // nodes = nodes.sort((a, b) => {
+        //     const aload = a.stats.cpu ? (a.stats.cpu.systemLoad / a.stats.cpu.cores) * 100 : 0;
+        //     const bload = b.stats.cpu ? (b.stats.cpu.systemLoad / b.stats.cpu.cores) * 100 : 0;
+        //     return aload - bload;
+        // });
         return nodes[0];
     }
 
@@ -114,14 +120,15 @@ class PlayerManager extends PlayerManagerStore {
         endpoint = endpoint.replace("vip-", "");
 
         for (const key in this.regions) {
-            const nodes = this.nodes.filter(n => n.connected && n.region === key);
+            const nodes = this.nodes.filter(n => n.region === key);
             if (!nodes || !nodes.size) continue;
+            if (!nodes.find(n => n.connected)) continue;
             for (const region of this.regions[key]) {
-                if (endpoint === region) return key;
+                if (endpoint.startsWith(region)) return key;
             }
         }
 
-        return this.defaultRegion || "us";
+        return this.options.defaultRegions || "us";
     }
 
     async voiceServerUpdate(data) {
@@ -151,18 +158,18 @@ class PlayerManager extends PlayerManagerStore {
                 node: pendingGuild.node,
                 channel: pendingGuild.channel
             });
-
-            player.connect({
-                sessionId: this.client.ws.connection.sessionID,
-                guildId: data.guild_id,
-                channelId: pendingGuild.channel.id,
-                event: {
-                    endpoint: data.endpoint,
-                    guild_id: data.guild_id,
-                    token: data.token
-                }
-            });
         }
+
+        player.connect({
+            sessionId: this.client.ws.connection.sessionID,
+            guildId: data.guild_id,
+            channelId: pendingGuild.channel.id,
+            event: {
+                endpoint: data.endpoint,
+                guild_id: data.guild_id,
+                token: data.token
+            }
+        });
 
         const disconnectHandler = () => {
             player = this.get(data.guild_id);
