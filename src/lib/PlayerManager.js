@@ -27,7 +27,7 @@ class PlayerManager extends PlayerManagerStore {
         for (let i = 0; i < nodes.length; i++) this.createNode(Object.assign({}, nodes[i], options));
 
         client.on("raw", message => {
-            if (message.t === "VOICE_SERVER_UPDATE") this.voiceStateUpdate(message.d);
+            if (message.t === "VOICE_SERVER_UPDATE") this.voiceServerUpdate(message.d);
             if (message.t === "VOICE_STATE_UPDATE") {
                 const player = this.get(message.d.guild_id);
                 if (player && player.channel.id !== message.d.channel_id) {
