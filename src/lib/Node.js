@@ -6,7 +6,7 @@ const { parse, stringify } = require("./util/util");
  * Lavalink Websocket
  * @extends {EventEmitter}
  */
-class LavaLink extends EventEmitter {
+class Node extends EventEmitter {
 
     /**
      * LavaLink options
@@ -64,7 +64,10 @@ class LavaLink extends EventEmitter {
          * @type {Number}
          */
         this.autoReconnectInterval = options.reconnectInterval || 5000;
-
+        this.stats = {
+            players: 0,
+            playingPlayers: 0
+        };
         this.connect();
     }
     /**
@@ -128,13 +131,13 @@ class LavaLink extends EventEmitter {
     }
 
     async _onMessage(msg) {
-        const data = await parse(msg)
+        const data = await parse(msg.data)
             .catch(error => {
                 this.emit("error", error);
                 return null;
             });
         if (!data) return;
-
+        if (data.op === "stats") this.stats = data;
         this.emit("message", data);
     }
 
@@ -146,4 +149,4 @@ class LavaLink extends EventEmitter {
 
 }
 
-module.exports = LavaLink;
+module.exports = Node;

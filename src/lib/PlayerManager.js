@@ -1,7 +1,7 @@
 const PlayerManagerStore = require("./structures/PlayerManagerStore");
 const Player = require("./Player");
-const LavaLink = require("./LavaLink");
-const { Collection } = require("discord.js");
+const Node = require("./Node");
+const { Collection, VoiceChannel } = require("discord.js");
 
 /**
  * Player Manager class
@@ -14,12 +14,25 @@ class PlayerManager extends PlayerManagerStore {
 
         this.client = client;
         this.nodes = new Collection();
+        this.pending = {};
+
+        this.defaultRegions = {
+            asia: ["hongkong", "singapore", "sydney"],
+            eu: ["eu", "amsterdam", "frankfurt", "russia"],
+            us: ["us", "brazil"]
+        };
+
+        this.regions = options.regions || this.defaultRegions;
 
         for (let i = 0; i < nodes.length; i++) this.createNode(Object.assign({}, nodes[i], options));
+
+        client.on("raw", message => {
+            if (message.t === "VOICE_SERVER_UPDATE") this.voiceStateUpdate(message.d);
+        });
     }
 
     createNode(options) {
-        const node = new LavaLink({
+        const node = new Node({
             host: options.host,
             port: options.port,
             region: options.region,
@@ -47,13 +60,135 @@ class PlayerManager extends PlayerManagerStore {
             case "playerUpdate": {
                 const player = this.get(message.guildId);
                 if (!player) return;
-                /**
-                 * @todo when player class is done set player state
-                 */
+                player.state = message.state;
                 return;
             }
-            case "stats": return console.log(message.data);
         }
+    }
+
+    join(channel, options = {}) {
+        return new Promise(async (res, rej) => {
+            if (!(channel instanceof VoiceChannel)) rej(new TypeError("INVALID_CHANNEL", "Channel must be a instanceof VoiceChannel"));
+            const player = options.player || this.get(channel.guild.id);
+            if (player && player.channel.id !== channel.id) {
+                player.switchChannel(channel);
+                return res(player);
+            }
+            const region = this.getRegionFromData(channel.guild.region || options.region || "us");
+            const node = this.findIdealNode(region);
+            if (!node) rej(new Error("No available voice nodes."));
+
+            this.pending[channel.guild.id] = {
+                channel: channel,
+                options,
+                player: player || null,
+                node: node,
+                res: res,
+                rej: rej,
+                timeout: setTimeout(() => {
+                    delete this.pending[channel.guild.id];
+                    rej(new Error("Voice connection timeout"));
+                }, 15000)
+            };
+            await channel.join();
+        });
+    }
+
+    findIdealNode(region) {
+        let nodes = this.nodes.filter(node => node.ws && node.connected);
+
+        if (region) {
+            const regionalNodes = nodes.filter(node => node.region === region);
+            if (regionalNodes && regionalNodes.length) nodes = regionalNodes;
+        }
+
+        nodes = nodes.sort((a, b) => {
+            const aload = a.stats.cpu ? (a.stats.cpu.systemLoad / a.stats.cpu.cores) * 100 : 0;
+            const bload = b.stats.cpu ? (b.stats.cpu.systemLoad / b.stats.cpu.cores) * 100 : 0;
+            return aload - bload;
+        });
+        return nodes[0];
+    }
+
+    getRegionFromData(endpoint) {
+        if (!endpoint) return "us";
+        endpoint = endpoint.replace("vip-", "");
+
+        for (const key in this.regions) {
+            const nodes = this.nodes.filter(n => n.region === key);
+            if (!nodes || !nodes.size) continue;
+            if (!nodes.find(n => n.connected)) continue;
+            for (const region of this.regions[key]) {
+                if (endpoint.startsWith(region)) return key;
+            }
+        }
+
+        return this.options.defaultRegion || "us";
+    }
+
+    async voiceServerUpdate(data) {
+        const pendingGuild = this.pending[data.guild_id];
+        if (pendingGuild && pendingGuild.timeout) {
+            clearTimeout(pendingGuild.timeout);
+            pendingGuild.timeout = null;
+        }
+
+        let player = this.get(data.guild_id);
+        if (!player) {
+            if (!pendingGuild) return;
+            const pendingPlayer = pendingGuild.player;
+
+            if (player) {
+                pendingPlayer.sessionId = this.client.ws.connection.sessionID;
+                pendingPlayer.hostname = pendingGuild.hostname;
+                pendingPlayer.node = pendingGuild.node;
+                pendingPlayer.event = data;
+                this.add(player);
+            }
+
+            player = player || this.add({
+                id: data.guild_id,
+                client: this.client,
+                manager: this,
+                node: pendingGuild.node,
+                channel: pendingGuild.channel
+            });
+
+            player.connect({
+                sessionId: this.client.ws.connection.sessionID,
+                guildId: data.guild_id,
+                channelId: pendingGuild.channel.id,
+                event: {
+                    endpoint: data.endpoint,
+                    guild_id: data.guild_id,
+                    token: data.token
+                }
+            });
+        }
+
+        const disconnectHandler = () => {
+            player = this.get(data.guild_id);
+            if (!this.pending[data.guild_id]) {
+                if (player) return player.removeListener("ready", readyHandler);
+                return;
+            }
+            player.removeListener("ready", readyHandler);
+            this.pending[data.guild_id].rej(new Error("Disconnected"));
+            delete this.pending[data.guild_id];
+        };
+
+        const readyHandler = () => {
+            player = this.get(data.guild_id);
+            if (!this.pending[data.guild_id]) {
+                if (player) return player.removeListener("disconnect", disconnectHandler);
+                return;
+            }
+            player.removeListener("disconnect", disconnectHandler);
+            this.pending[data.guild_id].res(player);
+            delete this.pending[data.guild_id];
+        };
+
+        player.on("ready", readyHandler).on("disconnect", disconnectHandler);
     }
 
 }

@@ -1,4 +1,5 @@
 const { Collection } = require("discord.js");
+const { isClass } = require("../util/util");
 /**
  * Player Manager Store
  * @extends {Collection}
@@ -12,14 +13,11 @@ class PlayerManagerStore extends Collection {
         this.Player = Player;
     }
 
-    add(obj, replace = false) {
-        if (!(obj instanceof this.Player)) return;
+    add(obj) {
         if (!obj.id) throw new Error("Missing object id");
-        const existing = this.get(obj.id);
-        if (existing && !replace) return existing;
-
-        this.set(obj.id, obj);
-        return obj;
+        const entry = isClass(obj) ? obj : new this.Player(obj);
+        this.set(entry.id, entry);
+        return entry;
     }
 
 }
