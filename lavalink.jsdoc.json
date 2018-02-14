@@ -580,7 +580,7 @@
     "meta": {
       "range": [
         251,
-        6618
+        6938
       ],
       "filename": "PlayerManager.js",
       "lineno": 10,
@@ -612,7 +612,7 @@
       "meta": {
         "range": [
           305,
-          1156
+          1444
         ],
         "filename": "PlayerManager.js",
         "lineno": 12,
@@ -653,7 +653,7 @@
       "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
       "code": {
-        "id": "astnode100001784",
+        "id": "astnode100001771",
         "name": "PlayerManagerStore",
         "type": "MethodDefinition",
         "paramnames": [
