@@ -16,7 +16,8 @@ class MusicClient extends Client {
     _ready() {
         this.player = new PlayerManager(this, config.nodes, {
             userId: this.user.id,
-            shardCount: 1
+            shardCount: 1,
+            region: "us"
         });
     }
 

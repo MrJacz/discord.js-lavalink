@@ -1,7 +1,7 @@
 const PlayerManagerStore = require("./structures/PlayerManagerStore");
 const Player = require("./Player");
 const Node = require("./Node");
-const { Collection, VoiceChannel } = require("discord.js");
+const { Collection } = require("discord.js");
 
 /**
  * Player Manager class
@@ -15,13 +15,13 @@ class PlayerManager extends PlayerManagerStore {
         this.client = client;
         this.nodes = new Collection();
         this.pending = {};
-
+        this.options = options;
+        this.defaultRegion = options.region || "us";
         this.defaultRegions = {
-            asia: ["hongkong", "singapore", "sydney"],
-            eu: ["eu", "amsterdam", "frankfurt", "russia"],
-            us: ["us", "brazil"]
+            asia: ["sydney", "singapore", "japan", "hongkong"],
+            eu: ["london", "frankfurt", "amsterdam", "russia", "eu-central", "eu-west"],
+            us: ["us-central", "us-west", "us-east", "us-south", "brazil"]
         };
-
         this.regions = options.regions || this.defaultRegions;
 
         for (let i = 0; i < nodes.length; i++) this.createNode(Object.assign({}, nodes[i], options));
@@ -68,7 +68,6 @@ class PlayerManager extends PlayerManagerStore {
 
     join(channel, options = {}) {
         return new Promise(async (res, rej) => {
-            if (!(channel instanceof VoiceChannel)) rej(new TypeError("INVALID_CHANNEL", "Channel must be a instanceof VoiceChannel"));
             const player = options.player || this.get(channel.guild.id);
             if (player && player.channel.id !== channel.id) {
                 player.switchChannel(channel);
@@ -115,15 +114,14 @@ class PlayerManager extends PlayerManagerStore {
         endpoint = endpoint.replace("vip-", "");
 
         for (const key in this.regions) {
-            const nodes = this.nodes.filter(n => n.region === key);
+            const nodes = this.nodes.filter(n => n.connected && n.region === key);
             if (!nodes || !nodes.size) continue;
-            if (!nodes.find(n => n.connected)) continue;
             for (const region of this.regions[key]) {
-                if (endpoint.startsWith(region)) return key;
+                if (endpoint === region) return key;
             }
         }
 
-        return this.options.defaultRegion || "us";
+        return this.defaultRegion || "us";
     }
 
     async voiceServerUpdate(data) {
