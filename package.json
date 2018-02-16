@@ -1,6 +1,6 @@
 {
   "name": "discord.js-lavalink",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A discord.js lavalink client",
   "main": "src/index.js",
   "scripts": {

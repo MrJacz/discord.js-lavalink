@@ -13,11 +13,15 @@
 # discord.js-lavalink
 A Discord.js lavalink client
 
+## Documentation
+[**mrjacz.github.io/discord.js-lavalink**](https://mrjacz.github.io/discord.js-lavalink/)
+
 ## Installation
+
 **For stable**
-```npm discord.js-lavalink```
+```npm install discord.js-lavalink```
 **For Development**
-```npm mrjacz/discord.js-lavalink```
+```npm install mrjacz/discord.js-lavalink```
 
 ## The issue tracker is for issues only
 If you're having a problem with the module contact us in the [**Discord Server**](https://discord.gg/QJnGhnn)
