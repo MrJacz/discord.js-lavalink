@@ -549,7 +549,7 @@
     "meta": {
       "range": [
         86,
-        462
+        493
       ],
       "filename": "Player.js",
       "lineno": 5,
@@ -580,14 +580,14 @@
     "meta": {
       "range": [
         251,
-        6938
+        4099
       ],
       "filename": "PlayerManager.js",
       "lineno": 10,
       "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000798",
+        "id": "astnode100000877",
         "name": "PlayerManager",
         "type": "ClassDeclaration",
         "paramnames": [
@@ -612,14 +612,14 @@
       "meta": {
         "range": [
           305,
-          1444
+          1243
         ],
         "filename": "PlayerManager.js",
         "lineno": 12,
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
-          "id": "astnode100000802",
+          "id": "astnode100000881",
           "name": "PlayerManager",
           "type": "MethodDefinition",
           "paramnames": [
@@ -653,7 +653,7 @@
       "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
       "code": {
-        "id": "astnode100001771",
+        "id": "astnode100001493",
         "name": "PlayerManagerStore",
         "type": "MethodDefinition",
         "paramnames": [
