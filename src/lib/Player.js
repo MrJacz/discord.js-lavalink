@@ -15,18 +15,16 @@ class Player extends EventEmitter {
         this.playing = false;
         this.state = {};
         this.track = null;
+        this.timestamp = null;
     }
 
     connect(data) {
-        this.emit("connect");
         this.node.send({
             op: "voiceUpdate",
-            guildId: data.guildId,
-            sessionId: data.sessionId,
+            guildId: this.id,
+            sessionId: data.session,
             event: data.event
         });
-
-        process.nextTick(() => this.emit("ready"));
     }
 
     disconnect(msg) {
@@ -35,33 +33,69 @@ class Player extends EventEmitter {
         this.emit("disconnect", msg);
     }
 
+    play(track, options) {
+        this.track = track;
+        const payload = Object.assign({
+            op: "play",
+            guildId: this.id,
+            track
+        }, options);
+        this.node.send(payload);
+        this.playing = true;
+        this.timestamp = Date.now();
+    }
+
     stop() {
         this.node.send({
             op: "stop",
             guildId: this.id
         });
         this.playing = false;
-        this.lastTrack = this.track;
         this.track = null;
     }
 
-    switchChannel(channel) {
-        if (typeof channel === "string") channel = this.client.channels.find(c => c.id === channel && c.type === "voice");
-        if (!channel) return;
-        if (this.channel.id === channel.id) return;
-        this.channel = channel;
-        this.updateVoiceState(channel.id);
+    pause(pause) {
+        if ((pause && this.paused) || (!pause && !this.paused)) return;
+        this.node.send({
+            op: "pause",
+            guildId: this.id,
+            pause
+        });
+        this.paused = Boolean(pause);
     }
 
-    updateVoiceState(channelId, selfMute, selfDeaf) {
-        this.client.ws.send({
-            op: 4, d: {
-                guild_id: this.id,
-                channel_id: channelId || null,
-                self_mute: Boolean(selfMute),
-                self_deaf: Boolean(selfDeaf)
-            }
+    volume(volume) {
+        this.node.send({
+            op: "volume",
+            guildId: this.id,
+            volume
         });
+    }
+
+    seek(position) {
+        this.node.send({
+            op: "seek",
+            guildId: this.id,
+            position
+        });
+    }
+
+    end(message) {
+        if (message.reason !== "REPLACED") {
+            this.playing = false;
+            this.track = null;
+        }
+
+        this.emit("end", message);
+    }
+
+    exception(message) {
+        this.emit("error", message);
+    }
+
+    stuck(message) {
+        this.stop();
+        this.emit("end", message);
     }
 
 }

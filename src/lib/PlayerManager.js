@@ -14,7 +14,10 @@ class PlayerManager extends PlayerManagerStore {
 
         this.client = client;
         this.nodes = new Collection();
-        this.pending = {};
+        this.pending = {
+            guilds: new Collection(),
+            sessions: new Collection()
+        };
         this.options = options;
         this.defaultRegion = options.region || "us";
         this.defaultRegions = {
@@ -28,12 +31,6 @@ class PlayerManager extends PlayerManagerStore {
 
         client.on("raw", message => {
             if (message.t === "VOICE_SERVER_UPDATE") this.voiceServerUpdate(message.d);
-            if (message.t === "VOICE_STATE_UPDATE") {
-                const player = this.get(message.d.guild_id);
-                if (player && player.channel.id !== message.d.channel_id) {
-                    player.switchChannel(message.d.channel_id);
-                }
-            }
         });
     }
 
@@ -69,131 +66,62 @@ class PlayerManager extends PlayerManagerStore {
                 player.state = message.state;
                 return;
             }
-        }
-    }
+            case "event": {
+                const player = this.players.get(message.guildId);
+                if (!player) return;
 
-    join(channel, options = {}) {
-        return new Promise(async (res, rej) => {
-            const player = options.player || this.get(channel.guild.id);
-            if (player && player.channel.id !== channel.id) {
-                player.switchChannel(channel);
-                return res(player);
-            }
-            const region = this.getRegionFromData(channel.guild.region || options.region || "us");
-            const node = this.findIdealNode(region);
-            if (!node) rej(new Error("No available voice nodes."));
-
-            this.pending[channel.guild.id] = {
-                channel: channel,
-                options,
-                player: player || null,
-                node: node,
-                res: res,
-                rej: rej,
-                timeout: setTimeout(() => {
-                    delete this.pending[channel.guild.id];
-                    rej(new Error("Voice connection timeout"));
-                }, 15000)
-            };
-            await channel.join();
-        });
-    }
-
-    findIdealNode(region) {
-        let nodes = this.nodes.filter(node => node.ws && node.connected);
-
-        if (region) {
-            const regionalNodes = nodes.filter(node => node.region === region);
-            if (regionalNodes && regionalNodes.size) nodes = regionalNodes;
-        }
-
-        // nodes = nodes.sort((a, b) => {
-        //     const aload = a.stats.cpu ? (a.stats.cpu.systemLoad / a.stats.cpu.cores) * 100 : 0;
-        //     const bload = b.stats.cpu ? (b.stats.cpu.systemLoad / b.stats.cpu.cores) * 100 : 0;
-        //     return aload - bload;
-        // });
-        return nodes[0];
-    }
-
-    getRegionFromData(endpoint) {
-        if (!endpoint) return "us";
-        endpoint = endpoint.replace("vip-", "");
-
-        for (const key in this.regions) {
-            const nodes = this.nodes.filter(n => n.region === key);
-            if (!nodes || !nodes.size) continue;
-            if (!nodes.find(n => n.connected)) continue;
-            for (const region of this.regions[key]) {
-                if (endpoint.startsWith(region)) return key;
+                switch (message.type) {
+                    case "TrackEndEvent": return player.end(message);
+                    case "TrackExceptionEvent": return player.exception(message);
+                    case "TrackStuckEvent": return player.stuck(message);
+                    default: return player.emit("warn", `Unexpected event type: ${message.type}`);
+                }
             }
         }
-
-        return this.options.defaultRegions || "us";
     }
 
-    async voiceServerUpdate(data) {
-        const pendingGuild = this.pending[data.guild_id];
-        if (pendingGuild && pendingGuild.timeout) {
-            clearTimeout(pendingGuild.timeout);
-            pendingGuild.timeout = null;
-        }
-
-        let player = this.get(data.guild_id);
-        if (!player) {
-            if (!pendingGuild) return;
-            const pendingPlayer = pendingGuild.player;
-
-            if (player) {
-                pendingPlayer.sessionId = this.client.ws.connection.sessionID;
-                pendingPlayer.hostname = pendingGuild.hostname;
-                pendingPlayer.node = pendingGuild.node;
-                pendingPlayer.event = data;
-                this.add(player);
-            }
-
-            player = player || this.add({
-                id: data.guild_id,
-                client: this.client,
-                manager: this,
-                node: pendingGuild.node,
-                channel: pendingGuild.channel
+    join(data) {
+        const player = this.get(data.d.guild_id);
+        if (player) return player;
+        if (!this.client.connections && this.client.ws) {
+            this.client.ws.send(data);
+            return this.spawnPlayer({
+                host: data.host,
+                guild: data.d.guild_id,
+                channel: data.d.channel_id
             });
         }
+        if (this.client.connections && !this.client.ws) {
+            this.client.connections.get(data.shard).send(data.op, data.d);
+            return this.spawnPlayer({
+                host: data.host,
+                guild: data.d.guild_id,
+                channel: data.d.channel_id
+            });
+        }
+    }
 
+
+    voiceServerUpdate(data) {
+        const player = this.get(data.guild_id);
+        const guild = this.client.guilds.get(data.guild_id);
+        if (!player) return;
         player.connect({
-            sessionId: this.client.ws.connection.sessionID,
-            guildId: data.guild_id,
-            channelId: pendingGuild.channel.id,
-            event: {
-                endpoint: data.endpoint,
-                guild_id: data.guild_id,
-                token: data.token
-            }
+            session: guild.me.voiceSessionID,
+            event: data
         });
+    }
 
-        const disconnectHandler = () => {
-            player = this.get(data.guild_id);
-            if (!this.pending[data.guild_id]) {
-                if (player) return player.removeListener("ready", readyHandler);
-                return;
-            }
-            player.removeListener("ready", readyHandler);
-            this.pending[data.guild_id].rej(new Error("Disconnected"));
-            delete this.pending[data.guild_id];
-        };
-
-        const readyHandler = () => {
-            player = this.get(data.guild_id);
-            if (!this.pending[data.guild_id]) {
-                if (player) return player.removeListener("disconnect", disconnectHandler);
-                return;
-            }
-            player.removeListener("disconnect", disconnectHandler);
-            this.pending[data.guild_id].res(player);
-            delete this.pending[data.guild_id];
-        };
-
-        player.on("ready", readyHandler).on("disconnect", disconnectHandler);
+    spawnPlayer(data) {
+        const player = this.get(data.guild);
+        if (player) return player;
+        return this.add({
+            id: data.guild,
+            client: this.client,
+            manager: this,
+            node: this.nodes.get(data.host),
+            channel: data.channel
+        });
     }
 
 }
