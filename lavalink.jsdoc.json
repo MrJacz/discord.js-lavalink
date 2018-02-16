@@ -4,7 +4,7 @@
     "meta": {
       "range": [
         188,
-        3715
+        4534
       ],
       "filename": "Node.js",
       "lineno": 9,
@@ -77,8 +77,8 @@
         "comment": "/**\n         * The interval to use for auto Reconnecting\n         * @type {Number}\n         */",
         "meta": {
           "range": [
-            1596,
-            1658
+            1582,
+            1644
           ],
           "filename": "Node.js",
           "lineno": 66,
@@ -109,11 +109,11 @@
         "comment": "/**\n     * Connects to the WebSocket server\n     * @returns {void}\n     */",
         "meta": {
           "range": [
-            1861,
-            2318
+            1922,
+            2372
           ],
           "filename": "Node.js",
-          "lineno": 77,
+          "lineno": 82,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -148,8 +148,8 @@
         "comment": "/**\n         * If the lavalink websocket is connected or not\n         * @type {Boolean}\n         */",
         "meta": {
           "range": [
-            1358,
-            1380
+            1344,
+            1366
           ],
           "filename": "Node.js",
           "lineno": 56,
@@ -180,11 +180,11 @@
         "comment": "/**\n     * Destroys the WebSocket\n     * @returns {Boolean}\n     */",
         "meta": {
           "range": [
-            2713,
-            2840
+            2892,
+            3019
           ],
           "filename": "Node.js",
-          "lineno": 107,
+          "lineno": 118,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -251,8 +251,8 @@
         "comment": "/**\n         * Lavalink Node(Shard) Password\n         * @type {String}\n         */",
         "meta": {
           "range": [
-            1187,
-            1240
+            1173,
+            1226
           ],
           "filename": "Node.js",
           "lineno": 51,
@@ -346,11 +346,63 @@
         "$longname": "Node#region"
       },
       {
+        "comment": "/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {Boolean}\n     */",
+        "meta": {
+          "range": [
+            2502,
+            2814
+          ],
+          "filename": "Node.js",
+          "lineno": 102,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000233",
+            "name": "Node#send",
+            "type": "MethodDefinition",
+            "paramnames": [
+              "data"
+            ]
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Sends data to the Lavalink Node",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "Object"
+              ]
+            },
+            "description": "Object to send",
+            "name": "data"
+          }
+        ],
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "Boolean"
+              ]
+            }
+          }
+        ],
+        "name": "send",
+        "longname": "Node#send",
+        "kind": "function",
+        "memberof": "Node",
+        "scope": "instance",
+        "async": true,
+        "$longname": "Node#send"
+      },
+      {
         "comment": "/**\n         * Lavalink node(Shard) count\n         * @type {Number}\n         */",
         "meta": {
           "range": [
-            1050,
-            1086
+            1046,
+            1072
           ],
           "filename": "Node.js",
           "lineno": 46,
@@ -358,9 +410,9 @@
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
             "id": "astnode100000094",
-            "name": "this.shardCount",
+            "name": "this.shard",
             "type": "MemberExpression",
-            "value": "options.shardCount",
+            "value": "options.shard",
             "paramnames": []
           }
         },
@@ -370,19 +422,51 @@
             "Number"
           ]
         },
-        "name": "shardCount",
-        "longname": "Node#shardCount",
+        "name": "shard",
+        "longname": "Node#shard",
         "kind": "member",
         "memberof": "Node",
         "scope": "instance",
-        "$longname": "Node#shardCount"
+        "$longname": "Node#shard"
+      },
+      {
+        "comment": "/**\n         * Player stats\n         * @type {Object}\n         */",
+        "meta": {
+          "range": [
+            1728,
+            1806
+          ],
+          "filename": "Node.js",
+          "lineno": 71,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000134",
+            "name": "this.stats",
+            "type": "ObjectExpression",
+            "value": "{\"players\":0,\"playingPlayers\":0}",
+            "paramnames": []
+          }
+        },
+        "description": "Player stats",
+        "type": {
+          "names": [
+            "Object"
+          ]
+        },
+        "name": "stats",
+        "longname": "Node#stats",
+        "kind": "member",
+        "memberof": "Node",
+        "scope": "instance",
+        "$longname": "Node#stats"
       },
       {
         "comment": "/**\n         * User ID from Discord\n         * @type {String}\n         */",
         "meta": {
           "range": [
             924,
-            952
+            948
           ],
           "filename": "Node.js",
           "lineno": 41,
@@ -390,9 +474,9 @@
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
             "id": "astnode100000086",
-            "name": "this.userId",
+            "name": "this.user",
             "type": "MemberExpression",
-            "value": "options.userId",
+            "value": "options.user",
             "paramnames": []
           }
         },
@@ -402,19 +486,19 @@
             "String"
           ]
         },
-        "name": "userId",
-        "longname": "Node#userId",
+        "name": "user",
+        "longname": "Node#user",
         "kind": "member",
         "memberof": "Node",
         "scope": "instance",
-        "$longname": "Node#userId"
+        "$longname": "Node#user"
       },
       {
         "comment": "/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */",
         "meta": {
           "range": [
-            1469,
-            1483
+            1455,
+            1469
           ],
           "filename": "Node.js",
           "lineno": 61,
@@ -448,7 +532,7 @@
       "meta": {
         "range": [
           315,
-          1777
+          1838
         ],
         "filename": "Node.js",
         "lineno": 15,
@@ -545,49 +629,102 @@
     "$longname": "package:discord.js-lavalink"
   },
   {
-    "comment": "",
+    "comment": "/**\n * LavaLink Player\n * @extends {EventEmitter}\n */",
     "meta": {
       "range": [
-        86,
-        493
+        99,
+        2716
       ],
       "filename": "Player.js",
-      "lineno": 5,
-      "columnno": 4,
+      "lineno": 7,
+      "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000479",
+        "id": "astnode100000475",
         "name": "Player",
-        "type": "MethodDefinition",
+        "type": "ClassDeclaration",
         "paramnames": [
           "options"
         ]
-      },
-      "vars": {
-        "": null
       }
     },
-    "undocumented": true,
+    "classdesc": "LavaLink Player",
+    "augments": [
+      "EventEmitter"
+    ],
     "name": "Player",
     "longname": "Player",
     "kind": "class",
     "scope": "global",
-    "params": [],
-    "$longname": "Player"
+    "description": "LavaLink Player Options",
+    "params": [
+      {
+        "type": {
+          "names": [
+            "Object"
+          ]
+        },
+        "description": "Player Options",
+        "name": "options"
+      }
+    ],
+    "$longname": "Player",
+    "$constructor": {
+      "comment": "/**\n     * LavaLink Player Options\n     * @param {Object} options Player Options\n     */",
+      "meta": {
+        "range": [
+          233,
+          611
+        ],
+        "filename": "Player.js",
+        "lineno": 13,
+        "columnno": 4,
+        "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+        "code": {
+          "id": "astnode100000479",
+          "name": "Player",
+          "type": "MethodDefinition",
+          "paramnames": [
+            "options"
+          ]
+        },
+        "vars": {
+          "": null
+        }
+      },
+      "description": "LavaLink Player Options",
+      "params": [
+        {
+          "type": {
+            "names": [
+              "Object"
+            ]
+          },
+          "description": "Player Options",
+          "name": "options"
+        }
+      ],
+      "name": "Player",
+      "longname": "Player",
+      "kind": "class",
+      "scope": "global",
+      "undocumented": true,
+      "$longname": "Player"
+    }
   },
   {
     "comment": "/**\n * Player Manager class\n * @extends {PlayerManagerStore}\n */",
     "meta": {
       "range": [
         251,
-        4099
+        5353
       ],
       "filename": "PlayerManager.js",
       "lineno": 10,
       "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000877",
+        "id": "astnode100000917",
         "name": "PlayerManager",
         "type": "ClassDeclaration",
         "paramnames": [
@@ -605,21 +742,496 @@
     "longname": "PlayerManager",
     "kind": "class",
     "scope": "global",
-    "params": [],
+    "params": [
+      {
+        "type": {
+          "names": [
+            "Client"
+          ]
+        },
+        "description": "Discord.js Client",
+        "name": "client"
+      },
+      {
+        "type": {
+          "names": [
+            "Array.<Object>"
+          ]
+        },
+        "description": "Array of Lavalink Nodes",
+        "name": "nodes"
+      },
+      {
+        "type": {
+          "names": [
+            "Object"
+          ]
+        },
+        "description": "PlayerManager Options",
+        "name": "options"
+      }
+    ],
     "$longname": "PlayerManager",
+    "$members": [
+      {
+        "comment": "/**\n     * Sets player into collection from object or class\n     * @param {any} obj obj or class\n     * @returns {Player}\n     */",
+        "meta": {
+          "range": [
+            615,
+            812
+          ],
+          "filename": "PlayerManagerStore.js",
+          "lineno": 28,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
+          "code": {
+            "id": "astnode100001476",
+            "name": "PlayerManagerStore#add",
+            "type": "MethodDefinition",
+            "paramnames": [
+              "obj"
+            ]
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Sets player into collection from object or class",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "any"
+              ]
+            },
+            "description": "obj or class",
+            "name": "obj"
+          }
+        ],
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "Player"
+              ]
+            }
+          }
+        ],
+        "name": "add",
+        "longname": "PlayerManager#add",
+        "kind": "function",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "inherits": "PlayerManagerStore#add",
+        "inherited": true,
+        "$longname": "PlayerManager#add"
+      },
+      {
+        "comment": "/**\n         * Discord.js Client for the Player Manager\n         * @type {Client}\n         */",
+        "meta": {
+          "range": [
+            684,
+            704
+          ],
+          "filename": "PlayerManager.js",
+          "lineno": 25,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000941",
+            "name": "this.client",
+            "type": "Identifier",
+            "value": "client",
+            "paramnames": []
+          }
+        },
+        "description": "Discord.js Client for the Player Manager",
+        "type": {
+          "names": [
+            "Client"
+          ]
+        },
+        "name": "client",
+        "longname": "PlayerManager#client",
+        "kind": "member",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "$longname": "PlayerManager#client"
+      },
+      {
+        "comment": "/**\n     * A function to create LavaLink nodes and set them to PlayerManager#nodes\n     * @param {Object} options Node options\n     * @returns {void}\n     */",
+        "meta": {
+          "range": [
+            1383,
+            2000
+          ],
+          "filename": "PlayerManager.js",
+          "lineno": 49,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100001008",
+            "name": "PlayerManager#createNode",
+            "type": "MethodDefinition",
+            "paramnames": [
+              "options"
+            ]
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "A function to create LavaLink nodes and set them to PlayerManager#nodes",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "Object"
+              ]
+            },
+            "description": "Node options",
+            "name": "options"
+          }
+        ],
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "void"
+              ]
+            }
+          }
+        ],
+        "name": "createNode",
+        "longname": "PlayerManager#createNode",
+        "kind": "function",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "$longname": "PlayerManager#createNode"
+      },
+      {
+        "comment": "/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object used to join the voice channel with\n     * @returns {Promise<Player>}\n     * @example\n     * LavaLink.PlayerManager.join({\n     *  op: 4,\n     *  d: {\n     *      guild_id: guild.id,\n     *      channel_id: channel.id,\n     *      self_mute: false,\n     *      self_deaf: false\n     *  },\n     *  host: \"localhost\"\n     * });\n     */",
+        "meta": {
+          "range": [
+            3388,
+            3774
+          ],
+          "filename": "PlayerManager.js",
+          "lineno": 121,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100001207",
+            "name": "PlayerManager#join",
+            "type": "MethodDefinition",
+            "paramnames": [
+              "data"
+            ]
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Joins the voice channel and spawns a new player",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "Object"
+              ]
+            },
+            "description": "Object used to join the voice channel with",
+            "name": "data"
+          }
+        ],
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "Promise.<Player>"
+              ]
+            }
+          }
+        ],
+        "examples": [
+          "LavaLink.PlayerManager.join({\n op: 4,\n d: {\n     guild_id: guild.id,\n     channel_id: channel.id,\n     self_mute: false,\n     self_deaf: false\n },\n host: \"localhost\"\n});"
+        ],
+        "name": "join",
+        "longname": "PlayerManager#join",
+        "kind": "function",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "async": true,
+        "$longname": "PlayerManager#join"
+      },
+      {
+        "comment": "/**\n     * Leaves voice channel and deletes Player\n     * @param {Object} data Data object used to leave the voice channel with\n     * @returns {Boolean}\n     * @example\n     * LavaLink.PlayerManager.leave({\n     *  op: 4,\n     *  d: {\n     *      guild_id: guild.id,\n     *      channel_id: null,\n     *      self_mute: false,\n     *      self_deaf: false\n     *  },\n     *  host: \"localhost\"\n     * });\n     */",
+        "meta": {
+          "range": [
+            4197,
+            4466
+          ],
+          "filename": "PlayerManager.js",
+          "lineno": 150,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100001274",
+            "name": "PlayerManager#leave",
+            "type": "MethodDefinition",
+            "paramnames": [
+              "data"
+            ]
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Leaves voice channel and deletes Player",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "Object"
+              ]
+            },
+            "description": "Data object used to leave the voice channel with",
+            "name": "data"
+          }
+        ],
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "Boolean"
+              ]
+            }
+          }
+        ],
+        "examples": [
+          "LavaLink.PlayerManager.leave({\n op: 4,\n d: {\n     guild_id: guild.id,\n     channel_id: null,\n     self_mute: false,\n     self_deaf: false\n },\n host: \"localhost\"\n});"
+        ],
+        "name": "leave",
+        "longname": "PlayerManager#leave",
+        "kind": "function",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "$longname": "PlayerManager#leave"
+      },
+      {
+        "comment": "/**\n         * Collection of LavaLink Nodes\n         * @type {Collection<String, Node>}\n         */",
+        "meta": {
+          "range": [
+            822,
+            851
+          ],
+          "filename": "PlayerManager.js",
+          "lineno": 30,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000947",
+            "name": "this.nodes",
+            "type": "NewExpression",
+            "value": "",
+            "paramnames": []
+          }
+        },
+        "description": "Collection of LavaLink Nodes",
+        "type": {
+          "names": [
+            "Collection.<String, Node>"
+          ]
+        },
+        "name": "nodes",
+        "longname": "PlayerManager#nodes",
+        "kind": "member",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "$longname": "PlayerManager#nodes"
+      },
+      {
+        "comment": "/**\n         * PlayerManager Options\n         * @type {Object}\n         */",
+        "meta": {
+          "range": [
+            944,
+            966
+          ],
+          "filename": "PlayerManager.js",
+          "lineno": 35,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100000954",
+            "name": "this.options",
+            "type": "Identifier",
+            "value": "options",
+            "paramnames": []
+          }
+        },
+        "description": "PlayerManager Options",
+        "type": {
+          "names": [
+            "Object"
+          ]
+        },
+        "name": "options",
+        "longname": "PlayerManager#options",
+        "kind": "member",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "$longname": "PlayerManager#options"
+      },
+      {
+        "comment": "/**\n         * The player for the store\n         * @type {Player}\n         */",
+        "meta": {
+          "range": [
+            448,
+            468
+          ],
+          "filename": "PlayerManagerStore.js",
+          "lineno": 20,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
+          "code": {
+            "id": "astnode100001471",
+            "name": "this.Player",
+            "type": "Identifier",
+            "value": "Player",
+            "paramnames": []
+          }
+        },
+        "description": "The player for the store",
+        "type": {
+          "names": [
+            "Player"
+          ]
+        },
+        "name": "Player",
+        "longname": "PlayerManager#Player",
+        "kind": "member",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "inherits": "PlayerManagerStore#Player",
+        "inherited": true,
+        "$longname": "PlayerManager#Player"
+      },
+      {
+        "comment": "/**\n     * Removes a node by host\n     * @param {String} host Node host\n     * @returns {Boolean}\n     */",
+        "meta": {
+          "range": [
+            2116,
+            2291
+          ],
+          "filename": "PlayerManager.js",
+          "lineno": 74,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100001107",
+            "name": "PlayerManager#removeNode",
+            "type": "MethodDefinition",
+            "paramnames": [
+              "host"
+            ]
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Removes a node by host",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "String"
+              ]
+            },
+            "description": "Node host",
+            "name": "host"
+          }
+        ],
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "Boolean"
+              ]
+            }
+          }
+        ],
+        "name": "removeNode",
+        "longname": "PlayerManager#removeNode",
+        "kind": "function",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "$longname": "PlayerManager#removeNode"
+      },
+      {
+        "comment": "/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @returns {Player}\n     */",
+        "meta": {
+          "range": [
+            5040,
+            5350
+          ],
+          "filename": "PlayerManager.js",
+          "lineno": 180,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {
+            "id": "astnode100001385",
+            "name": "PlayerManager#spawnPlayer",
+            "type": "MethodDefinition",
+            "paramnames": [
+              "data"
+            ]
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Creates or returns a player",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "Object"
+              ]
+            },
+            "description": "Data for the player",
+            "name": "data"
+          }
+        ],
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "Player"
+              ]
+            }
+          }
+        ],
+        "name": "spawnPlayer",
+        "longname": "PlayerManager#spawnPlayer",
+        "kind": "function",
+        "memberof": "PlayerManager",
+        "scope": "instance",
+        "$longname": "PlayerManager#spawnPlayer"
+      }
+    ],
     "$constructor": {
-      "comment": "",
+      "comment": "/**\n     *\n     * @param {Client} client Discord.js Client\n     * @param {Object[]} nodes Array of Lavalink Nodes\n     * @param {Object} options PlayerManager Options\n     */",
       "meta": {
         "range": [
-          305,
-          1243
+          484,
+          1215
         ],
         "filename": "PlayerManager.js",
-        "lineno": 12,
+        "lineno": 18,
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
-          "id": "astnode100000881",
+          "id": "astnode100000921",
           "name": "PlayerManager",
           "type": "MethodDefinition",
           "paramnames": [
@@ -632,28 +1244,56 @@
           "": null
         }
       },
-      "undocumented": true,
+      "params": [
+        {
+          "type": {
+            "names": [
+              "Client"
+            ]
+          },
+          "description": "Discord.js Client",
+          "name": "client"
+        },
+        {
+          "type": {
+            "names": [
+              "Array.<Object>"
+            ]
+          },
+          "description": "Array of Lavalink Nodes",
+          "name": "nodes"
+        },
+        {
+          "type": {
+            "names": [
+              "Object"
+            ]
+          },
+          "description": "PlayerManager Options",
+          "name": "options"
+        }
+      ],
       "name": "PlayerManager",
       "longname": "PlayerManager",
       "kind": "class",
       "scope": "global",
-      "params": [],
+      "undocumented": true,
       "$longname": "PlayerManager"
     }
   },
   {
-    "comment": "",
+    "comment": "/**\n     * PlayerManagerStore player\n     * @param {Player} Player The Player for the store\n     */",
     "meta": {
       "range": [
-        211,
-        286
+        315,
+        475
       ],
       "filename": "PlayerManagerStore.js",
-      "lineno": 10,
+      "lineno": 14,
       "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
       "code": {
-        "id": "astnode100001493",
+        "id": "astnode100001462",
         "name": "PlayerManagerStore",
         "type": "MethodDefinition",
         "paramnames": [
@@ -664,12 +1304,108 @@
         "": null
       }
     },
-    "undocumented": true,
+    "description": "PlayerManagerStore player",
+    "params": [
+      {
+        "type": {
+          "names": [
+            "Player"
+          ]
+        },
+        "description": "The Player for the store",
+        "name": "Player"
+      }
+    ],
     "name": "PlayerManagerStore",
     "longname": "PlayerManagerStore",
     "kind": "class",
     "scope": "global",
-    "params": [],
-    "$longname": "PlayerManagerStore"
+    "undocumented": true,
+    "$longname": "PlayerManagerStore",
+    "$members": [
+      {
+        "comment": "/**\n     * Sets player into collection from object or class\n     * @param {any} obj obj or class\n     * @returns {Player}\n     */",
+        "meta": {
+          "range": [
+            615,
+            812
+          ],
+          "filename": "PlayerManagerStore.js",
+          "lineno": 28,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
+          "code": {
+            "id": "astnode100001476",
+            "name": "PlayerManagerStore#add",
+            "type": "MethodDefinition",
+            "paramnames": [
+              "obj"
+            ]
+          },
+          "vars": {
+            "": null
+          }
+        },
+        "description": "Sets player into collection from object or class",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "any"
+              ]
+            },
+            "description": "obj or class",
+            "name": "obj"
+          }
+        ],
+        "returns": [
+          {
+            "type": {
+              "names": [
+                "Player"
+              ]
+            }
+          }
+        ],
+        "name": "add",
+        "longname": "PlayerManagerStore#add",
+        "kind": "function",
+        "memberof": "PlayerManagerStore",
+        "scope": "instance",
+        "$longname": "PlayerManagerStore#add"
+      },
+      {
+        "comment": "/**\n         * The player for the store\n         * @type {Player}\n         */",
+        "meta": {
+          "range": [
+            448,
+            468
+          ],
+          "filename": "PlayerManagerStore.js",
+          "lineno": 20,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
+          "code": {
+            "id": "astnode100001471",
+            "name": "this.Player",
+            "type": "Identifier",
+            "value": "Player",
+            "paramnames": []
+          }
+        },
+        "description": "The player for the store",
+        "type": {
+          "names": [
+            "Player"
+          ]
+        },
+        "name": "Player",
+        "longname": "PlayerManagerStore#Player",
+        "kind": "member",
+        "memberof": "PlayerManagerStore",
+        "scope": "instance",
+        "$longname": "PlayerManagerStore#Player"
+      }
+    ]
   }
 ]
