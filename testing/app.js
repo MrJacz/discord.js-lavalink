@@ -16,8 +16,8 @@ class MusicClient extends Client {
 
     _ready() {
         this.player = new PlayerManager(this, config.nodes, {
-            userId: this.user.id,
-            shardCount: 1,
+            user: this.user.id,
+            shard: 1,
             region: "us"
         });
     }
@@ -42,7 +42,6 @@ client.on("message", async message => {
         const channel = message.member.voiceChannel;
         if (!channel) return message.reply("Must be in a voice channel");
         await client.player.join({
-            shard: 0,
             op: 4,
             d: {
                 guild_id: message.guild.id,

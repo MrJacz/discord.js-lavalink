@@ -38,12 +38,12 @@ class Node extends EventEmitter {
          * User ID from Discord
          * @type {String}
          */
-        this.userId = options.userId;
+        this.user = options.user;
         /**
          * Lavalink node(Shard) count
          * @type {Number}
          */
-        this.shardCount = options.shardCount;
+        this.shard = options.shard;
         /**
          * Lavalink Node(Shard) Password
          * @type {String}
@@ -64,10 +64,15 @@ class Node extends EventEmitter {
          * @type {Number}
          */
         this.autoReconnectInterval = options.reconnectInterval || 5000;
+        /**
+         * Player stats
+         * @type {Object}
+         */
         this.stats = {
             players: 0,
             playingPlayers: 0
         };
+
         this.connect();
     }
     /**
@@ -77,8 +82,8 @@ class Node extends EventEmitter {
     connect() {
         this.ws = new WebSocket(this.address, {
             headers: {
-                "User-Id": this.userId,
-                "Num-Shards": this.shardCount,
+                "User-Id": this.user,
+                "Num-Shards": this.shard,
                 Authorization: this.password
             }
         });
@@ -89,6 +94,11 @@ class Node extends EventEmitter {
         this.ws.onclose = this._onClose.bind(this);
     }
 
+    /**
+     * Sends data to the Lavalink Node
+     * @param {Object} data Object to send
+     * @returns {Boolean}
+     */
     async send(data) {
         if (!this.ws) return false;
         const payload = await stringify(data)
@@ -100,6 +110,7 @@ class Node extends EventEmitter {
         this.ws.send(payload);
         return true;
     }
+
     /**
      * Destroys the WebSocket
      * @returns {Boolean}
@@ -111,18 +122,34 @@ class Node extends EventEmitter {
         return true;
     }
 
+    /**
+     * Reconnects the websocket
+     * @returns {void}
+     * @private
+     */
     reconnect() {
         setTimeout(() => {
             this.emit("reconnecting");
             this.connect();
         }, this.autoReconnectInterval);
     }
-
+    /**
+     * Function for the onOpen WS event
+     * @returns {void}
+     * @private
+     */
     _onOpen() {
         this.connected = true;
         this.emit("ready");
     }
 
+    /**
+     * Function for the onClose event
+     * @param {Number} code WebSocket closing code (idk tbh)
+     * @param {?String} reason reason
+     * @returns {void}
+     * @private
+     */
     _onClose(code, reason) {
         this.connected = false;
         if (code !== 1000) return this.reconnect();
@@ -130,6 +157,12 @@ class Node extends EventEmitter {
         this.emit("disconnect", reason);
     }
 
+    /**
+     * Function for the onMessage event
+     * @param {Object} msg Message object
+     * @returns {void}
+     * @private
+     */
     async _onMessage(msg) {
         const data = await parse(msg.data)
             .catch(error => {
@@ -140,7 +173,12 @@ class Node extends EventEmitter {
         if (data.op === "stats") this.stats = data;
         this.emit("message", data);
     }
-
+    /**
+     * Function for onError event
+     * @param {Error} error error from WS
+     * @returns {void}
+     * @private
+     */
     _onError(error) {
         if (error.message.includes("ECONNREFUSED")) this.reconnect();
         this.emit("error", error);

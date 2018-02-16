@@ -1,17 +1,24 @@
 const { EventEmitter } = require("events");
 
+/**
+ * LavaLink Player
+ * @extends {EventEmitter}
+ */
 class Player extends EventEmitter {
 
-    constructor(options) {
+    /**
+     * LavaLink Player Options
+     * @param {Object} options Player Options
+     */
+    constructor(options = {}) {
         super();
 
-        this.options = options || {};
+        this.options = options;
         this.id = options.id;
         this.client = options.client;
         this.manager = options.manager;
         this.node = options.node;
         this.channel = options.channel;
-        this.ready = false;
         this.playing = false;
         this.state = {};
         this.track = null;
@@ -80,15 +87,6 @@ class Player extends EventEmitter {
         });
     }
 
-    end(message) {
-        if (message.reason !== "REPLACED") {
-            this.playing = false;
-            this.track = null;
-        }
-
-        this.emit("end", message);
-    }
-
     exception(message) {
         this.emit("error", message);
     }
@@ -96,6 +94,26 @@ class Player extends EventEmitter {
     stuck(message) {
         this.stop();
         this.emit("end", message);
+    }
+
+    event(message) {
+        switch (message.type) {
+            case "TrackEndEvent": {
+                if (message.reason !== "REPLACED") {
+                    this.playing = false;
+                    this.track = null;
+                }
+                this.emit("end", message);
+                return;
+            }
+            case "TrackExceptionEvent": return this.emit("error", message);
+            case "TrackStuckEvent": {
+                this.stop();
+                this.emit("end", message);
+                return;
+            }
+            default: return this.emit("warn", `Unexpected event type: ${message.type}`);
+        }
     }
 
 }

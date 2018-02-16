@@ -7,12 +7,24 @@ const { isClass } = require("../util/util");
  */
 class PlayerManagerStore extends Collection {
 
+    /**
+     * PlayerManagerStore player
+     * @param {Player} Player The Player for the store
+     */
     constructor(Player) {
         super();
-
+        /**
+         * The player for the store
+         * @type {Player}
+         */
         this.Player = Player;
     }
 
+    /**
+     * Sets player into collection from object or class
+     * @param {any} obj obj or class
+     * @returns {Player}
+     */
     add(obj) {
         if (!obj.id) throw new Error("Missing object id");
         const entry = isClass(obj) ? obj : new this.Player(obj);

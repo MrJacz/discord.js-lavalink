@@ -9,23 +9,30 @@ const { Collection } = require("discord.js");
  */
 class PlayerManager extends PlayerManagerStore {
 
+    /**
+     *
+     * @param {Client} client Discord.js Client
+     * @param {Object[]} nodes Array of Lavalink Nodes
+     * @param {Object} options PlayerManager Options
+     */
     constructor(client, nodes = [], options = {}) {
         super(options.player || Player);
 
+        /**
+         * Discord.js Client for the Player Manager
+         * @type {Client}
+         */
         this.client = client;
+        /**
+         * Collection of LavaLink Nodes
+         * @type {Collection<String, Node>}
+         */
         this.nodes = new Collection();
-        this.pending = {
-            guilds: new Collection(),
-            sessions: new Collection()
-        };
+        /**
+         * PlayerManager Options
+         * @type {Object}
+         */
         this.options = options;
-        this.defaultRegion = options.region || "us";
-        this.defaultRegions = {
-            asia: ["sydney", "singapore", "japan", "hongkong"],
-            eu: ["london", "frankfurt", "amsterdam", "russia", "eu-central", "eu-west"],
-            us: ["us-central", "us-west", "us-east", "us-south", "brazil"]
-        };
-        this.regions = options.regions || this.defaultRegions;
 
         for (let i = 0; i < nodes.length; i++) this.createNode(Object.assign({}, nodes[i], options));
 
@@ -34,29 +41,50 @@ class PlayerManager extends PlayerManagerStore {
         });
     }
 
+    /**
+     * A function to create LavaLink nodes and set them to PlayerManager#nodes
+     * @param {Object} options Node options
+     * @returns {void}
+     */
     createNode(options) {
         const node = new Node({
             host: options.host,
             port: options.port,
             region: options.region,
-            shardCount: options.shardCount,
-            userId: options.userId,
+            shard: options.shard,
+            user: options.user,
             password: options.password
         });
 
         node.on("error", error => this.client.emit("error", error));
-        node.on("disconnect", this.onDisconnect.bind(this, node));
-        node.on("message", this.onMessage.bind(this, node));
+        node.on("disconnect", reason => {
+            if (!this.nodes.size) throw new Error("No available voice nodes.");
+            throw new Error(reason);
+        });
+        node.on("message", this.onMessage.bind(this));
 
         this.nodes.set(options.host, node);
     }
 
-    onDisconnect(node, reason) {
-        if (!this.nodes.size) throw new Error("No available voice nodes.");
-        throw new Error(reason);
+    /**
+     * Removes a node by host
+     * @param {String} host Node host
+     * @returns {Boolean}
+     */
+    removeNode(host) {
+        const node = this.nodes.get(host);
+        if (!node) return false;
+        node.removeAllListeners();
+        return this.nodes.delete(host);
     }
 
-    onMessage(node, message) {
+    /**
+     * Used for the Node message event
+     * @param {Object} message Parsed message object
+     * @returns {*}
+     * @private
+     */
+    onMessage(message) {
         if (!message || !message.op) return;
 
         switch (message.op) {
@@ -67,20 +95,30 @@ class PlayerManager extends PlayerManagerStore {
                 return;
             }
             case "event": {
-                const player = this.players.get(message.guildId);
+                const player = this.get(message.guildId);
                 if (!player) return;
-
-                switch (message.type) {
-                    case "TrackEndEvent": return player.end(message);
-                    case "TrackExceptionEvent": return player.exception(message);
-                    case "TrackStuckEvent": return player.stuck(message);
-                    default: return player.emit("warn", `Unexpected event type: ${message.type}`);
-                }
+                return player.event(message);
             }
         }
     }
 
-    join(data) {
+    /**
+     * Joins the voice channel and spawns a new player
+     * @param {Object} data Object used to join the voice channel with
+     * @returns {Promise<Player>}
+     * @example
+     * LavaLink.PlayerManager.join({
+     *  op: 4,
+     *  d: {
+     *      guild_id: guild.id,
+     *      channel_id: channel.id,
+     *      self_mute: false,
+     *      self_deaf: false
+     *  },
+     *  host: "localhost"
+     * });
+     */
+    async join(data) {
         const player = this.get(data.d.guild_id);
         if (player) return player;
         if (!this.client.connections && this.client.ws) {
@@ -91,20 +129,42 @@ class PlayerManager extends PlayerManagerStore {
                 channel: data.d.channel_id
             });
         }
-        if (this.client.connections && !this.client.ws) {
-            this.client.connections.get(data.shard).send(data.op, data.d);
-            return this.spawnPlayer({
-                host: data.host,
-                guild: data.d.guild_id,
-                channel: data.d.channel_id
-            });
-        }
     }
 
+    /**
+     * Leaves voice channel and deletes Player
+     * @param {Object} data Data object used to leave the voice channel with
+     * @returns {Boolean}
+     * @example
+     * LavaLink.PlayerManager.leave({
+     *  op: 4,
+     *  d: {
+     *      guild_id: guild.id,
+     *      channel_id: null,
+     *      self_mute: false,
+     *      self_deaf: false
+     *  },
+     *  host: "localhost"
+     * });
+     */
+    leave(data) {
+        const player = this.get(data.d.guild_id);
+        if (!player) return false;
+        if (!this.client.connections && this.client.ws) this.client.ws.send(data);
+        player.removeAllListeners();
+        return this.delete(data.d.guild_id);
+    }
 
+    /**
+     * Used for the Voice Server Update event
+     * @param {Object} data Data
+     * @returns {void}
+     * @private
+     */
     voiceServerUpdate(data) {
-        const player = this.get(data.guild_id);
         const guild = this.client.guilds.get(data.guild_id);
+        if (!guild) return;
+        const player = this.get(data.guild_id);
         if (!player) return;
         player.connect({
             session: guild.me.voiceSessionID,
@@ -112,6 +172,11 @@ class PlayerManager extends PlayerManagerStore {
         });
     }
 
+    /**
+     * Creates or returns a player
+     * @param {Object} data Data for the player
+     * @returns {Player}
+     */
     spawnPlayer(data) {
         const player = this.get(data.guild);
         if (player) return player;
