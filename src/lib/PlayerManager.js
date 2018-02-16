@@ -186,7 +186,7 @@ class PlayerManager extends PlayerManagerStore {
             id: data.guild,
             client: this.client,
             manager: this,
-            node: this.nodes.get(data.host),
+            node,
             channel: data.channel
         });
     }
