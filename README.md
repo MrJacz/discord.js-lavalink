@@ -4,7 +4,7 @@
 [![NPM version](https://badge.fury.io/js/discord.js-lavalink.svg)](http://badge.fury.io/js/discord.js-lavalink)
 [![Build Status](https://travis-ci.org/MrJacz/discord.js-lavalink.svg?branch=master)](https://travis-ci.org/MrJacz/discord.js-lavalink)
 [![Greenkeeper badge](https://badges.greenkeeper.io/MrJacz/discord.js-lavalink.svg)](https://greenkeeper.io/)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/5097637a8165436c9d4a5a8361f7c733)](https://www.codacy.com/app/MrJacz/discord.js-lavalink)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b50839d781c24a94a4e1c17342a147bd)](https://www.codacy.com/app/MrJacz/discord.js-lavalink?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MrJacz/discord.js-lavalink&amp;utm_campaign=Badge_Grade)
 [![Open Source Love](https://badges.frapsoft.com/os/mit/mit.svg?v=102)](https://github.com/ellerbrock/open-source-badge/)
 [![dependencies Status](https://david-dm.org/mrjacz/discord.js-lavalink/status.svg)](https://david-dm.org/mrjacz/discord.js-lavalink)
 [![devDependencies Status](https://david-dm.org/mrjacz/discord.js-lavalink/dev-status.svg)](https://david-dm.org/mrjacz/discord.js-lavalink?type=dev)
@@ -14,8 +14,10 @@
 A Discord.js lavalink client
 
 ## Installation
-**For stable** ```npm discord.js-lavalink```
-**For Development** ```npm mrjacz/discord.js-lavalink```
+**For stable**
+```npm discord.js-lavalink```
+**For Development**
+```npm mrjacz/discord.js-lavalink```
 
 ## The issue tracker is for issues only
 If you're having a problem with the module contact us in the [**Discord Server**](https://discord.gg/QJnGhnn)
