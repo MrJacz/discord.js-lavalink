@@ -180,6 +180,8 @@ class PlayerManager extends PlayerManagerStore {
     spawnPlayer(data) {
         const player = this.get(data.guild);
         if (player) return player;
+        const node = this.nodes.get(data.host);
+        if (!node) throw new Error(`INVALID_HOST: No node with ${data.host}`);
         return this.add({
             id: data.guild,
             client: this.client,
