@@ -1,17 +1,17 @@
-const PlayerManagerStore = require("./structures/PlayerManagerStore");
+const PlayerStore = require("./structures/PlayerManagerStore");
 const Player = require("./Player");
 const Node = require("./Node");
 const { Collection } = require("discord.js");
 
 /**
  * Player Manager class
- * @extends {PlayerManagerStore}
+ * @extends {PlayerStore}
  */
-class PlayerManager extends PlayerManagerStore {
+class PlayerManager extends PlayerStore {
 
     /**
      *
-     * @param {Client} client Discord.js Client
+     * @param {external:Client} client Discord.js Client
      * @param {Object[]} nodes Array of Lavalink Nodes
      * @param {Object} options PlayerManager Options
      */
@@ -20,7 +20,7 @@ class PlayerManager extends PlayerManagerStore {
 
         /**
          * Discord.js Client for the Player Manager
-         * @type {Client}
+         * @type {external:Client}
          */
         this.client = client;
         /**
@@ -44,7 +44,6 @@ class PlayerManager extends PlayerManagerStore {
     /**
      * A function to create LavaLink nodes and set them to PlayerManager#nodes
      * @param {Object} options Node options
-     * @returns {void}
      */
     createNode(options) {
         const node = new Node({
@@ -181,7 +180,7 @@ class PlayerManager extends PlayerManagerStore {
         const player = this.get(data.guild);
         if (player) return player;
         const node = this.nodes.get(data.host);
-        if (!node) throw new Error(`INVALID_HOST: No node with ${data.host}`);
+        if (!node) throw new Error(`INVALID_HOST: No available node with ${data.host}`);
         return this.add({
             id: data.guild,
             client: this.client,

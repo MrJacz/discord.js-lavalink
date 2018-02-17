@@ -1,25 +1,13 @@
+/**
+ * @private
+ */
 class Util {
 
-    static parse(data) {
-        return new Promise((res, rej) => {
-            try {
-                return res(JSON.parse(data));
-            } catch (error) {
-                return rej(error);
-            }
-        });
-    }
-
-    static stringify(data) {
-        return new Promise((res, rej) => {
-            try {
-                return res(JSON.stringify(data));
-            } catch (error) {
-                return rej(error);
-            }
-        });
-    }
-
+    /**
+     * check to see if something is a class???
+     * @param {Function} input Function to check. what else?
+     * @returns {Boolean}
+     */
     static isClass(input) {
         return typeof input === "function" &&
 			typeof input.constructor !== "undefined" &&

@@ -1,14 +1,14 @@
 const { Collection } = require("discord.js");
 const { isClass } = require("../util/util");
 /**
- * Player Manager Store
+ * Player Store
  * @extends {Collection}
  * @private
  */
-class PlayerManagerStore extends Collection {
+class PlayerStore extends Collection {
 
     /**
-     * PlayerManagerStore player
+     * PlayerStore player
      * @param {Player} Player The Player for the store
      */
     constructor(Player) {
@@ -33,4 +33,4 @@ class PlayerManagerStore extends Collection {
     }
 
 }
-module.exports = PlayerManagerStore;
+module.exports = PlayerStore;

@@ -13,18 +13,62 @@ class Player extends EventEmitter {
     constructor(options = {}) {
         super();
 
+        /**
+         * Player options
+         * @type {Object}
+         */
         this.options = options;
+        /**
+         * Player id (Guild ID)
+         * @type {String}
+         */
         this.id = options.id;
+        /**
+         * Discord.js Client
+         * @type {external:Client}
+         */
         this.client = options.client;
+        /**
+         * The PlayerManager that initilized the player
+         * @type {PlayerManager}
+         */
         this.manager = options.manager;
+        /**
+         * The current node for this Player
+         * @type {Node}
+         */
         this.node = options.node;
+        /**
+         * The current channel id
+         * @type {String}
+         */
         this.channel = options.channel;
+        /**
+         * Playing boolean
+         * @type {Boolean}
+         */
         this.playing = false;
+        /**
+         * LavaLink Player state
+         * @type {Object}
+         */
         this.state = {};
+        /**
+         * The current track that the Player is playing
+         * @type {?String}
+         */
         this.track = null;
+        /**
+         * The timestamp the Player started playing
+         * @type {Number}
+         */
         this.timestamp = null;
     }
 
+    /**
+     * Sends a packet to Lavalink for voiceUpdate
+     * @param {Object} data voiceUpdate event data
+     */
     connect(data) {
         this.node.send({
             op: "voiceUpdate",
@@ -34,13 +78,22 @@ class Player extends EventEmitter {
         });
     }
 
+    /**
+     * Disconnects the player
+     * @param {String} msg Disconnect reason
+     */
     disconnect(msg) {
         this.playing = false;
         this.stop();
         this.emit("disconnect", msg);
     }
 
-    play(track, options) {
+    /**
+     * Plays a song
+     * @param {String} track A Base64 string from LavaLink API
+     * @param {Object} [options] Other options
+     */
+    play(track, options = {}) {
         this.track = track;
         const payload = Object.assign({
             op: "play",
@@ -52,6 +105,9 @@ class Player extends EventEmitter {
         this.timestamp = Date.now();
     }
 
+    /**
+     * stops the Player
+     */
     stop() {
         this.node.send({
             op: "stop",
@@ -61,7 +117,11 @@ class Player extends EventEmitter {
         this.track = null;
     }
 
-    pause(pause) {
+    /**
+     * Pauses or Resumes the player
+     * @param {Boolean} [pause=true] Whether to resume or pause the player
+     */
+    pause(pause = true) {
         if ((pause && this.paused) || (!pause && !this.paused)) return;
         this.node.send({
             op: "pause",
@@ -71,6 +131,10 @@ class Player extends EventEmitter {
         this.paused = Boolean(pause);
     }
 
+    /**
+     * Sets the volume for the player
+     * @param {Number} volume Volume
+     */
     volume(volume) {
         this.node.send({
             op: "volume",
@@ -79,6 +143,10 @@ class Player extends EventEmitter {
         });
     }
 
+    /**
+     * Seeks to a specified position
+     * @param {Number} position The position to seek to
+     */
     seek(position) {
         this.node.send({
             op: "seek",
@@ -87,15 +155,11 @@ class Player extends EventEmitter {
         });
     }
 
-    exception(message) {
-        this.emit("error", message);
-    }
-
-    stuck(message) {
-        this.stop();
-        this.emit("end", message);
-    }
-
+    /**
+     * @param {Object} message a packet
+     * @returns {void}
+     * @private
+     */
     event(message) {
         switch (message.type) {
             case "TrackEndEvent": {

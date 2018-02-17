@@ -1,6 +1,5 @@
 const WebSocket = require("ws");
 const { EventEmitter } = require("events");
-const { parse, stringify } = require("./util/util");
 
 /**
  * Lavalink Websocket
@@ -77,7 +76,6 @@ class Node extends EventEmitter {
     }
     /**
      * Connects to the WebSocket server
-     * @returns {void}
      */
     connect() {
         this.ws = new WebSocket(this.address, {
@@ -99,14 +97,15 @@ class Node extends EventEmitter {
      * @param {Object} data Object to send
      * @returns {Boolean}
      */
-    async send(data) {
+    send(data) {
         if (!this.ws) return false;
-        const payload = await stringify(data)
-            .catch(error => {
-                this.emit("error", error);
-                return null;
-            });
-        if (!payload) return false;
+        let payload;
+        try {
+            payload = JSON.stringify(data);
+        } catch (err) {
+            this.emit("error", "Unable to stringify payload.");
+            return false;
+        }
         this.ws.send(payload);
         return true;
     }
@@ -124,7 +123,6 @@ class Node extends EventEmitter {
 
     /**
      * Reconnects the websocket
-     * @returns {void}
      * @private
      */
     reconnect() {
@@ -135,7 +133,6 @@ class Node extends EventEmitter {
     }
     /**
      * Function for the onOpen WS event
-     * @returns {void}
      * @private
      */
     _onOpen() {
@@ -164,19 +161,18 @@ class Node extends EventEmitter {
      * @private
      */
     async _onMessage(msg) {
-        const data = await parse(msg.data)
-            .catch(error => {
-                this.emit("error", error);
-                return null;
-            });
-        if (!data) return;
+        let data;
+        try {
+            data = JSON.parse(msg.data);
+        } catch (err) {
+            return this.emit("error", "Unable to parse payload.");
+        }
         if (data.op === "stats") this.stats = data;
         this.emit("message", data);
     }
     /**
      * Function for onError event
      * @param {Error} error error from WS
-     * @returns {void}
      * @private
      */
     _onError(error) {
