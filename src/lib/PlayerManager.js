@@ -156,6 +156,7 @@ class PlayerManager extends PlayerStore {
             }
         });
         player.removeAllListeners();
+        player.destroy();
         return this.delete(guild);
     }
 

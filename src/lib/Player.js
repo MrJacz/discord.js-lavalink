@@ -160,7 +160,6 @@ class Player extends EventEmitter {
             op: "destroy",
             guildId: this.id
         });
-        return this.manager.leave(this.id);
     }
 
     /**
