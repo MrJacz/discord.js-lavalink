@@ -4,7 +4,7 @@
     "meta": {
       "range": [
         135,
-        4372
+        4375
       ],
       "filename": "Node.js",
       "lineno": 8,
@@ -110,7 +110,7 @@
         "meta": {
           "range": [
             1846,
-            2296
+            2299
           ],
           "filename": "Node.js",
           "lineno": 80,
@@ -171,15 +171,15 @@
         "comment": "/**\n     * Destroys the WebSocket\n     * @returns {Boolean}\n     */",
         "meta": {
           "range": [
-            2813,
-            2940
+            2816,
+            2943
           ],
           "filename": "Node.js",
           "lineno": 117,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000268",
+            "id": "astnode100000269",
             "name": "Node#destroy",
             "type": "MethodDefinition",
             "paramnames": []
@@ -340,15 +340,15 @@
         "comment": "/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {Boolean}\n     */",
         "meta": {
           "range": [
-            2426,
-            2735
+            2429,
+            2738
           ],
           "filename": "Node.js",
           "lineno": 100,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000223",
+            "id": "astnode100000224",
             "name": "Node#send",
             "type": "MethodDefinition",
             "paramnames": [
@@ -623,14 +623,14 @@
     "meta": {
       "range": [
         99,
-        4296
+        4456
       ],
       "filename": "Player.js",
       "lineno": 7,
       "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000456",
+        "id": "astnode100000457",
         "name": "Player",
         "type": "ClassDeclaration",
         "paramnames": [
@@ -672,7 +672,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000509",
+            "id": "astnode100000510",
             "name": "this.channel",
             "type": "MemberExpression",
             "value": "options.channel",
@@ -704,7 +704,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000485",
+            "id": "astnode100000486",
             "name": "this.client",
             "type": "MemberExpression",
             "value": "options.client",
@@ -736,7 +736,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000540",
+            "id": "astnode100000541",
             "name": "Player#connect",
             "type": "MethodDefinition",
             "paramnames": [
@@ -778,7 +778,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000567",
+            "id": "astnode100000568",
             "name": "Player#disconnect",
             "type": "MethodDefinition",
             "paramnames": [
@@ -820,7 +820,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000477",
+            "id": "astnode100000478",
             "name": "this.id",
             "type": "MemberExpression",
             "value": "options.id",
@@ -852,7 +852,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000493",
+            "id": "astnode100000494",
             "name": "this.manager",
             "type": "MemberExpression",
             "value": "options.manager",
@@ -884,7 +884,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000501",
+            "id": "astnode100000502",
             "name": "this.node",
             "type": "MemberExpression",
             "value": "options.node",
@@ -916,7 +916,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000471",
+            "id": "astnode100000472",
             "name": "this.options",
             "type": "Identifier",
             "value": "options",
@@ -948,7 +948,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000674",
+            "id": "astnode100000675",
             "name": "Player#pause",
             "type": "MethodDefinition",
             "paramnames": [
@@ -992,7 +992,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000590",
+            "id": "astnode100000591",
             "name": "Player#play",
             "type": "MethodDefinition",
             "paramnames": [
@@ -1045,7 +1045,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000517",
+            "id": "astnode100000518",
             "name": "this.playing",
             "type": "Literal",
             "value": false,
@@ -1077,7 +1077,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000741",
+            "id": "astnode100000742",
             "name": "Player#seek",
             "type": "MethodDefinition",
             "paramnames": [
@@ -1119,7 +1119,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000523",
+            "id": "astnode100000524",
             "name": "this.state",
             "type": "ObjectExpression",
             "value": "{}",
@@ -1151,7 +1151,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000644",
+            "id": "astnode100000645",
             "name": "Player#stop",
             "type": "MethodDefinition",
             "paramnames": []
@@ -1181,7 +1181,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000535",
+            "id": "astnode100000536",
             "name": "this.timestamp",
             "type": "Literal",
             "value": null,
@@ -1213,7 +1213,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000529",
+            "id": "astnode100000530",
             "name": "this.track",
             "type": "Literal",
             "value": null,
@@ -1246,7 +1246,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000720",
+            "id": "astnode100000721",
             "name": "Player#volume",
             "type": "MethodDefinition",
             "paramnames": [
@@ -1289,7 +1289,7 @@
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
-          "id": "astnode100000460",
+          "id": "astnode100000461",
           "name": "Player",
           "type": "MethodDefinition",
           "paramnames": [
@@ -1325,14 +1325,14 @@
     "meta": {
       "range": [
         237,
-        5437
+        5624
       ],
       "filename": "PlayerManager.js",
       "lineno": 10,
       "columnno": 0,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {
-        "id": "astnode100000873",
+        "id": "astnode100000902",
         "name": "PlayerManager",
         "type": "ClassDeclaration",
         "paramnames": [
@@ -1393,7 +1393,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
           "code": {
-            "id": "astnode100001448",
+            "id": "astnode100001505",
             "name": "PlayerStore#add",
             "type": "MethodDefinition",
             "paramnames": [
@@ -1446,7 +1446,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000897",
+            "id": "astnode100000926",
             "name": "this.client",
             "type": "Identifier",
             "value": "client",
@@ -1478,7 +1478,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000964",
+            "id": "astnode100000993",
             "name": "PlayerManager#createNode",
             "type": "MethodDefinition",
             "paramnames": [
@@ -1509,22 +1509,23 @@
         "$longname": "PlayerManager#createNode"
       },
       {
-        "comment": "/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object used to join the voice channel with\n     * @returns {Promise<Player>}\n     * @example\n     * LavaLink.PlayerManager.join({\n     *  op: 4,\n     *  d: {\n     *      guild_id: guild.id,\n     *      channel_id: channel.id,\n     *      self_mute: false,\n     *      self_deaf: false\n     *  },\n     *  host: \"localhost\"\n     * });\n     */",
+        "comment": "/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object with guild, channel, host infomation\n     * @param {Object} options Options\n     * @returns {Promise<Player>}\n     * @example\n     * // Join voice channel\n     * PlayerManager.join({\n     *  guild: \"412180910587379712\",\n     *  channel: \"412180910587379716\",\n     *  host: \"localhost\"\n     * });\n     */",
         "meta": {
           "range": [
-            3362,
-            3748
+            3332,
+            3934
           ],
           "filename": "PlayerManager.js",
-          "lineno": 120,
+          "lineno": 117,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100001163",
+            "id": "astnode100001192",
             "name": "PlayerManager#join",
             "type": "MethodDefinition",
             "paramnames": [
-              "data"
+              "data",
+              "options"
             ]
           },
           "vars": {
@@ -1539,8 +1540,17 @@
                 "Object"
               ]
             },
-            "description": "Object used to join the voice channel with",
+            "description": "Object with guild, channel, host infomation",
             "name": "data"
+          },
+          {
+            "type": {
+              "names": [
+                "Object"
+              ]
+            },
+            "description": "Options",
+            "name": "options"
           }
         ],
         "returns": [
@@ -1553,7 +1563,7 @@
           }
         ],
         "examples": [
-          "LavaLink.PlayerManager.join({\n op: 4,\n d: {\n     guild_id: guild.id,\n     channel_id: channel.id,\n     self_mute: false,\n     self_deaf: false\n },\n host: \"localhost\"\n});"
+          "// Join voice channel\nPlayerManager.join({\n guild: \"412180910587379712\",\n channel: \"412180910587379716\",\n host: \"localhost\"\n});"
         ],
         "name": "join",
         "longname": "PlayerManager#join",
@@ -1564,22 +1574,22 @@
         "$longname": "PlayerManager#join"
       },
       {
-        "comment": "/**\n     * Leaves voice channel and deletes Player\n     * @param {Object} data Data object used to leave the voice channel with\n     * @returns {Boolean}\n     * @example\n     * LavaLink.PlayerManager.leave({\n     *  op: 4,\n     *  d: {\n     *      guild_id: guild.id,\n     *      channel_id: null,\n     *      self_mute: false,\n     *      self_deaf: false\n     *  },\n     *  host: \"localhost\"\n     * });\n     */",
+        "comment": "/**\n     * Leaves voice channel and deletes Player\n     * @param {String} guild Guild id\n     * @returns {Boolean}\n     * @example\n     * // Leave the current channel\n     * PlayerManager.leave(\"412180910587379712\");\n     */",
         "meta": {
           "range": [
-            4171,
-            4440
+            4169,
+            4627
           ],
           "filename": "PlayerManager.js",
-          "lineno": 149,
+          "lineno": 145,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100001230",
+            "id": "astnode100001281",
             "name": "PlayerManager#leave",
             "type": "MethodDefinition",
             "paramnames": [
-              "data"
+              "guild"
             ]
           },
           "vars": {
@@ -1591,11 +1601,11 @@
           {
             "type": {
               "names": [
-                "Object"
+                "String"
               ]
             },
-            "description": "Data object used to leave the voice channel with",
-            "name": "data"
+            "description": "Guild id",
+            "name": "guild"
           }
         ],
         "returns": [
@@ -1608,7 +1618,7 @@
           }
         ],
         "examples": [
-          "LavaLink.PlayerManager.leave({\n op: 4,\n d: {\n     guild_id: guild.id,\n     channel_id: null,\n     self_mute: false,\n     self_deaf: false\n },\n host: \"localhost\"\n});"
+          "// Leave the current channel\nPlayerManager.leave(\"412180910587379712\");"
         ],
         "name": "leave",
         "longname": "PlayerManager#leave",
@@ -1629,7 +1639,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000903",
+            "id": "astnode100000932",
             "name": "this.nodes",
             "type": "NewExpression",
             "value": "",
@@ -1661,7 +1671,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100000910",
+            "id": "astnode100000939",
             "name": "this.options",
             "type": "Identifier",
             "value": "options",
@@ -1693,7 +1703,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
           "code": {
-            "id": "astnode100001443",
+            "id": "astnode100001500",
             "name": "this.Player",
             "type": "Identifier",
             "value": "Player",
@@ -1727,7 +1737,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100001063",
+            "id": "astnode100001092",
             "name": "PlayerManager#removeNode",
             "type": "MethodDefinition",
             "paramnames": [
@@ -1770,15 +1780,15 @@
         "comment": "/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            5014,
-            5434
+            5201,
+            5621
           ],
           "filename": "PlayerManager.js",
-          "lineno": 179,
+          "lineno": 184,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100001341",
+            "id": "astnode100001398",
             "name": "PlayerManager#spawnPlayer",
             "type": "MethodDefinition",
             "paramnames": [
@@ -1830,7 +1840,7 @@
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
-          "id": "astnode100000877",
+          "id": "astnode100000906",
           "name": "PlayerManager",
           "type": "MethodDefinition",
           "paramnames": [
@@ -1892,7 +1902,7 @@
       "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
       "code": {
-        "id": "astnode100001434",
+        "id": "astnode100001491",
         "name": "PlayerStore",
         "type": "MethodDefinition",
         "paramnames": [
@@ -1934,7 +1944,7 @@
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
           "code": {
-            "id": "astnode100001448",
+            "id": "astnode100001505",
             "name": "PlayerStore#add",
             "type": "MethodDefinition",
             "paramnames": [
@@ -1985,7 +1995,7 @@
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
           "code": {
-            "id": "astnode100001443",
+            "id": "astnode100001500",
             "name": "this.Player",
             "type": "Identifier",
             "value": "Player",
@@ -2019,7 +2029,7 @@
       "columnno": 4,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/util",
       "code": {
-        "id": "astnode100001497",
+        "id": "astnode100001554",
         "name": "Util.isClass",
         "type": "MethodDefinition",
         "paramnames": [
