@@ -103,55 +103,60 @@ class PlayerManager extends PlayerStore {
 
     /**
      * Joins the voice channel and spawns a new player
-     * @param {Object} data Object used to join the voice channel with
+     * @param {Object} data Object with guild, channel, host infomation
+     * @param {Object} options Options
      * @returns {Promise<Player>}
      * @example
-     * LavaLink.PlayerManager.join({
-     *  op: 4,
-     *  d: {
-     *      guild_id: guild.id,
-     *      channel_id: channel.id,
-     *      self_mute: false,
-     *      self_deaf: false
-     *  },
+     * // Join voice channel
+     * PlayerManager.join({
+     *  guild: "412180910587379712",
+     *  channel: "412180910587379716",
      *  host: "localhost"
      * });
      */
-    async join(data) {
-        const player = this.get(data.d.guild_id);
+    async join(data, options = {}) {
+        const player = this.get(data.guild);
         if (player) return player;
-        if (!this.client.connections && this.client.ws) {
-            this.client.ws.send(data);
-            return this.spawnPlayer({
-                host: data.host,
-                guild: data.d.guild_id,
-                channel: data.d.channel_id
-            });
-        }
+        this.client.ws.send({
+            op: 4,
+            shard: this.client.shard ? this.client.shard.id : 0,
+            d: {
+                guild_id: data.guild,
+                channel_id: data.channel,
+                self_mute: options.selfmute || false,
+                self_deaf: options.selfdeaf || false
+            }
+        });
+        return this.spawnPlayer({
+            host: data.host,
+            guild: data.guild,
+            channel: data.channel
+        });
     }
 
     /**
      * Leaves voice channel and deletes Player
-     * @param {Object} data Data object used to leave the voice channel with
+     * @param {String} guild Guild id
      * @returns {Boolean}
      * @example
-     * LavaLink.PlayerManager.leave({
-     *  op: 4,
-     *  d: {
-     *      guild_id: guild.id,
-     *      channel_id: null,
-     *      self_mute: false,
-     *      self_deaf: false
-     *  },
-     *  host: "localhost"
-     * });
+     * // Leave the current channel
+     * PlayerManager.leave("412180910587379712");
      */
-    leave(data) {
-        const player = this.get(data.d.guild_id);
+    leave(guild) {
+        const player = this.get(guild);
         if (!player) return false;
-        if (!this.client.connections && this.client.ws) this.client.ws.send(data);
+        this.client.ws.send({
+            op: 4,
+            shard: this.client.shard ? this.client.shard.id : 0,
+            d: {
+                guild_id: guild,
+                channel_id: null,
+                self_mute: false,
+                self_deaf: false
+            }
+        });
         player.removeAllListeners();
-        return this.delete(data.d.guild_id);
+        return this.delete(guild);
     }
 
     /**

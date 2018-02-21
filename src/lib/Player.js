@@ -155,6 +155,14 @@ class Player extends EventEmitter {
         });
     }
 
+    destroy() {
+        this.node.send({
+            op: "destroy",
+            guildId: this.id
+        });
+        return this.manager.leave(this.id);
+    }
+
     /**
      * @param {Object} message a packet
      * @returns {void}

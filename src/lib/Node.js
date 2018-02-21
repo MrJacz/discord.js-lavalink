@@ -88,8 +88,8 @@ class Node extends EventEmitter {
 
         this.ws.onmessage = this._onMessage.bind(this);
         this.ws.onopen = this._onOpen.bind(this);
-        this.ws.onerror = this._onError.bind(this);
         this.ws.onclose = this._onClose.bind(this);
+        this.ws.on("error", this._onError.bind(this));
     }
 
     /**

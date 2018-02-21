@@ -1,4 +1,5 @@
 const { Client } = require("discord.js");
+const snekfetch = require("snekfetch");
 const config = require("./config.json");
 const { PlayerManager } = require("../src/index");
 const { inspect } = require("util");
@@ -37,23 +38,39 @@ client.on("message", async message => {
     const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
     const command = args.shift().toLowerCase();
 
-    if (command === "join") {
+    if (command === "join" || command === "play") {
         const [track] = args;
         const channel = message.member.voiceChannel;
         if (!channel) return message.reply("Must be in a voice channel");
-        await client.player.join({
-            op: 4,
-            d: {
-                guild_id: message.guild.id,
-                channel_id: channel.id,
-                self_mute: false,
-                self_deaf: false
-            },
+        const player = await client.player.join({
+            guild: message.guild.id,
+            channel: channel.id,
             host: "localhost"
         });
+        player.on("error", console.error);
+        player.on("end", async () => {
+            message.channel.send("Song has ended... leaving voice channel");
+            await player.disconnect();
+        });
+        const song = await getSong(track);
+        await player.play(song.track);
+        return message.reply(`Now playing: **${song.info.title}** by *${song.info.author}*`);
+    }
+    if (command === "leave") {
+        await client.player.leave(message.guild.id);
+        return message.reply("Sucessfully left the voice channel");
+    }
+    if (command === "pause") {
         const player = client.player.get(message.guild.id);
         if (!player) return message.reply("No lavalink player found");
-        await player.play(track);
+        await player.pause(true);
+        return message.reply("Paused the music");
+    }
+    if (command === "resume") {
+        const player = client.player.get(message.guild.id);
+        if (!player) return message.reply("No lavalink player found");
+        await player.pause(false);
+        return message.reply("Resumed the music");
     }
     if (command === "eval" || command === "ev") {
         try {
@@ -84,9 +101,14 @@ function isFunction(input) {
     return typeof input === "function";
 }
 
-/*
-    Avoid your bot from crashing on any errors
-*/
+async function getSong(string) {
+    const res = await snekfetch.get(`http://localhost:2333/loadtracks?identifier=${encodeURIComponent(string)}`)
+        .set("Authorization", "youshallnotpass")
+        .catch(() => null);
+    if (!res) throw `No tracks found`;
+    return res.body[0];
+}
+
 process.on("unhandledRejection", error => console.log(`unhandledRejection:\n${error.stack}`))
     .on("error", error => console.log(`Error:\n${error.stack}`))
     .on("warn", error => console.log(`Warning:\n${error.stack}`));
