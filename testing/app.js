@@ -1,4 +1,4 @@
-const { Client } = require("discord.js");
+const { Client, Collection } = require("discord.js");
 const snekfetch = require("snekfetch");
 const config = require("./config.json");
 const { PlayerManager } = require("../src/index");
@@ -12,13 +12,16 @@ class MusicClient extends Client {
         this.player = null;
 
         this.ready = false;
+
+        this.music = new Collection();
+
         this.once("ready", this._ready.bind(this));
     }
 
     _ready() {
         this.player = new PlayerManager(this, config.nodes, {
             user: this.user.id,
-            shard: 1,
+            shards: 1,
             region: "us"
         });
     }
@@ -39,21 +42,13 @@ client.on("message", async message => {
     const command = args.shift().toLowerCase();
 
     if (command === "join" || command === "play") {
-        const [track] = args;
+        let [...track] = args;
+        track = track.join(" ");
         const channel = message.member.voiceChannel;
         if (!channel) return message.reply("Must be in a voice channel");
-        const player = await client.player.join({
-            guild: message.guild.id,
-            channel: channel.id,
-            host: "localhost"
-        });
-        player.on("error", console.error);
-        player.on("end", async () => {
-            message.channel.send("Song has ended... leaving voice channel");
-            await player.disconnect();
-        });
-        const song = await getSong(track);
-        await player.play(song.track);
+
+        const [song] = await getSong(track);
+        await handle(song, message);
         return message.reply(`Now playing: **${song.info.title}** by *${song.info.author}*`);
     }
     if (command === "leave") {
@@ -87,7 +82,7 @@ client.on("message", async message => {
 
 async function clean(text) {
     if (isPromise(text)) text = await text;
-    if (typeof text !== "string") text = inspect(text, { depth: 0, showHidden: false });
+    if (typeof text !== "string") text = inspect(text, { depth: 1, showHidden: false });
     text = text.replace(/`/g, `\`${String.fromCharCode(8203)}`).replace(/@/g, `@${String.fromCharCode(8203)}`);
     return text;
 }
@@ -102,11 +97,30 @@ function isFunction(input) {
 }
 
 async function getSong(string) {
-    const res = await snekfetch.get(`http://localhost:2333/loadtracks?identifier=${encodeURIComponent(string)}`)
+    const res = await snekfetch.get(`http://localhost:2333/loadtracks?identifier=ytsearch:${string}`)
         .set("Authorization", "youshallnotpass")
         .catch(() => null);
-    if (!res) throw `No tracks found`;
-    return res.body[0];
+    if (!res.body.length) throw `No tracks found`;
+    return res.body;
+}
+
+async function handle(song, msg) {
+    const player = await client.player.join({
+        guild: msg.guild.id,
+        channel: msg.member.voiceChannel.id,
+        host: "localhost"
+    }, { selfdeaf: true });
+    player.play(song.track);
+    player.on("error", console.error);
+    player.on("end", async () => {
+        msg.channel.send("Song has ended... leaving voice channel");
+        await client.player.leave(msg.guild.id);
+    });
+    client.music.set(msg.guild.id, {
+        songs: [song],
+        player
+    });
+    return player;
 }
 
 process.on("unhandledRejection", error => console.log(`unhandledRejection:\n${error.stack}`))

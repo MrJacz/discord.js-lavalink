@@ -42,7 +42,7 @@ class Node extends EventEmitter {
          * Lavalink node(Shard) count
          * @type {Number}
          */
-        this.shard = options.shard;
+        this.shards = options.shards;
         /**
          * Lavalink Node(Shard) Password
          * @type {String}
@@ -81,7 +81,7 @@ class Node extends EventEmitter {
         this.ws = new WebSocket(this.address, {
             headers: {
                 "User-Id": this.user,
-                "Num-Shards": this.shard,
+                "Num-Shards": this.shards,
                 Authorization: this.password
             }
         });

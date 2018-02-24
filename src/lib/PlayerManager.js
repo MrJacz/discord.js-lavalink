@@ -50,7 +50,7 @@ class PlayerManager extends PlayerStore {
             host: options.host,
             port: options.port,
             region: options.region,
-            shard: options.shard,
+            shards: options.shards,
             user: options.user,
             password: options.password
         });
