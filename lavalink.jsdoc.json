@@ -4,7 +4,7 @@
     "meta": {
       "range": [
         135,
-        4375
+        4378
       ],
       "filename": "Node.js",
       "lineno": 8,
@@ -77,8 +77,8 @@
         "comment": "/**\n         * The interval to use for auto Reconnecting\n         * @type {Number}\n         */",
         "meta": {
           "range": [
-            1529,
-            1591
+            1531,
+            1593
           ],
           "filename": "Node.js",
           "lineno": 65,
@@ -109,8 +109,8 @@
         "comment": "/**\n     * Connects to the WebSocket server\n     */",
         "meta": {
           "range": [
-            1846,
-            2299
+            1848,
+            2302
           ],
           "filename": "Node.js",
           "lineno": 80,
@@ -139,8 +139,8 @@
         "comment": "/**\n         * If the lavalink websocket is connected or not\n         * @type {Boolean}\n         */",
         "meta": {
           "range": [
-            1291,
-            1313
+            1293,
+            1315
           ],
           "filename": "Node.js",
           "lineno": 55,
@@ -171,8 +171,8 @@
         "comment": "/**\n     * Destroys the WebSocket\n     * @returns {Boolean}\n     */",
         "meta": {
           "range": [
-            2816,
-            2943
+            2819,
+            2946
           ],
           "filename": "Node.js",
           "lineno": 117,
@@ -242,8 +242,8 @@
         "comment": "/**\n         * Lavalink Node(Shard) Password\n         * @type {String}\n         */",
         "meta": {
           "range": [
-            1120,
-            1173
+            1122,
+            1175
           ],
           "filename": "Node.js",
           "lineno": 50,
@@ -340,8 +340,8 @@
         "comment": "/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {Boolean}\n     */",
         "meta": {
           "range": [
-            2429,
-            2738
+            2432,
+            2741
           ],
           "filename": "Node.js",
           "lineno": 100,
@@ -392,7 +392,7 @@
         "meta": {
           "range": [
             993,
-            1019
+            1021
           ],
           "filename": "Node.js",
           "lineno": 45,
@@ -400,9 +400,9 @@
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
             "id": "astnode100000084",
-            "name": "this.shard",
+            "name": "this.shards",
             "type": "MemberExpression",
-            "value": "options.shard",
+            "value": "options.shards",
             "paramnames": []
           }
         },
@@ -412,19 +412,19 @@
             "Number"
           ]
         },
-        "name": "shard",
-        "longname": "Node#shard",
+        "name": "shards",
+        "longname": "Node#shards",
         "kind": "member",
         "memberof": "Node",
         "scope": "instance",
-        "$longname": "Node#shard"
+        "$longname": "Node#shards"
       },
       {
         "comment": "/**\n         * Player stats\n         * @type {Object}\n         */",
         "meta": {
           "range": [
-            1675,
-            1753
+            1677,
+            1755
           ],
           "filename": "Node.js",
           "lineno": 70,
@@ -487,8 +487,8 @@
         "comment": "/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */",
         "meta": {
           "range": [
-            1402,
-            1416
+            1404,
+            1418
           ],
           "filename": "Node.js",
           "lineno": 60,
@@ -522,7 +522,7 @@
       "meta": {
         "range": [
           262,
-          1785
+          1787
         ],
         "filename": "Node.js",
         "lineno": 14,
@@ -1325,7 +1325,7 @@
     "meta": {
       "range": [
         237,
-        5650
+        5652
       ],
       "filename": "PlayerManager.js",
       "lineno": 10,
@@ -1471,7 +1471,7 @@
         "meta": {
           "range": [
             1357,
-            1974
+            1976
           ],
           "filename": "PlayerManager.js",
           "lineno": 48,
@@ -1512,8 +1512,8 @@
         "comment": "/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object with guild, channel, host infomation\n     * @param {Object} options Options\n     * @returns {Promise<Player>}\n     * @example\n     * // Join voice channel\n     * PlayerManager.join({\n     *  guild: \"412180910587379712\",\n     *  channel: \"412180910587379716\",\n     *  host: \"localhost\"\n     * });\n     */",
         "meta": {
           "range": [
-            3332,
-            3934
+            3334,
+            3936
           ],
           "filename": "PlayerManager.js",
           "lineno": 117,
@@ -1577,8 +1577,8 @@
         "comment": "/**\n     * Leaves voice channel and deletes Player\n     * @param {String} guild Guild id\n     * @returns {Boolean}\n     * @example\n     * // Leave the current channel\n     * PlayerManager.leave(\"412180910587379712\");\n     */",
         "meta": {
           "range": [
-            4169,
-            4653
+            4171,
+            4655
           ],
           "filename": "PlayerManager.js",
           "lineno": 145,
@@ -1729,8 +1729,8 @@
         "comment": "/**\n     * Removes a node by host\n     * @param {String} host Node host\n     * @returns {Boolean}\n     */",
         "meta": {
           "range": [
-            2090,
-            2265
+            2092,
+            2267
           ],
           "filename": "PlayerManager.js",
           "lineno": 73,
@@ -1780,8 +1780,8 @@
         "comment": "/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            5227,
-            5647
+            5229,
+            5649
           ],
           "filename": "PlayerManager.js",
           "lineno": 185,
