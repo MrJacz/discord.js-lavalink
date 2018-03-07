@@ -155,11 +155,27 @@ class Player extends EventEmitter {
         });
     }
 
+    /**
+     * Destroys the Player
+     */
     destroy() {
         this.node.send({
             op: "destroy",
             guildId: this.id
         });
+    }
+
+    /**
+     * Switch player channel
+     * @param {String} channel Channel id
+     * @param {Boolean} [reactive=false] Whether to switch channel
+     * @return {Boolean}
+     */
+    switchChannel(channel, reactive = false) {
+        if (this.channel === channel) return false;
+        this.channel = channel;
+        if (reactive) this.updateVoiceState(channel);
+        return true;
     }
 
     /**
@@ -185,6 +201,27 @@ class Player extends EventEmitter {
             }
             default: return this.emit("warn", `Unexpected event type: ${message.type}`);
         }
+    }
+
+    /**
+     * Updates the Client's voice state
+     * @param {String} channel Channel id
+     * @param {Object} [options] selfmute and selfdeaf options
+     * @param {Boolean} [options.selfmute=false] selfmute option
+     * @param {Boolean} [options.selfdeaf=false] selfdeaf option
+     * @private
+     */
+    updateVoiceState(channel, { selfmute = false, selfdeaf = false } = {}) {
+        this.client.ws.send({
+            op: 4,
+            shard: this.client.shard ? this.client.shard.id : 0,
+            d: {
+                guild_id: this.id,
+                channel_id: channel,
+                self_mute: selfmute,
+                self_deaf: selfdeaf
+            }
+        });
     }
 
 }

@@ -86,9 +86,9 @@ class Node extends EventEmitter {
             }
         });
 
-        this.ws.onmessage = this._onMessage.bind(this);
-        this.ws.onopen = this._onOpen.bind(this);
-        this.ws.onclose = this._onClose.bind(this);
+        this.ws.on("message", this._onMessage.bind(this));
+        this.ws.on("open", this._onOpen.bind(this));
+        this.ws.on("close", this._onClose.bind(this));
         this.ws.on("error", this._onError.bind(this));
     }
 
@@ -116,7 +116,7 @@ class Node extends EventEmitter {
      */
     destroy() {
         if (!this.ws) return false;
-        this.ws.close(1000);
+        this.ws.close(1000, "destroy");
         this.ws = null;
         return true;
     }
@@ -126,6 +126,7 @@ class Node extends EventEmitter {
      * @private
      */
     reconnect() {
+        this.ws.removeAllListeners();
         setTimeout(() => {
             this.emit("reconnecting");
             this.connect();
@@ -163,7 +164,7 @@ class Node extends EventEmitter {
     async _onMessage(msg) {
         let data;
         try {
-            data = JSON.parse(msg.data);
+            data = JSON.parse(msg);
         } catch (err) {
             return this.emit("error", "Unable to parse payload.");
         }
@@ -176,7 +177,7 @@ class Node extends EventEmitter {
      * @private
      */
     _onError(error) {
-        if (error.message.includes("ECONNREFUSED")) this.reconnect();
+        if (error.message.includes("ECONNREFUSED") || (error.code && error.code === "ECONNREFUSED")) this.reconnect();
         this.emit("error", error);
     }
 

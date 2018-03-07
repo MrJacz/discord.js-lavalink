@@ -16,8 +16,9 @@ class PlayerStore extends Collection {
         /**
          * The player for the store
          * @type {Player}
+         * @private
          */
-        this.Player = Player;
+        Object.defineProperty(this, "Player", { value: Player });
     }
 
     /**

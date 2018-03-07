@@ -1,4 +1,4 @@
-const PlayerStore = require("./structures/PlayerManagerStore");
+const PlayerStore = require("./structures/PlayerStore.js");
 const Player = require("./Player");
 const Node = require("./Node");
 const { Collection } = require("discord.js");
@@ -104,7 +104,9 @@ class PlayerManager extends PlayerStore {
     /**
      * Joins the voice channel and spawns a new player
      * @param {Object} data Object with guild, channel, host infomation
-     * @param {Object} options Options
+     * @param {Object} [options] Options
+     * @param {Boolean} [options.selfmute=false] Selfmute
+     * @param {Boolean} [options.selfdeaf=false] Selfdeaf
      * @returns {Promise<Player>}
      * @example
      * // Join voice channel
@@ -114,7 +116,7 @@ class PlayerManager extends PlayerStore {
      *  host: "localhost"
      * });
      */
-    async join(data, options = {}) {
+    async join(data, { selfmute = false, selfdeaf = false } = {}) {
         const player = this.get(data.guild);
         if (player) return player;
         this.client.ws.send({
@@ -123,8 +125,8 @@ class PlayerManager extends PlayerStore {
             d: {
                 guild_id: data.guild,
                 channel_id: data.channel,
-                self_mute: options.selfmute || false,
-                self_deaf: options.selfdeaf || false
+                self_mute: selfmute,
+                self_deaf: selfdeaf
             }
         });
         return this.spawnPlayer({
