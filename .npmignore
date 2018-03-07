@@ -19,8 +19,7 @@ tslint.json
 package-lock.json
 .eslintignore
 testing
-docs
-.github
 scripts
 .gitattributes
+docs.js
 

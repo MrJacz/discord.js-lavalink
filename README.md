@@ -19,6 +19,7 @@ A Discord.js lavalink client
 
 **For stable**
 ```npm install discord.js-lavalink```
+
 **For Development**
 ```npm install mrjacz/discord.js-lavalink```
 
