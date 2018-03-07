@@ -7,6 +7,61 @@
 <p><a href="https://mrjacz.github.io/discord.js-lavalink/"><strong>mrjacz.github.io/discord.js-lavalink</strong></a></p>
 <h2 id="installation">Installation</h2>
 <p><strong>For stable</strong><br><code>npm install discord.js-lavalink</code><br><strong>For Development</strong><br><code>npm install mrjacz/discord.js-lavalink</code></p>
+<h2 id="lavalink-configuration">LavaLink configuration</h2>
+<p>Download from <a href="https://ci.fredboat.com/viewLog.html?buildId=lastSuccessful&amp;buildTypeId=Lavalink_Build&amp;tab=artifacts&amp;guest=1">the CI server</a></p>
+<p>Put an <code>application.yml</code> file in your working directory. <a href="https://github.com/Frederikam/Lavalink/blob/master/LavalinkServer/application.yml.example">Example</a></p>
+<p>Run with <code>java -jar Lavalink.jar</code></p>
 <h2 id="the-issue-tracker-is-for-issues-only">The issue tracker is for issues only</h2>
 <p>If you’re having a problem with the module contact us in the <a href="https://discord.gg/QJnGhnn"><strong>Discord Server</strong></a></p>
+<h1 id="implementation">Implementation</h1>
+<hr />
+<p>Start by creating a new <code>PlayerManager</code> passing an array of nodes and an object with <code>user</code> the client’s user id and <code>shards</code> the amount of Lavalink nodes</p>
+<pre><code class="lang-javascript">const { PlayerManager } = require("discord.js-lavalink");
+
+const nodes = [
+    { host: "localhost", port: 80, region: "asia", password: "youshallnotpass" }
+];
+
+const manager = new PlayerManager(client, nodes, {
+    user: client.user.id, // Client id
+    shards: nodeCount // Number of Lavalink nodes
+});
+</code></pre>
+<p>Resolving tracks using LavaLink REST API</p>
+<pre><code class="lang-javascript">async function getSongs(string) {
+    const res = await snekfetch.get(`http://localhost:2333/loadtracks?identifier=${string}`)
+        .set("Authorization", "youshallnotpass")
+        .catch(err =&gt; {
+            console.error(err);
+            return null;
+        });
+    if (!res) throw "There was an error, try again";
+    if (!res.body.length) throw "No tracks found";
+    return res.body;
+}
+
+getSongs("ytsearch: ytsearch:30 second song").then(songs =&gt; {
+    // handle loading of the tracks somehow ¯\_(ツ)_/¯
+});
+</code></pre>
+<p>Joining and Leaving channels</p>
+<pre><code class="lang-javascript">// Join
+manager.join({
+    guild: guildId // Guild id
+    channel: channelId // Channel id
+    host: "localhost" // lavalink host, based on array of nodes
+}).then(player =&gt; {
+    player.play(track); // Track is a base64 string we get from Lavalink REST API
+
+    player.on("error", error =&gt; console.error(error));
+    player.on("end", data =&gt; {
+        if (data.reason === "REPLACED") return; // Ignore REPLACED reason to prevent skip loops
+        // Play next song
+    });
+});
+
+// Leave voice channel and destory Player
+manager.leave(guildId); // Player ID aka guild id
+</code></pre>
+<p>For a proper example look at <a href="https://github.com/MrJacz/discord.js-lavalink/blob/master/testing/app.js"><strong>Testing/app.js</strong></a></p>
 </body></html>
