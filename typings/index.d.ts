@@ -12,7 +12,7 @@ declare module "discord.js-lavalink" {
         public constructor(client: DiscordClient, nodes: object[], options: PlayerManagerOptions);
 
         public client: DiscordClient;
-        public nodes: Collection<string, Node>;
+        public nodes: Collection<string, LavalinkNode>;
         public options: PlayerManagerOptions;
 
         public createNode(options: object): void;
@@ -38,7 +38,7 @@ declare module "discord.js-lavalink" {
         public id: string;
         public client: DiscordClient;
         public manager: PlayerManager;
-        public node: Node;
+        public node: LavalinkNode;
         public channel: string;
         public playing: boolean;
         public state: object;
@@ -98,7 +98,7 @@ declare module "discord.js-lavalink" {
         id: string;
         client: DiscordClient;
         manager: PlayerManager;
-        node: Node;
+        node: LavalinkNode;
         channel: string;
     };
 
