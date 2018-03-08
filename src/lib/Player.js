@@ -55,7 +55,7 @@ class Player extends EventEmitter {
         this.state = {};
         /**
          * The current track that the Player is playing
-         * @type {?String}
+         * @type {?string}
          */
         this.track = null;
         /**

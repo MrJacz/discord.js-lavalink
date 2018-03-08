@@ -80,7 +80,7 @@
 		"eol-last": "error",
 		"func-names": "error",
 		"func-style": ["error", "declaration", { "allowArrowFunctions": true }],
-		"indent": ["error", 4, { "SwitchCase": 1, "ignoreComments": true }],
+		"indent": ["error", 4, { "SwitchCase": 1 }],
 		"key-spacing": "error",
 		"keyword-spacing": ["error", {
 			"overrides": {

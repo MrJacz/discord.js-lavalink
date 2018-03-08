@@ -25,6 +25,7 @@ class PlayerStore extends Collection {
      * Sets player into collection from object or class
      * @param {any} obj obj or class
      * @returns {Player}
+     * @private
      */
     add(obj) {
         if (!obj.id) throw new Error("Missing object id");
