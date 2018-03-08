@@ -7,8 +7,17 @@ const { EventEmitter } = require("events");
 class Player extends EventEmitter {
 
     /**
+	 * @typedef {Object} PlayerOptions
+	 * @property {string} id Client user id
+	 * @property {external:Client} client Client
+     * @property {PlayerManager} manager The player's manager
+     * @property {Node} node Lavalink node for the Player
+     * @property {string} channel Channel id for the player
+	 */
+
+    /**
      * LavaLink Player Options
-     * @param {Object} options Player Options
+     * @param {PlayerOptions} options Player Options
      */
     constructor(options = {}) {
         super();
@@ -92,6 +101,8 @@ class Player extends EventEmitter {
      * Plays a song
      * @param {String} track A Base64 string from LavaLink API
      * @param {Object} [options] Other options
+     * @param {Number} [options.startTime] Start time
+     * @param {Number} [options.endTime] End time
      */
     play(track, options = {}) {
         this.track = track;

@@ -10,10 +10,16 @@ const { Collection } = require("discord.js");
 class PlayerManager extends PlayerStore {
 
     /**
-     *
+	 * @typedef {Object} PlayerManagerOptions
+	 * @property {string} user Client user id
+	 * @property {number} shards Number of Lavalink nodes
+	 */
+
+    /**
+     * Constructs the PlayerManager
      * @param {external:Client} client Discord.js Client
      * @param {Object[]} nodes Array of Lavalink Nodes
-     * @param {Object} options PlayerManager Options
+     * @param {PlayerManagerOptions} options PlayerManager Options
      */
     constructor(client, nodes = [], options = {}) {
         super(options.player || Player);
@@ -104,6 +110,9 @@ class PlayerManager extends PlayerStore {
     /**
      * Joins the voice channel and spawns a new player
      * @param {Object} data Object with guild, channel, host infomation
+     * @param {String} data.guild Guild id
+     * @param {String} data.channel Channel id
+     * @param {String} data.host host
      * @param {Object} [options] Options
      * @param {Boolean} [options.selfmute=false] Selfmute
      * @param {Boolean} [options.selfdeaf=false] Selfdeaf
@@ -182,6 +191,9 @@ class PlayerManager extends PlayerStore {
     /**
      * Creates or returns a player
      * @param {Object} data Data for the player
+     * @param {String} data.guild Player guild id
+     * @param {String} data.channel Player channel id
+     * @param {String} data.host Player host id
      * @returns {Player}
      */
     spawnPlayer(data) {

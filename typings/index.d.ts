@@ -104,7 +104,7 @@ declare module "discord.js-lavalink" {
 
     export type NodeOptions = {
         host: string;
-        port?: number;
+        port?: number | string;
         address?: string;
         region?: string;
         user: string;

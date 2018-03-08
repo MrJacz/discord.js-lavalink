@@ -8,8 +8,20 @@ const { EventEmitter } = require("events");
 class Node extends EventEmitter {
 
     /**
+	 * @typedef {Object} NodeOptions
+     * @property {String} host Lavalink host
+     * @property {number} port Lavalink port
+     * @property {string} [address] Lavalink address
+     * @property {string} [region] Lavalink region
+     * @property {string} user Client id
+     * @property {number} shards Number of Lavalink nodes
+     * @property {string} [password="youshallnotpass"] Lavalink password
+     * @property {number} [reconnectInterval=5000] Reconnectinterval
+	 */
+
+    /**
      * LavaLink options
-     * @param {Object} options LavaLink options
+     * @param {NodeOptions} options LavaLink options
      */
     constructor(options) {
         super();
