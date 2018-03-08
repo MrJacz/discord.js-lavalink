@@ -21,7 +21,7 @@
 			false
 		],
 		"variable-name": [false],
-		"interface-name": [true, "always-prefix"],
+		"interface-name": [false],
 		"no-conditional-assignment": true,
 		"use-isnan": true,
 		"no-trailing-whitespace": true,
