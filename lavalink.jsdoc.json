@@ -573,11 +573,15 @@
     },
     "description": "A discord.js lavalink client",
     "devDependencies": {
+      "@types/node": "^9.4.6",
+      "@types/ws": "^4.0.1",
       "discord.js": "^11.3.2",
       "docma": "^1.5.3",
       "eslint": "^4.18.2",
       "eslint-plugin-node": "^6.0.1",
-      "eslint-plugin-promise": "^3.6.0"
+      "eslint-plugin-promise": "^3.6.0",
+      "tslint": "^5.9.1",
+      "typescript": "^2.7.2"
     },
     "files": [
       "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/Node.js",
@@ -1295,7 +1299,7 @@
         "$longname": "Player#timestamp"
       },
       {
-        "comment": "/**\n         * The current track that the Player is playing\n         * @type {?String}\n         */",
+        "comment": "/**\n         * The current track that the Player is playing\n         * @type {?string}\n         */",
         "meta": {
           "range": [
             1359,
@@ -1316,7 +1320,7 @@
         "description": "The current track that the Player is playing",
         "type": {
           "names": [
-            "String"
+            "string"
           ]
         },
         "nullable": true,
@@ -1474,59 +1478,6 @@
     ],
     "$longname": "PlayerManager",
     "$members": [
-      {
-        "comment": "/**\n     * Sets player into collection from object or class\n     * @param {any} obj obj or class\n     * @returns {Player}\n     */",
-        "meta": {
-          "range": [
-            649,
-            846
-          ],
-          "filename": "PlayerStore.js",
-          "lineno": 29,
-          "columnno": 4,
-          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
-          "code": {
-            "id": "astnode100001610",
-            "name": "PlayerStore#add",
-            "type": "MethodDefinition",
-            "paramnames": [
-              "obj"
-            ]
-          },
-          "vars": {
-            "": null
-          }
-        },
-        "description": "Sets player into collection from object or class",
-        "params": [
-          {
-            "type": {
-              "names": [
-                "any"
-              ]
-            },
-            "description": "obj or class",
-            "name": "obj"
-          }
-        ],
-        "returns": [
-          {
-            "type": {
-              "names": [
-                "Player"
-              ]
-            }
-          }
-        ],
-        "name": "add",
-        "longname": "PlayerManager#add",
-        "kind": "function",
-        "memberof": "PlayerManager",
-        "scope": "instance",
-        "inherits": "PlayerStore#add",
-        "inherited": true,
-        "$longname": "PlayerManager#add"
-      },
       {
         "comment": "/**\n         * Discord.js Client for the Player Manager\n         * @type {external:Client}\n         */",
         "meta": {
@@ -2012,60 +1963,7 @@
     "kind": "class",
     "scope": "global",
     "undocumented": true,
-    "$longname": "PlayerStore",
-    "$members": [
-      {
-        "comment": "/**\n     * Sets player into collection from object or class\n     * @param {any} obj obj or class\n     * @returns {Player}\n     */",
-        "meta": {
-          "range": [
-            649,
-            846
-          ],
-          "filename": "PlayerStore.js",
-          "lineno": 29,
-          "columnno": 4,
-          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures",
-          "code": {
-            "id": "astnode100001610",
-            "name": "PlayerStore#add",
-            "type": "MethodDefinition",
-            "paramnames": [
-              "obj"
-            ]
-          },
-          "vars": {
-            "": null
-          }
-        },
-        "description": "Sets player into collection from object or class",
-        "params": [
-          {
-            "type": {
-              "names": [
-                "any"
-              ]
-            },
-            "description": "obj or class",
-            "name": "obj"
-          }
-        ],
-        "returns": [
-          {
-            "type": {
-              "names": [
-                "Player"
-              ]
-            }
-          }
-        ],
-        "name": "add",
-        "longname": "PlayerStore#add",
-        "kind": "function",
-        "memberof": "PlayerStore",
-        "scope": "instance",
-        "$longname": "PlayerStore#add"
-      }
-    ]
+    "$longname": "PlayerStore"
   },
   {
     "comment": "/**\n     * check to see if something is a class???\n     * @param {Function} input Function to check. what else?\n     * @returns {Boolean}\n     */",
