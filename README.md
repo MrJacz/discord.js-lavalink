@@ -62,7 +62,7 @@ async function getSongs(string) {
     return res.body;
 }
 
-getSongs("ytsearch: ytsearch:30 second song").then(songs => {
+getSongs("ytsearch:30 second song").then(songs => {
     // handle loading of the tracks somehow ¯\_(ツ)_/¯
 });
 ```
