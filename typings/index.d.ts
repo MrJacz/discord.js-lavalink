@@ -45,6 +45,16 @@ declare module "discord.js-lavalink" {
         public track?: Base64;
         public timestamp?: number;
 
+        public on(event: string, listener: Function): this;
+        public on(event: "disconnect", listener: (msg: string) => void): this;
+        public on(event: "error", listener: (error: Error) => void): this;
+        public on(event: "end", listener: (message: object) => void): this;
+
+        public once(event: string, listener: Function): this;
+        public once(event: "disconnect", listener: (msg: string) => void): this;
+        public once(event: "error", listener: (error: Error) => void): this;
+        public once(event: "end", listener: (message: object) => void): this;
+
         public connect(data: object): void;
         public disconnect(msg?: string): void;
         public play(track: Base64, options?: { startTime?: number, endTime?: number }): void;
@@ -59,28 +69,40 @@ declare module "discord.js-lavalink" {
     }
 
     class LavalinkNode extends EventEmitter {
-        public constructor(options: NodeOptions);
+        public constructor(manager: PlayerManager, options: NodeOptions);
 
+        public manager: PlayerManager;
         public host: string;
         public port?: number | string;
         public address?: string;
         public region?: string;
-        public user: string;
-        public shards: number;
         public password?: string;
-        public connected: boolean;
+        public ready: boolean;
         public ws?: WebSocket;
-        public autoReconnectInterval?: number;
+        public reconnect?: NodeJS.Timer;
+        public reconnectInterval?: number;
         public stats: NodeStats;
+
+        public on(event: string, listener: Function): this;
+        public on(event: "ready" | "reconnecting", listener: () => void): this;
+        public on(event: "disconnect", listener: (reason: string) => void): this;
+        public on(event: "message", listener: (data: any) => void): this;
+        public on(event: "error", listener: (error: Error) => void): this;
+
+        public once(event: string, listener: Function): this;
+        public once(event: "ready" | "reconnecting", listener: () => void): this;
+        public once(event: "disconnect", listener: (reason: string) => void): this;
+        public once(event: "message", listener: (data: any) => void): this;
+        public once(event: "error", listener: (error: Error) => void): this;
 
         public connect(): void;
         public send(data: object): boolean;
         public destroy(): boolean;
-        private reconnect(): void;
-        private _onOpen(): void;
-        private _onClose(code: number, reason?: string): void;
-        private _onMessage(msg: object): any;
-        private _onError(error: Error): void;
+        private _reconnect(): void;
+        private _ready(): void;
+        private _close(code: number, reason?: string): void;
+        private _message(msg: object): any;
+        private _error(error: Error): void;
     }
 
     export { LavalinkNode as Node };
@@ -107,8 +129,6 @@ declare module "discord.js-lavalink" {
         port?: number | string;
         address?: string;
         region?: string;
-        user: string;
-        shards: number;
         password?: string;
         reconnectInterval?: number;
     };

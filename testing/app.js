@@ -3,6 +3,11 @@ const snekfetch = require("snekfetch");
 const config = require("./config.json");
 const { PlayerManager } = require("../src/index");
 const { inspect } = require("util");
+const defaultRegions = {
+    asia: ["sydney", "singapore", "japan", "hongkong"],
+    eu: ["london", "frankfurt", "amsterdam", "russia", "eu-central", "eu-west"],
+    us: ["us-central", "us-west", "us-east", "us-south", "brazil"]
+};
 
 class MusicClient extends Client {
 
@@ -45,7 +50,7 @@ client.on("message", async message => {
         const player = await client.player.join({
             guild: message.guild.id,
             channel: message.member.voiceChannelID,
-            host: "localhost"
+            host: getIdealHost(message.guild.region)
         }, { selfdeaf: true });
         if (!player) throw "No player found...";
         player.play(song.track);
@@ -92,8 +97,9 @@ async function clean(text) {
 }
 
 async function getSong(string) {
-    const res = await snekfetch.get(`http://localhost:2333/loadtracks?identifier=${string}`)
-        .set("Authorization", "youshallnotpass")
+    const res = await snekfetch.get(`http://${config.restnode.host}:${config.restnode.port}/loadtracks`)
+        .query({ identifier: string })
+        .set("Authorization", config.restnode.password)
         .catch(err => {
             console.error(err);
             return null;
@@ -101,6 +107,25 @@ async function getSong(string) {
     if (!res) throw "There was an error, try again";
     if (!res.body.length) throw `No tracks found`;
     return res.body;
+}
+
+function getRegion(region) {
+    region = region.replace("vip-", "");
+    for (const key in defaultRegions) {
+        const nodes = client.player.nodes.filter(node => node.connected && node.region === key);
+        if (!nodes) continue;
+        for (const id of defaultRegions[key]) {
+            if (id === region || region.startsWith(id) || region.includes(id)) return key;
+        }
+    }
+    return "asia";
+}
+
+function getIdealHost(region) {
+    region = getRegion(region);
+    const foundNode = client.player.nodes.find(node => node.ready && node.region === region);
+    if (foundNode) return foundNode.host;
+    return client.player.nodes.first().host;
 }
 
 process.on("unhandledRejection", console.log)

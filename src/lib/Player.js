@@ -11,7 +11,7 @@ class Player extends EventEmitter {
 	 * @property {string} id Client user id
 	 * @property {external:Client} client Client
      * @property {PlayerManager} manager The player's manager
-     * @property {Node} node Lavalink node for the Player
+     * @property {LavalinkNode} node Lavalink node for the Player
      * @property {string} channel Channel id for the player
 	 */
 
@@ -29,7 +29,7 @@ class Player extends EventEmitter {
         this.options = options;
         /**
          * Player id (Guild ID)
-         * @type {String}
+         * @type {string}
          */
         this.id = options.id;
         /**
@@ -44,17 +44,17 @@ class Player extends EventEmitter {
         this.manager = options.manager;
         /**
          * The current node for this Player
-         * @type {Node}
+         * @type {LavalinkNode}
          */
         this.node = options.node;
         /**
          * The current channel id
-         * @type {String}
+         * @type {string}
          */
         this.channel = options.channel;
         /**
          * Playing boolean
-         * @type {Boolean}
+         * @type {boolean}
          */
         this.playing = false;
         /**
@@ -69,7 +69,7 @@ class Player extends EventEmitter {
         this.track = null;
         /**
          * The timestamp the Player started playing
-         * @type {Number}
+         * @type {number}
          */
         this.timestamp = null;
     }
@@ -89,20 +89,25 @@ class Player extends EventEmitter {
 
     /**
      * Disconnects the player
-     * @param {String} msg Disconnect reason
+     * @param {string} msg Disconnect reason
      */
     disconnect(msg) {
         this.playing = false;
         this.stop();
+        /**
+         * Emitted when the Player disconnects
+         * @event PLayer#disconnect
+         * @param {string} msg Disconnection reason
+         */
         this.emit("disconnect", msg);
     }
 
     /**
      * Plays a song
-     * @param {String} track A Base64 string from LavaLink API
+     * @param {string} track A Base64 string from LavaLink API
      * @param {Object} [options] Other options
-     * @param {Number} [options.startTime] Start time
-     * @param {Number} [options.endTime] End time
+     * @param {number} [options.startTime] Start time
+     * @param {number} [options.endTime] End time
      */
     play(track, options = {}) {
         this.track = track;
@@ -130,7 +135,7 @@ class Player extends EventEmitter {
 
     /**
      * Pauses or Resumes the player
-     * @param {Boolean} [pause=true] Whether to resume or pause the player
+     * @param {boolean} [pause=true] Whether to resume or pause the player
      */
     pause(pause = true) {
         if ((pause && this.paused) || (!pause && !this.paused)) return;
@@ -144,7 +149,7 @@ class Player extends EventEmitter {
 
     /**
      * Sets the volume for the player
-     * @param {Number} volume Volume
+     * @param {number} volume Volume
      */
     volume(volume) {
         this.node.send({
@@ -156,7 +161,7 @@ class Player extends EventEmitter {
 
     /**
      * Seeks to a specified position
-     * @param {Number} position The position to seek to
+     * @param {number} position The position to seek to
      */
     seek(position) {
         this.node.send({
@@ -178,9 +183,9 @@ class Player extends EventEmitter {
 
     /**
      * Switch player channel
-     * @param {String} channel Channel id
-     * @param {Boolean} [reactive=false] Whether to switch channel
-     * @return {Boolean}
+     * @param {string} channel Channel id
+     * @param {boolean} [reactive=false] Whether to switch channel
+     * @return {boolean}
      */
     switchChannel(channel, reactive = false) {
         if (this.channel === channel) return false;
@@ -201,14 +206,24 @@ class Player extends EventEmitter {
                     this.playing = false;
                     this.track = null;
                 }
-                this.emit("end", message);
-                return;
+                return this.emit("end", message);
             }
-            case "TrackExceptionEvent": return this.emit("error", message);
+            case "TrackExceptionEvent": {
+                /**
+		         * Emmited when the player encounters an error
+		         * @event LavaPlayer#error
+		         * @prop {object} message The raw message
+		         */
+                return this.emit("error", message);
+            }
             case "TrackStuckEvent": {
                 this.stop();
-                this.emit("end", message);
-                return;
+                /**
+                 * Emitted whenever the Player gets Stuck or ends
+                 * @event Player#end
+                 * @param {string} message Data containg reason
+                 */
+                return this.emit("end", message);
             }
             default: return this.emit("warn", `Unexpected event type: ${message.type}`);
         }
@@ -216,10 +231,10 @@ class Player extends EventEmitter {
 
     /**
      * Updates the Client's voice state
-     * @param {String} channel Channel id
+     * @param {string} channel Channel id
      * @param {Object} [options] selfmute and selfdeaf options
-     * @param {Boolean} [options.selfmute=false] selfmute option
-     * @param {Boolean} [options.selfdeaf=false] selfdeaf option
+     * @param {boolean} [options.selfmute=false] selfmute option
+     * @param {boolean} [options.selfdeaf=false] selfdeaf option
      * @private
      */
     updateVoiceState(channel, { selfmute = false, selfdeaf = false } = {}) {

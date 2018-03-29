@@ -23,13 +23,13 @@ class PlayerStore extends Collection {
 
     /**
      * Sets player into collection from object or class
-     * @param {any} obj obj or class
+     * @param {(Function|Object)} data Data or class
      * @returns {Player}
      * @private
      */
-    add(obj) {
-        if (!obj.id) throw new Error("Missing object id");
-        const entry = isClass(obj) ? obj : new this.Player(obj);
+    add(data) {
+        if (!data.id) throw new Error("INVALID_DATA: Object or Class doesnt have id property");
+        const entry = isClass(data) ? data : new this.Player(data);
         this.set(entry.id, entry);
         return entry;
     }

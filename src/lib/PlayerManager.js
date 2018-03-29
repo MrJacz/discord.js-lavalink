@@ -1,6 +1,6 @@
 const PlayerStore = require("./structures/PlayerStore.js");
 const Player = require("./Player");
-const Node = require("./Node");
+const LavalinkNode = require("./LavalinkNode");
 const { Collection } = require("discord.js");
 
 /**
@@ -13,6 +13,7 @@ class PlayerManager extends PlayerStore {
 	 * @typedef {Object} PlayerManagerOptions
 	 * @property {string} user Client user id
 	 * @property {number} shards Number of Lavalink nodes
+     * @property {Player} [player] Custom player class
 	 */
 
     /**
@@ -23,6 +24,7 @@ class PlayerManager extends PlayerStore {
      */
     constructor(client, nodes = [], options = {}) {
         super(options.player || Player);
+        if (!client) throw new Error("INVALID_CLIENT");
 
         /**
          * Discord.js Client for the Player Manager
@@ -31,16 +33,26 @@ class PlayerManager extends PlayerStore {
         this.client = client;
         /**
          * Collection of LavaLink Nodes
-         * @type {Collection<String, Node>}
+         * @type {Collection<string, LavalinkNode>}
          */
         this.nodes = new Collection();
+        /**
+         * This client's id
+         * @type {string}
+         */
+        this.user = options.user || client.user.id;
+        /**
+         * Lavalink node count
+         * @type {number}
+         */
+        this.shards = options.shards;
         /**
          * PlayerManager Options
          * @type {Object}
          */
         this.options = options;
 
-        for (let i = 0; i < nodes.length; i++) this.createNode(Object.assign({}, nodes[i], options));
+        for (let i = 0; i < nodes.length; i++) this.createNode(nodes[i]);
 
         client.on("raw", message => {
             if (message.t === "VOICE_SERVER_UPDATE") this.voiceServerUpdate(message.d);
@@ -52,18 +64,11 @@ class PlayerManager extends PlayerStore {
      * @param {Object} options Node options
      */
     createNode(options) {
-        const node = new Node({
-            host: options.host,
-            port: options.port,
-            region: options.region,
-            shards: options.shards,
-            user: options.user,
-            password: options.password
-        });
+        const node = new LavalinkNode(this, options);
 
         node.on("error", error => this.client.emit("error", error));
         node.on("disconnect", reason => {
-            if (!this.nodes.size) throw new Error("No available voice nodes.");
+            if (!this.nodes.size) return this.client.emit("debug", new Error("No available voice nodes."));
             throw new Error(reason);
         });
         node.on("message", this.onMessage.bind(this));
@@ -73,8 +78,8 @@ class PlayerManager extends PlayerStore {
 
     /**
      * Removes a node by host
-     * @param {String} host Node host
-     * @returns {Boolean}
+     * @param {string} host Node host
+     * @returns {boolean}
      */
     removeNode(host) {
         const node = this.nodes.get(host);
@@ -110,12 +115,12 @@ class PlayerManager extends PlayerStore {
     /**
      * Joins the voice channel and spawns a new player
      * @param {Object} data Object with guild, channel, host infomation
-     * @param {String} data.guild Guild id
-     * @param {String} data.channel Channel id
-     * @param {String} data.host host
+     * @param {string} data.guild Guild id
+     * @param {string} data.channel Channel id
+     * @param {string} data.host host
      * @param {Object} [options] Options
-     * @param {Boolean} [options.selfmute=false] Selfmute
-     * @param {Boolean} [options.selfdeaf=false] Selfdeaf
+     * @param {boolean} [options.selfmute=false] Selfmute
+     * @param {boolean} [options.selfdeaf=false] Selfdeaf
      * @returns {Promise<Player>}
      * @example
      * // Join voice channel
@@ -147,8 +152,8 @@ class PlayerManager extends PlayerStore {
 
     /**
      * Leaves voice channel and deletes Player
-     * @param {String} guild Guild id
-     * @returns {Boolean}
+     * @param {string} guild Guild id
+     * @returns {boolean}
      * @example
      * // Leave the current channel
      * PlayerManager.leave("412180910587379712");
@@ -191,9 +196,9 @@ class PlayerManager extends PlayerStore {
     /**
      * Creates or returns a player
      * @param {Object} data Data for the player
-     * @param {String} data.guild Player guild id
-     * @param {String} data.channel Player channel id
-     * @param {String} data.host Player host id
+     * @param {string} data.guild Player guild id
+     * @param {string} data.channel Player channel id
+     * @param {string} data.host Player host id
      * @returns {Player}
      */
     spawnPlayer(data) {

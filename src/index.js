@@ -1,5 +1,5 @@
 module.exports = {
-    Node: require("./lib/Node"),
+    Node: require("./lib/LavalinkNode"),
     Player: require("./lib/Player"),
     PlayerManager: require("./lib/PlayerManager"),
     util: require("./lib/util/util"),

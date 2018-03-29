@@ -5,7 +5,7 @@
         "es6": true
     },
     "parserOptions": {
-        "ecmaVersion": 8,
+        "ecmaVersion": 2018,
         "sourceType": "module"
     },
     "plugins": [
@@ -20,13 +20,13 @@
 			"requireReturn": false,
 			"requireReturnDescription": false,
 			"preferType": {
-				"string": "String",
-				"number": "Number",
-				"boolean": "Boolean",
-				"symbol": "Symbol",
+				"String": "string",
+				"Number": "number",
+				"Boolean": "boolean",
+				"Symbol": "symbol",
 				"function": "Function",
 				"object": "Object",
-				"date": "Date",
+				"Date": "date",
 				"error": "Error"
 			}
 		}],
@@ -72,6 +72,7 @@
 		"array-bracket-spacing": "error",
 		"block-spacing": "error",
 		"brace-style": ["error", "1tbs", { "allowSingleLine": true }],
+		"camelcase": "off",
 		"comma-dangle": "error",
 		"comma-spacing": "error",
 		"comma-style": "error",

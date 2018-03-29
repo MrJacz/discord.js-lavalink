@@ -6,7 +6,7 @@ class Util {
     /**
      * check to see if something is a class???
      * @param {Function} input Function to check. what else?
-     * @returns {Boolean}
+     * @returns {boolean}
      */
     static isClass(input) {
         return typeof input === "function" &&
