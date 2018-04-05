@@ -625,7 +625,7 @@
       "type": "git",
       "url": "git+https://github.com/MrJacz/discord.js-lavalink.git"
     },
-    "version": "2.0.1",
+    "version": "2.0.2",
     "$longname": "package:discord.js-lavalink"
   },
   {
