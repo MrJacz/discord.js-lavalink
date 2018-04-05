@@ -1,25 +1,10 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-
-# Dependency directories
 node_modules
-jspm_packages
-
-# Optional npm cache directory
-.npm
-
-# Optional REPL history
-.node_repl_history
-
-.eslintrc.json
-tslint.json
-.travis.yml
-package-lock.json
-.eslintignore
-testing
 scripts
+testing
+.eslintrc.json
 .gitattributes
+.gitignore
+.npmrc
+.travis.yml
 docs.js
-
+tslint.json
