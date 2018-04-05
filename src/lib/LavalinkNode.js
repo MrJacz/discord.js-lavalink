@@ -28,23 +28,27 @@ class LavalinkNode extends EventEmitter {
         /**
          * The PlayerManager that created the Node
          * @type {PlayerManager}
+         * @private
          */
-        this.manager = manager;
+        Object.defineProperty(this, "manager", { value: manager });
         /**
          * Host
          * @type {string}
+         * @private
          */
-        this.host = options.host;
+        Object.defineProperty(this, "host", { value: options.host });
         /**
          * Port
          * @type {number|string}
+         * @private
          */
-        this.port = options.port || 80;
+        Object.defineProperty(this, "port", { value: options.port || 80 });
         /**
          * Address
          * @type {string}
+         * @private
          */
-        this.address = options.address || `ws://${options.host}:${options.port}`;
+        Object.defineProperty(this, "address", { value: options.address || `ws://${options.host}:${options.port}` });
         /**
          * Region
          * @type {?string}
@@ -53,8 +57,9 @@ class LavalinkNode extends EventEmitter {
         /**
          * Lavalink Node(Shard) Password
          * @type {string}
+         * @private
          */
-        this.password = options.password || "youshallnotpass";
+        Object.defineProperty(this, "password", { value: options.password || "youshallnotpass" });
         /**
          * If the lavalink websocket is ready or not
          * @type {boolean}
@@ -128,8 +133,8 @@ class LavalinkNode extends EventEmitter {
         let payload;
         try {
             payload = JSON.stringify(data);
-        } catch (err) {
-            this.emit("error", "Unable to stringify payload.");
+        } catch (error) {
+            this.emit("error", error);
             return false;
         }
         this.ws.send(payload);
@@ -153,6 +158,7 @@ class LavalinkNode extends EventEmitter {
      */
     _reconnect() {
         this.reconnect = setTimeout(() => {
+            this.removeAllListeners();
             /**
 			 * Emmited when the node is attempting a reconnect
 			 * @event LavalinkNode#reconnecting
@@ -197,8 +203,8 @@ class LavalinkNode extends EventEmitter {
 		     * @param {Object} data The raw message data
 		     */
             this.emit("message", data);
-        } catch (err) {
-            this.emit("error", err);
+        } catch (error) {
+            this.emit("error", error);
         }
     }
 

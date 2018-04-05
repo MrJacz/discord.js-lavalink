@@ -55,14 +55,14 @@ declare module "discord.js-lavalink" {
         public once(event: "error", listener: (error: Error) => void): this;
         public once(event: "end", listener: (message: object) => void): this;
 
-        public connect(data: object): void;
-        public disconnect(msg?: string): void;
-        public play(track: Base64, options?: { startTime?: number, endTime?: number }): void;
-        public stop(): void;
-        public pause(pause?: boolean): void;
-        public volume(volume: number): void;
-        public seek(position: number): void;
-        public destroy(): void;
+        public connect(data: object): this;
+        public disconnect(msg?: string): this;
+        public play(track: Base64, options?: { startTime?: number, endTime?: number }): this;
+        public stop(): this;
+        public pause(pause?: boolean): this;
+        public volume(volume: number): this;
+        public seek(position: number): this;
+        public destroy(): this;
         public switchChannel(channel: string, reactive?: boolean): boolean;
         private event(message: object): any;
         private updateVoiceState(channel: string, options?: { selfmute?: boolean, selfdeaf?: boolean }): void;

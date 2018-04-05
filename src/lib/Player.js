@@ -77,6 +77,7 @@ class Player extends EventEmitter {
     /**
      * Sends a packet to Lavalink for voiceUpdate
      * @param {Object} data voiceUpdate event data
+     * @returns {Player}
      */
     connect(data) {
         this.node.send({
@@ -85,11 +86,13 @@ class Player extends EventEmitter {
             sessionId: data.session,
             event: data.event
         });
+        return this;
     }
 
     /**
      * Disconnects the player
      * @param {string} msg Disconnect reason
+     * @returns {Player}
      */
     disconnect(msg) {
         this.playing = false;
@@ -100,6 +103,7 @@ class Player extends EventEmitter {
          * @param {string} msg Disconnection reason
          */
         this.emit("disconnect", msg);
+        return this;
     }
 
     /**
@@ -108,6 +112,7 @@ class Player extends EventEmitter {
      * @param {Object} [options] Other options
      * @param {number} [options.startTime] Start time
      * @param {number} [options.endTime] End time
+     * @returns {Player}
      */
     play(track, options = {}) {
         this.track = track;
@@ -119,10 +124,12 @@ class Player extends EventEmitter {
         this.node.send(payload);
         this.playing = true;
         this.timestamp = Date.now();
+        return this;
     }
 
     /**
      * stops the Player
+     * @returns {Player}
      */
     stop() {
         this.node.send({
@@ -131,11 +138,13 @@ class Player extends EventEmitter {
         });
         this.playing = false;
         this.track = null;
+        return this;
     }
 
     /**
      * Pauses or Resumes the player
      * @param {boolean} [pause=true] Whether to resume or pause the player
+     * @returns {Player}
      */
     pause(pause = true) {
         if ((pause && this.paused) || (!pause && !this.paused)) return;
@@ -145,11 +154,13 @@ class Player extends EventEmitter {
             pause
         });
         this.paused = Boolean(pause);
+        return this;
     }
 
     /**
      * Sets the volume for the player
      * @param {number} volume Volume
+     * @returns {Player}
      */
     volume(volume) {
         this.node.send({
@@ -157,11 +168,13 @@ class Player extends EventEmitter {
             guildId: this.id,
             volume
         });
+        return this;
     }
 
     /**
      * Seeks to a specified position
      * @param {number} position The position to seek to
+     * @returns {Player}
      */
     seek(position) {
         this.node.send({
@@ -169,16 +182,19 @@ class Player extends EventEmitter {
             guildId: this.id,
             position
         });
+        return this;
     }
 
     /**
      * Destroys the Player
+     * @returns {Player}
      */
     destroy() {
         this.node.send({
             op: "destroy",
             guildId: this.id
         });
+        return this;
     }
 
     /**
@@ -214,7 +230,8 @@ class Player extends EventEmitter {
 		         * @event LavaPlayer#error
 		         * @prop {object} message The raw message
 		         */
-                return this.emit("error", message);
+                if (this.listenerCount("error")) return this.emit("error", message);
+                return;
             }
             case "TrackStuckEvent": {
                 this.stop();

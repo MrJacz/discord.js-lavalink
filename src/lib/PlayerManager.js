@@ -12,7 +12,7 @@ class PlayerManager extends PlayerStore {
     /**
 	 * @typedef {Object} PlayerManagerOptions
 	 * @property {string} user Client user id
-	 * @property {number} shards Number of Lavalink nodes
+	 * @property {number} shards Total number of shards your bot is operating on
      * @property {Player} [player] Custom player class
 	 */
 
@@ -42,7 +42,7 @@ class PlayerManager extends PlayerStore {
          */
         this.user = options.user || client.user.id;
         /**
-         * Lavalink node count
+         * Total number of shards your bot is operating on
          * @type {number}
          */
         this.shards = options.shards;
@@ -68,7 +68,7 @@ class PlayerManager extends PlayerStore {
 
         node.on("error", error => this.client.emit("error", error));
         node.on("disconnect", reason => {
-            if (!this.nodes.size) return this.client.emit("debug", new Error("No available voice nodes."));
+            if (!this.nodes.size) return this.client.emit("debug", new Error("[Lavalink] - No available voice nodes."));
             throw new Error(reason);
         });
         node.on("message", this.onMessage.bind(this));
