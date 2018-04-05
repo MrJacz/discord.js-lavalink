@@ -5,7 +5,7 @@
         "es6": true
     },
     "parserOptions": {
-        "ecmaVersion": 2018,
+        "ecmaVersion": 9,
         "sourceType": "module"
     },
     "plugins": [
@@ -72,7 +72,6 @@
 		"array-bracket-spacing": "error",
 		"block-spacing": "error",
 		"brace-style": ["error", "1tbs", { "allowSingleLine": true }],
-		"camelcase": "off",
 		"comma-dangle": "error",
 		"comma-spacing": "error",
 		"comma-style": "error",
