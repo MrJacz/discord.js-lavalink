@@ -575,11 +575,11 @@
       "url": "https://github.com/MrJacz/discord.js-lavalink/issues"
     },
     "dependencies": {
-      "ws": "^5.1.0"
+      "ws": "^5.1.1"
     },
     "description": "A discord.js lavalink client",
     "devDependencies": {
-      "@types/node": "^9.6.1",
+      "@types/node": "^9.6.2",
       "@types/ws": "^4.0.2",
       "discord.js": "^11.3.2",
       "docma": "^1.5.3",
