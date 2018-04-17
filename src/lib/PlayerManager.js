@@ -69,7 +69,7 @@ class PlayerManager extends PlayerStore {
         node.on("error", error => this.client.emit("error", error));
         node.on("disconnect", reason => {
             if (!this.nodes.size) return this.client.emit("debug", new Error("[Lavalink] - No available voice nodes."));
-            throw new Error(reason);
+            this.client.emit("debug", reason);
         });
         node.on("message", this.onMessage.bind(this));
 
@@ -101,7 +101,7 @@ class PlayerManager extends PlayerStore {
             case "playerUpdate": {
                 const player = this.get(message.guildId);
                 if (!player) return;
-                player.state = message.state;
+                player.state = Object.assign(player.state, message.state);
                 return;
             }
             case "event": {

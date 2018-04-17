@@ -58,10 +58,15 @@ class Player extends EventEmitter {
          */
         this.playing = false;
         /**
+         * Whether the Player is paused or not.
+         * @type {boolean}
+         */
+        this.paused = false;
+        /**
          * LavaLink Player state
          * @type {Object}
          */
-        this.state = {};
+        this.state = { volume: 100 };
         /**
          * The current track that the Player is playing
          * @type {?string}
@@ -157,6 +162,10 @@ class Player extends EventEmitter {
         return this;
     }
 
+    resume() {
+        return this.pause(false);
+    }
+
     /**
      * Sets the volume for the player
      * @param {number} volume Volume
@@ -168,6 +177,7 @@ class Player extends EventEmitter {
             guildId: this.id,
             volume
         });
+        this.state.volume = volume;
         return this;
     }
 

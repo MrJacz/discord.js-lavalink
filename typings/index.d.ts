@@ -41,6 +41,7 @@ declare module "discord.js-lavalink" {
         public node: LavalinkNode;
         public channel: string;
         public playing: boolean;
+        public paused: boolean;
         public state: object;
         public track?: Base64;
         public timestamp?: number;
@@ -60,6 +61,7 @@ declare module "discord.js-lavalink" {
         public play(track: Base64, options?: { startTime?: number, endTime?: number }): this;
         public stop(): this;
         public pause(pause?: boolean): this;
+        public resume(): this;
         public volume(volume: number): this;
         public seek(position: number): this;
         public destroy(): this;
