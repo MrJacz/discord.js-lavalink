@@ -16,7 +16,7 @@
 <p>If you’re having a problem with the module contact us in the <a href="https://discord.gg/QJnGhnn"><strong>Discord Server</strong></a></p>
 <h1 id="implementation">Implementation</h1>
 <hr />
-<p>Start by creating a new <code>PlayerManager</code> passing an array of nodes and an object with <code>user</code> the client’s user id and <code>shards</code> the amount of Lavalink nodes</p>
+<p>Start by creating a new <code>PlayerManager</code> passing an array of nodes and an object with <code>user</code> the client’s user id and <code>shards</code> The total number of shards your bot is operating on.</p>
 <pre><code class="lang-javascript">const { PlayerManager } = require("discord.js-lavalink");
 
 const nodes = [
@@ -25,7 +25,7 @@ const nodes = [
 
 const manager = new PlayerManager(client, nodes, {
     user: client.user.id, // Client id
-    shards: nodeCount // Number of Lavalink nodes
+    shards: shardCount // Total number of shards your bot is operating on
 });
 </code></pre>
 <p>Resolving tracks using LavaLink REST API</p>
