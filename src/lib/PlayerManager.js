@@ -67,10 +67,6 @@ class PlayerManager extends PlayerStore {
         const node = new LavalinkNode(this, options);
 
         node.on("error", error => this.client.emit("error", error));
-        node.on("disconnect", reason => {
-            if (!this.nodes.size) return this.client.emit("debug", new Error("[Lavalink] - No available voice nodes."));
-            this.client.emit("debug", reason);
-        });
         node.on("message", this.onMessage.bind(this));
 
         this.nodes.set(options.host, node);
