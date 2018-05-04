@@ -63,7 +63,7 @@ client.on("message", async message => {
     }
     if (command === "leave") {
         await client.player.leave(message.guild.id);
-        return message.reply("Sucessfully left the voice channel");
+        return message.reply("Successfully left the voice channel");
     }
     if (command === "pause") {
         const player = client.player.get(message.guild.id);
