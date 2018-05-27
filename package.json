@@ -39,7 +39,7 @@
   "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
   "devDependencies": {
     "@types/node": "^9.6.2",
-    "@types/ws": "^4.0.2",
+    "@types/ws": "^5.1.1",
     "discord.js": "^11.3.2",
     "docma": "^2.1.0",
     "eslint": "^4.19.1",
