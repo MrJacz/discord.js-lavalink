@@ -50,6 +50,8 @@
       }
     ],
     "$longname": "LavalinkNode",
+    "$kind": "class",
+    "$docmaLink": "?api=lavalink#LavalinkNode",
     "$members": [
       {
         "comment": "/**\n     * Connects to the WebSocket server\n     */",
@@ -79,7 +81,9 @@
         "memberof": "LavalinkNode",
         "scope": "instance",
         "params": [],
-        "$longname": "LavalinkNode#connect"
+        "$longname": "LavalinkNode#connect",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#LavalinkNode#connect"
       },
       {
         "comment": "/**\n     * Destroys the WebSocket\n     * @returns {boolean}\n     */",
@@ -118,7 +122,9 @@
         "memberof": "LavalinkNode",
         "scope": "instance",
         "params": [],
-        "$longname": "LavalinkNode#destroy"
+        "$longname": "LavalinkNode#destroy",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#LavalinkNode#destroy"
       },
       {
         "comment": "/**\n\t\t * Emmited when the node disconnects from the WebSocket and won't attempt to reconnect\n\t\t * @event LavalinkNode#disconnect\n\t\t * @param {string} reason The reason for the disconnect\n\t\t */",
@@ -146,7 +152,9 @@
         "memberof": "LavalinkNode",
         "longname": "LavalinkNode#event:disconnect",
         "scope": "instance",
-        "$longname": "LavalinkNode#event:disconnect"
+        "$longname": "LavalinkNode#event:disconnect",
+        "$kind": "event",
+        "$docmaLink": "?api=lavalink#LavalinkNode#event:disconnect"
       },
       {
         "comment": "/**\n         * Emitted whenever the Node's WebSocket encounters a connection error.\n         * @event LavalinkNode#error\n         * @param {Error} error The encountered error\n         */",
@@ -174,7 +182,9 @@
         "memberof": "LavalinkNode",
         "longname": "LavalinkNode#event:error",
         "scope": "instance",
-        "$longname": "LavalinkNode#event:error"
+        "$longname": "LavalinkNode#event:error",
+        "$kind": "event",
+        "$docmaLink": "?api=lavalink#LavalinkNode#event:error"
       },
       {
         "comment": "/**\n\t\t     * Emmited when a message is received and parsed\n\t\t     * @event LavalinkNode#message\n\t\t     * @param {Object} data The raw message data\n\t\t     */",
@@ -202,7 +212,9 @@
         "memberof": "LavalinkNode",
         "longname": "LavalinkNode#event:message",
         "scope": "instance",
-        "$longname": "LavalinkNode#event:message"
+        "$longname": "LavalinkNode#event:message",
+        "$kind": "event",
+        "$docmaLink": "?api=lavalink#LavalinkNode#event:message"
       },
       {
         "comment": "/**\n\t\t * Emmited when the node gets ready\n\t\t * @event LavalinkNode#ready\n\t\t */",
@@ -219,7 +231,9 @@
         "memberof": "LavalinkNode",
         "longname": "LavalinkNode#event:ready",
         "scope": "instance",
-        "$longname": "LavalinkNode#event:ready"
+        "$longname": "LavalinkNode#event:ready",
+        "$kind": "event",
+        "$docmaLink": "?api=lavalink#LavalinkNode#event:ready"
       },
       {
         "comment": "/**\n\t\t\t * Emmited when the node is attempting a reconnect\n\t\t\t * @event LavalinkNode#reconnecting\n\t\t\t */",
@@ -236,7 +250,9 @@
         "memberof": "LavalinkNode",
         "longname": "LavalinkNode#event:reconnecting",
         "scope": "instance",
-        "$longname": "LavalinkNode#event:reconnecting"
+        "$longname": "LavalinkNode#event:reconnecting",
+        "$kind": "event",
+        "$docmaLink": "?api=lavalink#LavalinkNode#event:reconnecting"
       },
       {
         "comment": "/**\n         * If the lavalink websocket is ready or not\n         * @type {boolean}\n         */",
@@ -268,7 +284,9 @@
         "kind": "member",
         "memberof": "LavalinkNode",
         "scope": "instance",
-        "$longname": "LavalinkNode#ready"
+        "$longname": "LavalinkNode#ready",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#LavalinkNode#ready"
       },
       {
         "comment": "/**\n         * Roconnection interval\n         * @type {?NodeJS.Timer}\n         */",
@@ -301,7 +319,9 @@
         "kind": "member",
         "memberof": "LavalinkNode",
         "scope": "instance",
-        "$longname": "LavalinkNode#reconnect"
+        "$longname": "LavalinkNode#reconnect",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#LavalinkNode#reconnect"
       },
       {
         "comment": "/**\n         * The interval to use for auto Reconnecting\n         * @type {number}\n         */",
@@ -333,7 +353,9 @@
         "kind": "member",
         "memberof": "LavalinkNode",
         "scope": "instance",
-        "$longname": "LavalinkNode#reconnectInterval"
+        "$longname": "LavalinkNode#reconnectInterval",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#LavalinkNode#reconnectInterval"
       },
       {
         "comment": "/**\n         * Region\n         * @type {?string}\n         */",
@@ -366,7 +388,9 @@
         "kind": "member",
         "memberof": "LavalinkNode",
         "scope": "instance",
-        "$longname": "LavalinkNode#region"
+        "$longname": "LavalinkNode#region",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#LavalinkNode#region"
       },
       {
         "comment": "/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {boolean}\n     */",
@@ -417,7 +441,9 @@
         "kind": "function",
         "memberof": "LavalinkNode",
         "scope": "instance",
-        "$longname": "LavalinkNode#send"
+        "$longname": "LavalinkNode#send",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#LavalinkNode#send"
       },
       {
         "comment": "/**\n         * Player stats\n         * @type {Object}\n         */",
@@ -449,7 +475,9 @@
         "kind": "member",
         "memberof": "LavalinkNode",
         "scope": "instance",
-        "$longname": "LavalinkNode#stats"
+        "$longname": "LavalinkNode#stats",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#LavalinkNode#stats"
       },
       {
         "comment": "/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */",
@@ -482,7 +510,9 @@
         "kind": "member",
         "memberof": "LavalinkNode",
         "scope": "instance",
-        "$longname": "LavalinkNode#ws"
+        "$longname": "LavalinkNode#ws",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#LavalinkNode#ws"
       }
     ],
     "$constructor": {
@@ -535,7 +565,9 @@
       "kind": "class",
       "scope": "global",
       "undocumented": true,
-      "$longname": "LavalinkNode"
+      "$longname": "LavalinkNode",
+      "$kind": "constructor",
+      "$docmaLink": "?api=lavalink#LavalinkNode"
     }
   },
   {
@@ -564,7 +596,9 @@
     "memberof": "LavaPlayer",
     "longname": "LavaPlayer#event:error",
     "scope": "instance",
-    "$longname": "LavaPlayer#event:error"
+    "$longname": "LavaPlayer#event:error",
+    "$kind": "event",
+    "$docmaLink": "?api=lavalink#LavaPlayer#event:error"
   },
   {
     "kind": "package",
@@ -582,7 +616,7 @@
       "@types/node": "^9.6.2",
       "@types/ws": "^4.0.2",
       "discord.js": "^11.3.2",
-      "docma": "^1.5.3",
+      "docma": "^2.1.0",
       "eslint": "^4.19.1",
       "eslint-plugin-node": "^6.0.1",
       "eslint-plugin-promise": "^3.7.0",
@@ -626,7 +660,9 @@
       "url": "git+https://github.com/MrJacz/discord.js-lavalink.git"
     },
     "version": "2.0.2",
-    "$longname": "package:discord.js-lavalink"
+    "$longname": "package:discord.js-lavalink",
+    "$kind": "package",
+    "$docmaLink": "?api=lavalink#package:discord.js-lavalink"
   },
   {
     "comment": "/**\n * LavaLink Player\n * @extends {EventEmitter}\n */",
@@ -669,6 +705,8 @@
       }
     ],
     "$longname": "Player",
+    "$kind": "class",
+    "$docmaLink": "?api=lavalink#Player",
     "$members": [
       {
         "comment": "/**\n         * The current channel id\n         * @type {string}\n         */",
@@ -700,7 +738,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#channel"
+        "$longname": "Player#channel",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#channel"
       },
       {
         "comment": "/**\n         * Discord.js Client\n         * @type {external:Client}\n         */",
@@ -732,7 +772,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#client"
+        "$longname": "Player#client",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#client"
       },
       {
         "comment": "/**\n     * Sends a packet to Lavalink for voiceUpdate\n     * @param {Object} data voiceUpdate event data\n     * @returns {Player}\n     */",
@@ -783,7 +825,9 @@
         "kind": "function",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#connect"
+        "$longname": "Player#connect",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#connect"
       },
       {
         "comment": "/**\n     * Destroys the Player\n     * @returns {Player}\n     */",
@@ -822,7 +866,9 @@
         "memberof": "Player",
         "scope": "instance",
         "params": [],
-        "$longname": "Player#destroy"
+        "$longname": "Player#destroy",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#destroy"
       },
       {
         "comment": "/**\n     * Disconnects the player\n     * @param {string} msg Disconnect reason\n     * @returns {Player}\n     */",
@@ -873,7 +919,9 @@
         "kind": "function",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#disconnect"
+        "$longname": "Player#disconnect",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#disconnect"
       },
       {
         "comment": "/**\n                 * Emitted whenever the Player gets Stuck or ends\n                 * @event Player#end\n                 * @param {string} message Data containg reason\n                 */",
@@ -901,7 +949,9 @@
         "memberof": "Player",
         "longname": "Player#event:end",
         "scope": "instance",
-        "$longname": "Player#event:end"
+        "$longname": "Player#event:end",
+        "$kind": "event",
+        "$docmaLink": "?api=lavalink#Player#event:end"
       },
       {
         "comment": "/**\n         * Player id (Guild ID)\n         * @type {string}\n         */",
@@ -933,7 +983,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#id"
+        "$longname": "Player#id",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#id"
       },
       {
         "comment": "/**\n         * The PlayerManager that initilized the player\n         * @type {PlayerManager}\n         */",
@@ -965,7 +1017,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#manager"
+        "$longname": "Player#manager",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#manager"
       },
       {
         "comment": "/**\n         * The current node for this Player\n         * @type {LavalinkNode}\n         */",
@@ -997,7 +1051,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#node"
+        "$longname": "Player#node",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#node"
       },
       {
         "comment": "/**\n         * Player options\n         * @type {Object}\n         */",
@@ -1029,7 +1085,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#options"
+        "$longname": "Player#options",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#options"
       },
       {
         "comment": "/**\n     * Pauses or Resumes the player\n     * @param {boolean} [pause=true] Whether to resume or pause the player\n     * @returns {Player}\n     */",
@@ -1082,7 +1140,9 @@
         "kind": "function",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#pause"
+        "$longname": "Player#pause",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#pause"
       },
       {
         "comment": "/**\n         * Whether the Player is paused or not.\n         * @type {boolean}\n         */",
@@ -1114,7 +1174,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#paused"
+        "$longname": "Player#paused",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#paused"
       },
       {
         "comment": "/**\n     * Plays a song\n     * @param {string} track A Base64 string from LavaLink API\n     * @param {Object} [options] Other options\n     * @param {number} [options.startTime] Start time\n     * @param {number} [options.endTime] End time\n     * @returns {Player}\n     */",
@@ -1196,7 +1258,9 @@
         "kind": "function",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#play"
+        "$longname": "Player#play",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#play"
       },
       {
         "comment": "/**\n         * Playing boolean\n         * @type {boolean}\n         */",
@@ -1228,7 +1292,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#playing"
+        "$longname": "Player#playing",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#playing"
       },
       {
         "comment": "/**\n     * Seeks to a specified position\n     * @param {number} position The position to seek to\n     * @returns {Player}\n     */",
@@ -1279,7 +1345,9 @@
         "kind": "function",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#seek"
+        "$longname": "Player#seek",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#seek"
       },
       {
         "comment": "/**\n         * LavaLink Player state\n         * @type {Object}\n         */",
@@ -1311,7 +1379,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#state"
+        "$longname": "Player#state",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#state"
       },
       {
         "comment": "/**\n     * stops the Player\n     * @returns {Player}\n     */",
@@ -1350,7 +1420,9 @@
         "memberof": "Player",
         "scope": "instance",
         "params": [],
-        "$longname": "Player#stop"
+        "$longname": "Player#stop",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#stop"
       },
       {
         "comment": "/**\n     * Switch player channel\n     * @param {string} channel Channel id\n     * @param {boolean} [reactive=false] Whether to switch channel\n     * @return {boolean}\n     */",
@@ -1413,7 +1485,9 @@
         "kind": "function",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#switchChannel"
+        "$longname": "Player#switchChannel",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#switchChannel"
       },
       {
         "comment": "/**\n         * The timestamp the Player started playing\n         * @type {number}\n         */",
@@ -1445,7 +1519,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#timestamp"
+        "$longname": "Player#timestamp",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#timestamp"
       },
       {
         "comment": "/**\n         * The current track that the Player is playing\n         * @type {?string}\n         */",
@@ -1478,7 +1554,9 @@
         "kind": "member",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#track"
+        "$longname": "Player#track",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#Player#track"
       },
       {
         "comment": "/**\n     * Sets the volume for the player\n     * @param {number} volume Volume\n     * @returns {Player}\n     */",
@@ -1529,7 +1607,9 @@
         "kind": "function",
         "memberof": "Player",
         "scope": "instance",
-        "$longname": "Player#volume"
+        "$longname": "Player#volume",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#Player#volume"
       }
     ],
     "$constructor": {
@@ -1572,7 +1652,9 @@
       "kind": "class",
       "scope": "global",
       "undocumented": true,
-      "$longname": "Player"
+      "$longname": "Player",
+      "$kind": "constructor",
+      "$docmaLink": "?api=lavalink#Player"
     }
   },
   {
@@ -1601,7 +1683,9 @@
     "memberof": "PLayer",
     "longname": "PLayer#event:disconnect",
     "scope": "instance",
-    "$longname": "PLayer#event:disconnect"
+    "$longname": "PLayer#event:disconnect",
+    "$kind": "event",
+    "$docmaLink": "?api=lavalink#PLayer#event:disconnect"
   },
   {
     "comment": "/**\n * Player Manager class\n * @extends {PlayerStore}\n */",
@@ -1664,6 +1748,8 @@
       }
     ],
     "$longname": "PlayerManager",
+    "$kind": "class",
+    "$docmaLink": "?api=lavalink#PlayerManager",
     "$members": [
       {
         "comment": "/**\n         * Discord.js Client for the Player Manager\n         * @type {external:Client}\n         */",
@@ -1695,7 +1781,9 @@
         "kind": "member",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#client"
+        "$longname": "PlayerManager#client",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#PlayerManager#client"
       },
       {
         "comment": "/**\n     * A function to create LavaLink nodes and set them to PlayerManager#nodes\n     * @param {Object} options Node options\n     */",
@@ -1737,7 +1825,9 @@
         "kind": "function",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#createNode"
+        "$longname": "PlayerManager#createNode",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#PlayerManager#createNode"
       },
       {
         "comment": "/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object with guild, channel, host infomation\n     * @param {string} data.guild Guild id\n     * @param {string} data.channel Channel id\n     * @param {string} data.host host\n     * @param {Object} [options] Options\n     * @param {boolean} [options.selfmute=false] Selfmute\n     * @param {boolean} [options.selfdeaf=false] Selfdeaf\n     * @returns {Promise<Player>}\n     * @example\n     * // Join voice channel\n     * PlayerManager.join({\n     *  guild: \"412180910587379712\",\n     *  channel: \"412180910587379716\",\n     *  host: \"localhost\"\n     * });\n     */",
@@ -1852,7 +1942,9 @@
         "memberof": "PlayerManager",
         "scope": "instance",
         "async": true,
-        "$longname": "PlayerManager#join"
+        "$longname": "PlayerManager#join",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#PlayerManager#join"
       },
       {
         "comment": "/**\n     * Leaves voice channel and deletes Player\n     * @param {string} guild Guild id\n     * @returns {boolean}\n     * @example\n     * // Leave the current channel\n     * PlayerManager.leave(\"412180910587379712\");\n     */",
@@ -1906,7 +1998,9 @@
         "kind": "function",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#leave"
+        "$longname": "PlayerManager#leave",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#PlayerManager#leave"
       },
       {
         "comment": "/**\n         * Collection of LavaLink Nodes\n         * @type {Collection<string, LavalinkNode>}\n         */",
@@ -1938,7 +2032,9 @@
         "kind": "member",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#nodes"
+        "$longname": "PlayerManager#nodes",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#PlayerManager#nodes"
       },
       {
         "comment": "/**\n         * PlayerManager Options\n         * @type {Object}\n         */",
@@ -1970,7 +2066,9 @@
         "kind": "member",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#options"
+        "$longname": "PlayerManager#options",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#PlayerManager#options"
       },
       {
         "comment": "/**\n     * Removes a node by host\n     * @param {string} host Node host\n     * @returns {boolean}\n     */",
@@ -2021,7 +2119,9 @@
         "kind": "function",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#removeNode"
+        "$longname": "PlayerManager#removeNode",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#PlayerManager#removeNode"
       },
       {
         "comment": "/**\n         * Total number of shards your bot is operating on\n         * @type {number}\n         */",
@@ -2053,7 +2153,9 @@
         "kind": "member",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#shards"
+        "$longname": "PlayerManager#shards",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#PlayerManager#shards"
       },
       {
         "comment": "/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @param {string} data.guild Player guild id\n     * @param {string} data.channel Player channel id\n     * @param {string} data.host Player host id\n     * @returns {Player}\n     */",
@@ -2131,7 +2233,9 @@
         "kind": "function",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#spawnPlayer"
+        "$longname": "PlayerManager#spawnPlayer",
+        "$kind": "method",
+        "$docmaLink": "?api=lavalink#PlayerManager#spawnPlayer"
       },
       {
         "comment": "/**\n         * This client's id\n         * @type {string}\n         */",
@@ -2163,7 +2267,9 @@
         "kind": "member",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#user"
+        "$longname": "PlayerManager#user",
+        "$kind": "property",
+        "$docmaLink": "?api=lavalink#PlayerManager#user"
       }
     ],
     "$constructor": {
@@ -2226,7 +2332,9 @@
       "kind": "class",
       "scope": "global",
       "undocumented": true,
-      "$longname": "PlayerManager"
+      "$longname": "PlayerManager",
+      "$kind": "constructor",
+      "$docmaLink": "?api=lavalink#PlayerManager"
     }
   },
   {
@@ -2269,7 +2377,9 @@
     "kind": "class",
     "scope": "global",
     "undocumented": true,
-    "$longname": "PlayerStore"
+    "$longname": "PlayerStore",
+    "$kind": "constructor",
+    "$docmaLink": "?api=lavalink#PlayerStore"
   },
   {
     "comment": "/**\n     * check to see if something is a class???\n     * @param {Function} input Function to check. what else?\n     * @returns {boolean}\n     */",
@@ -2320,6 +2430,8 @@
     "kind": "function",
     "memberof": "Util",
     "scope": "static",
-    "$longname": "Util.isClass"
+    "$longname": "Util.isClass",
+    "$kind": "method",
+    "$docmaLink": "?api=lavalink#Util.isClass"
   }
 ]

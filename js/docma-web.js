@@ -1,6 +1,6 @@
-/*! dustjs-linkedin - v2.7.2
+/*! dustjs-linkedin - v2.7.5
 * http://dustjs.com/
-* Copyright (c) 2015 Aleksander Williams; Released under the MIT License */
+* Copyright (c) 2016 Aleksander Williams; Released under the MIT License */
 (function (root, factory) {
   if (typeof define === 'function' && define.amd && define.amd.dust === true) {
     define('dust.core', [], factory);
@@ -11,7 +11,7 @@
   }
 }(this, function() {
   var dust = {
-        "version": "2.7.2"
+        "version": "2.7.5"
       },
       NONE = 'NONE', ERROR = 'ERROR', WARN = 'WARN', INFO = 'INFO', DEBUG = 'DEBUG',
       EMPTY_FUNC = function() {};
@@ -319,10 +319,15 @@
     this.options = options;
     this.blocks = blocks;
     this.templateName = templateName;
+    this._isContext = true;
   }
 
   dust.makeBase = dust.context = function(global, options) {
     return new Context(undefined, global, options);
+  };
+
+  dust.isContext = function(obj) {
+    return typeof obj === "object" && obj._isContext === true;
   };
 
   /**
@@ -338,7 +343,7 @@
   }
 
   Context.wrap = function(context, name) {
-    if (context instanceof Context) {
+    if (dust.isContext(context)) {
       return context;
     }
     return new Context(context, {}, {}, null, name);
@@ -1151,14 +1156,15 @@ if (typeof define === "function" && define.amd && define.amd.dust === true) {
     });
 }
 
-/*! dustjs-helpers - v1.7.3
+/*! dustjs-helpers - v1.7.4
 * http://dustjs.com/
-* Copyright (c) 2015 Aleksander Williams; Released under the MIT License */
+* Copyright (c) 2017 Aleksander Williams; Released under the MIT License */
 (function(root, factory) {
   if (typeof define === 'function' && define.amd && define.amd.dust === true) {
     define(['dust.core'], factory);
   } else if (typeof exports === 'object') {
     module.exports = factory(require('dustjs-linkedin'));
+    module.exports.registerWith = factory;
   } else {
     factory(root.dust);
   }
@@ -1612,35 +1618,446 @@ return dust;
 
 }));
 
-!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.page=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-(function (process){
-  /* globals require, module */
+(function (global, factory) {
+	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+	typeof define === 'function' && define.amd ? define(factory) :
+	(global.page = factory());
+}(this, (function () { 'use strict';
 
-  'use strict';
+var isarray = Array.isArray || function (arr) {
+  return Object.prototype.toString.call(arr) == '[object Array]';
+};
 
-  /**
+/**
+ * Expose `pathToRegexp`.
+ */
+var pathToRegexp_1 = pathToRegexp;
+var parse_1 = parse;
+var compile_1 = compile;
+var tokensToFunction_1 = tokensToFunction;
+var tokensToRegExp_1 = tokensToRegExp;
+
+/**
+ * The main path matching regexp utility.
+ *
+ * @type {RegExp}
+ */
+var PATH_REGEXP = new RegExp([
+  // Match escaped characters that would otherwise appear in future matches.
+  // This allows the user to escape special characters that won't transform.
+  '(\\\\.)',
+  // Match Express-style parameters and un-named parameters with a prefix
+  // and optional suffixes. Matches appear as:
+  //
+  // "/:test(\\d+)?" => ["/", "test", "\d+", undefined, "?", undefined]
+  // "/route(\\d+)"  => [undefined, undefined, undefined, "\d+", undefined, undefined]
+  // "/*"            => ["/", undefined, undefined, undefined, undefined, "*"]
+  '([\\/.])?(?:(?:\\:(\\w+)(?:\\(((?:\\\\.|[^()])+)\\))?|\\(((?:\\\\.|[^()])+)\\))([+*?])?|(\\*))'
+].join('|'), 'g');
+
+/**
+ * Parse a string for the raw tokens.
+ *
+ * @param  {String} str
+ * @return {Array}
+ */
+function parse (str) {
+  var tokens = [];
+  var key = 0;
+  var index = 0;
+  var path = '';
+  var res;
+
+  while ((res = PATH_REGEXP.exec(str)) != null) {
+    var m = res[0];
+    var escaped = res[1];
+    var offset = res.index;
+    path += str.slice(index, offset);
+    index = offset + m.length;
+
+    // Ignore already escaped sequences.
+    if (escaped) {
+      path += escaped[1];
+      continue
+    }
+
+    // Push the current path onto the tokens.
+    if (path) {
+      tokens.push(path);
+      path = '';
+    }
+
+    var prefix = res[2];
+    var name = res[3];
+    var capture = res[4];
+    var group = res[5];
+    var suffix = res[6];
+    var asterisk = res[7];
+
+    var repeat = suffix === '+' || suffix === '*';
+    var optional = suffix === '?' || suffix === '*';
+    var delimiter = prefix || '/';
+    var pattern = capture || group || (asterisk ? '.*' : '[^' + delimiter + ']+?');
+
+    tokens.push({
+      name: name || key++,
+      prefix: prefix || '',
+      delimiter: delimiter,
+      optional: optional,
+      repeat: repeat,
+      pattern: escapeGroup(pattern)
+    });
+  }
+
+  // Match any characters still remaining.
+  if (index < str.length) {
+    path += str.substr(index);
+  }
+
+  // If the path exists, push it onto the end.
+  if (path) {
+    tokens.push(path);
+  }
+
+  return tokens
+}
+
+/**
+ * Compile a string to a template function for the path.
+ *
+ * @param  {String}   str
+ * @return {Function}
+ */
+function compile (str) {
+  return tokensToFunction(parse(str))
+}
+
+/**
+ * Expose a method for transforming tokens into the path function.
+ */
+function tokensToFunction (tokens) {
+  // Compile all the tokens into regexps.
+  var matches = new Array(tokens.length);
+
+  // Compile all the patterns before compilation.
+  for (var i = 0; i < tokens.length; i++) {
+    if (typeof tokens[i] === 'object') {
+      matches[i] = new RegExp('^' + tokens[i].pattern + '$');
+    }
+  }
+
+  return function (obj) {
+    var path = '';
+    var data = obj || {};
+
+    for (var i = 0; i < tokens.length; i++) {
+      var token = tokens[i];
+
+      if (typeof token === 'string') {
+        path += token;
+
+        continue
+      }
+
+      var value = data[token.name];
+      var segment;
+
+      if (value == null) {
+        if (token.optional) {
+          continue
+        } else {
+          throw new TypeError('Expected "' + token.name + '" to be defined')
+        }
+      }
+
+      if (isarray(value)) {
+        if (!token.repeat) {
+          throw new TypeError('Expected "' + token.name + '" to not repeat, but received "' + value + '"')
+        }
+
+        if (value.length === 0) {
+          if (token.optional) {
+            continue
+          } else {
+            throw new TypeError('Expected "' + token.name + '" to not be empty')
+          }
+        }
+
+        for (var j = 0; j < value.length; j++) {
+          segment = encodeURIComponent(value[j]);
+
+          if (!matches[i].test(segment)) {
+            throw new TypeError('Expected all "' + token.name + '" to match "' + token.pattern + '", but received "' + segment + '"')
+          }
+
+          path += (j === 0 ? token.prefix : token.delimiter) + segment;
+        }
+
+        continue
+      }
+
+      segment = encodeURIComponent(value);
+
+      if (!matches[i].test(segment)) {
+        throw new TypeError('Expected "' + token.name + '" to match "' + token.pattern + '", but received "' + segment + '"')
+      }
+
+      path += token.prefix + segment;
+    }
+
+    return path
+  }
+}
+
+/**
+ * Escape a regular expression string.
+ *
+ * @param  {String} str
+ * @return {String}
+ */
+function escapeString (str) {
+  return str.replace(/([.+*?=^!:${}()[\]|\/])/g, '\\$1')
+}
+
+/**
+ * Escape the capturing group by escaping special characters and meaning.
+ *
+ * @param  {String} group
+ * @return {String}
+ */
+function escapeGroup (group) {
+  return group.replace(/([=!:$\/()])/g, '\\$1')
+}
+
+/**
+ * Attach the keys as a property of the regexp.
+ *
+ * @param  {RegExp} re
+ * @param  {Array}  keys
+ * @return {RegExp}
+ */
+function attachKeys (re, keys) {
+  re.keys = keys;
+  return re
+}
+
+/**
+ * Get the flags for a regexp from the options.
+ *
+ * @param  {Object} options
+ * @return {String}
+ */
+function flags (options) {
+  return options.sensitive ? '' : 'i'
+}
+
+/**
+ * Pull out keys from a regexp.
+ *
+ * @param  {RegExp} path
+ * @param  {Array}  keys
+ * @return {RegExp}
+ */
+function regexpToRegexp (path, keys) {
+  // Use a negative lookahead to match only capturing groups.
+  var groups = path.source.match(/\((?!\?)/g);
+
+  if (groups) {
+    for (var i = 0; i < groups.length; i++) {
+      keys.push({
+        name: i,
+        prefix: null,
+        delimiter: null,
+        optional: false,
+        repeat: false,
+        pattern: null
+      });
+    }
+  }
+
+  return attachKeys(path, keys)
+}
+
+/**
+ * Transform an array into a regexp.
+ *
+ * @param  {Array}  path
+ * @param  {Array}  keys
+ * @param  {Object} options
+ * @return {RegExp}
+ */
+function arrayToRegexp (path, keys, options) {
+  var parts = [];
+
+  for (var i = 0; i < path.length; i++) {
+    parts.push(pathToRegexp(path[i], keys, options).source);
+  }
+
+  var regexp = new RegExp('(?:' + parts.join('|') + ')', flags(options));
+
+  return attachKeys(regexp, keys)
+}
+
+/**
+ * Create a path regexp from string input.
+ *
+ * @param  {String} path
+ * @param  {Array}  keys
+ * @param  {Object} options
+ * @return {RegExp}
+ */
+function stringToRegexp (path, keys, options) {
+  var tokens = parse(path);
+  var re = tokensToRegExp(tokens, options);
+
+  // Attach keys back to the regexp.
+  for (var i = 0; i < tokens.length; i++) {
+    if (typeof tokens[i] !== 'string') {
+      keys.push(tokens[i]);
+    }
+  }
+
+  return attachKeys(re, keys)
+}
+
+/**
+ * Expose a function for taking tokens and returning a RegExp.
+ *
+ * @param  {Array}  tokens
+ * @param  {Array}  keys
+ * @param  {Object} options
+ * @return {RegExp}
+ */
+function tokensToRegExp (tokens, options) {
+  options = options || {};
+
+  var strict = options.strict;
+  var end = options.end !== false;
+  var route = '';
+  var lastToken = tokens[tokens.length - 1];
+  var endsWithSlash = typeof lastToken === 'string' && /\/$/.test(lastToken);
+
+  // Iterate over the tokens and create our regexp string.
+  for (var i = 0; i < tokens.length; i++) {
+    var token = tokens[i];
+
+    if (typeof token === 'string') {
+      route += escapeString(token);
+    } else {
+      var prefix = escapeString(token.prefix);
+      var capture = token.pattern;
+
+      if (token.repeat) {
+        capture += '(?:' + prefix + capture + ')*';
+      }
+
+      if (token.optional) {
+        if (prefix) {
+          capture = '(?:' + prefix + '(' + capture + '))?';
+        } else {
+          capture = '(' + capture + ')?';
+        }
+      } else {
+        capture = prefix + '(' + capture + ')';
+      }
+
+      route += capture;
+    }
+  }
+
+  // In non-strict mode we allow a slash at the end of match. If the path to
+  // match already ends with a slash, we remove it for consistency. The slash
+  // is valid at the end of a path match, not in the middle. This is important
+  // in non-ending mode, where "/test/" shouldn't match "/test//route".
+  if (!strict) {
+    route = (endsWithSlash ? route.slice(0, -2) : route) + '(?:\\/(?=$))?';
+  }
+
+  if (end) {
+    route += '$';
+  } else {
+    // In non-ending mode, we need the capturing groups to match as much as
+    // possible by using a positive lookahead to the end or next path segment.
+    route += strict && endsWithSlash ? '' : '(?=\\/|$)';
+  }
+
+  return new RegExp('^' + route, flags(options))
+}
+
+/**
+ * Normalize the given path string, returning a regular expression.
+ *
+ * An empty array can be passed in for the keys, which will hold the
+ * placeholder key descriptions. For example, using `/user/:id`, `keys` will
+ * contain `[{ name: 'id', delimiter: '/', optional: false, repeat: false }]`.
+ *
+ * @param  {(String|RegExp|Array)} path
+ * @param  {Array}                 [keys]
+ * @param  {Object}                [options]
+ * @return {RegExp}
+ */
+function pathToRegexp (path, keys, options) {
+  keys = keys || [];
+
+  if (!isarray(keys)) {
+    options = keys;
+    keys = [];
+  } else if (!options) {
+    options = {};
+  }
+
+  if (path instanceof RegExp) {
+    return regexpToRegexp(path, keys, options)
+  }
+
+  if (isarray(path)) {
+    return arrayToRegexp(path, keys, options)
+  }
+
+  return stringToRegexp(path, keys, options)
+}
+
+pathToRegexp_1.parse = parse_1;
+pathToRegexp_1.compile = compile_1;
+pathToRegexp_1.tokensToFunction = tokensToFunction_1;
+pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
+
+/**
    * Module dependencies.
    */
 
-  var pathtoRegexp = require('path-to-regexp');
+  
 
   /**
    * Module exports.
    */
 
-  module.exports = page;
+  var page_js = page;
+  page.default = page;
+  page.Context = Context;
+  page.Route = Route;
+  page.sameOrigin = sameOrigin;
+
+  /**
+   * Short-cuts for global-object checks
+   */
+
+  var hasDocument = ('undefined' !== typeof document);
+  var hasWindow = ('undefined' !== typeof window);
+  var hasHistory = ('undefined' !== typeof history);
+  var hasProcess = typeof process !== 'undefined';
 
   /**
    * Detect click event
    */
-  var clickEvent = ('undefined' !== typeof document) && document.ontouchstart ? 'touchstart' : 'click';
+  var clickEvent = hasDocument && document.ontouchstart ? 'touchstart' : 'click';
 
   /**
    * To work properly with the URL
    * history.location generated polyfill in https://github.com/devote/HTML5-History-API
    */
 
-  var location = ('undefined' !== typeof window) && (window.history.location || window.location);
+  var isLocation = hasWindow && !!(window.history.location || window.location);
 
   /**
    * Perform initial dispatch.
@@ -1662,6 +2079,12 @@ return dust;
   var base = '';
 
   /**
+   * Strict path matching.
+   */
+
+  var strict = false;
+
+  /**
    * Running flag.
    */
 
@@ -1679,6 +2102,11 @@ return dust;
    */
 
   var prevContext;
+
+  /**
+   * The window for which this `page` is running
+   */
+  var pageWindow;
 
   /**
    * Register `path` with callback `fn()`,
@@ -1756,6 +2184,18 @@ return dust;
   };
 
   /**
+   * Get or set strict path matching to `enable`
+   *
+   * @param {boolean} enable
+   * @api public
+   */
+
+  page.strict = function(enable) {
+    if (0 === arguments.length) return strict;
+    strict = enable;
+  };
+
+  /**
    * Bind with the given `options`.
    *
    * Options:
@@ -1772,15 +2212,32 @@ return dust;
     options = options || {};
     if (running) return;
     running = true;
+    pageWindow = options.window || (hasWindow && window);
     if (false === options.dispatch) dispatch = false;
     if (false === options.decodeURLComponents) decodeURLComponents = false;
-    if (false !== options.popstate) window.addEventListener('popstate', onpopstate, false);
-    if (false !== options.click) {
-      document.addEventListener(clickEvent, onclick, false);
+    if (false !== options.popstate && hasWindow) pageWindow.addEventListener('popstate', onpopstate, false);
+    if (false !== options.click && hasDocument) {
+      pageWindow.document.addEventListener(clickEvent, onclick, false);
     }
-    if (true === options.hashbang) hashbang = true;
+    hashbang = !!options.hashbang;
+    if(hashbang && hasWindow && !hasHistory) {
+      pageWindow.addEventListener('hashchange', onpopstate, false);
+    }
     if (!dispatch) return;
-    var url = (hashbang && ~location.hash.indexOf('#!')) ? location.hash.substr(2) + location.search : location.pathname + location.search + location.hash;
+
+    var url;
+    if(isLocation) {
+      var loc = pageWindow.location;
+
+      if(hashbang && ~loc.hash.indexOf('#!')) {
+        url = loc.hash.substr(2) + loc.search;
+      } else if (hashbang) {
+        url = loc.search + loc.hash;
+      } else {
+        url = loc.pathname + loc.search + loc.hash;
+      }
+    }
+
     page.replace(url, null, true, dispatch);
   };
 
@@ -1795,8 +2252,9 @@ return dust;
     page.current = '';
     page.len = 0;
     running = false;
-    document.removeEventListener(clickEvent, onclick, false);
-    window.removeEventListener('popstate', onpopstate, false);
+    hasDocument && pageWindow.document.removeEventListener(clickEvent, onclick, false);
+    hasWindow && pageWindow.removeEventListener('popstate', onpopstate, false);
+    hasWindow && pageWindow.removeEventListener('hashchange', onpopstate, false);
   };
 
   /**
@@ -1811,9 +2269,11 @@ return dust;
    */
 
   page.show = function(path, state, dispatch, push) {
-    var ctx = new Context(path, state);
+    var ctx = new Context(path, state),
+      prev = prevContext;
+    prevContext = ctx;
     page.current = ctx.path;
-    if (false !== dispatch) page.dispatch(ctx);
+    if (false !== dispatch) page.dispatch(ctx, prev);
     if (false !== ctx.handled && false !== push) ctx.pushState();
     return ctx;
   };
@@ -1831,7 +2291,7 @@ return dust;
     if (page.len > 0) {
       // this may need more testing to see if all browsers
       // wait for the next tick to go back in history
-      history.back();
+      hasHistory && pageWindow.history.back();
       page.len--;
     } else if (path) {
       setTimeout(function() {
@@ -1839,7 +2299,7 @@ return dust;
       });
     }else{
       setTimeout(function() {
-        page.show(base, state);
+        page.show(getBase(), state);
       });
     }
   };
@@ -1884,11 +2344,13 @@ return dust;
 
 
   page.replace = function(path, state, init, dispatch) {
-    var ctx = new Context(path, state);
+    var ctx = new Context(path, state),
+      prev = prevContext;
+    prevContext = ctx;
     page.current = ctx.path;
     ctx.init = init;
     ctx.save(); // save before dispatching, which may redirect
-    if (false !== dispatch) page.dispatch(ctx);
+    if (false !== dispatch) page.dispatch(ctx, prev);
     return ctx;
   };
 
@@ -1898,12 +2360,10 @@ return dust;
    * @param {Context} ctx
    * @api private
    */
-  page.dispatch = function(ctx) {
-    var prev = prevContext,
-      i = 0,
-      j = 0;
 
-    prevContext = ctx;
+  page.dispatch = function(ctx, prev) {
+    var i = 0,
+      j = 0;
 
     function nextExit() {
       var fn = page.exits[j++];
@@ -1942,15 +2402,15 @@ return dust;
     var current;
 
     if (hashbang) {
-      current = base + location.hash.replace('#!', '');
+      current = isLocation && getBase() + pageWindow.location.hash.replace('#!', '');
     } else {
-      current = location.pathname + location.search;
+      current = isLocation && pageWindow.location.pathname + pageWindow.location.search;
     }
 
     if (current === ctx.canonicalPath) return;
     page.stop();
     ctx.handled = false;
-    location.href = ctx.canonicalPath;
+    isLocation && (pageWindow.location.href = ctx.canonicalPath);
   }
 
   /**
@@ -1993,14 +2453,15 @@ return dust;
    */
 
   function Context(path, state) {
-    if ('/' === path[0] && 0 !== path.indexOf(base)) path = base + (hashbang ? '#!' : '') + path;
+    var pageBase = getBase();
+    if ('/' === path[0] && 0 !== path.indexOf(pageBase)) path = pageBase + (hashbang ? '#!' : '') + path;
     var i = path.indexOf('?');
 
     this.canonicalPath = path;
-    this.path = path.replace(base, '') || '/';
+    this.path = path.replace(pageBase, '') || '/';
     if (hashbang) this.path = this.path.replace('#!', '') || '/';
 
-    this.title = document.title;
+    this.title = (hasDocument && pageWindow.document.title);
     this.state = state || {};
     this.state.path = path;
     this.querystring = ~i ? decodeURLEncodedURIComponent(path.slice(i + 1)) : '';
@@ -2012,7 +2473,7 @@ return dust;
     if (!hashbang) {
       if (!~this.path.indexOf('#')) return;
       var parts = this.path.split('#');
-      this.path = parts[0];
+      this.path = this.pathname = parts[0];
       this.hash = decodeURLEncodedURIComponent(parts[1]) || '';
       this.querystring = this.querystring.split('#')[0];
     }
@@ -2032,7 +2493,10 @@ return dust;
 
   Context.prototype.pushState = function() {
     page.len++;
-    history.pushState(this.state, this.title, hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
+    if (hasHistory) {
+        pageWindow.history.pushState(this.state, this.title,
+          hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
+    }
   };
 
   /**
@@ -2042,7 +2506,10 @@ return dust;
    */
 
   Context.prototype.save = function() {
-    history.replaceState(this.state, this.title, hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
+    if (hasHistory && pageWindow.location.protocol !== 'file:') {
+        pageWindow.history.replaceState(this.state, this.title,
+          hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
+    }
   };
 
   /**
@@ -2062,9 +2529,10 @@ return dust;
 
   function Route(path, options) {
     options = options || {};
+    options.strict = options.strict || strict;
     this.path = (path === '*') ? '(.*)' : path;
     this.method = 'GET';
-    this.regexp = pathtoRegexp(this.path,
+    this.regexp = pathToRegexp_1(this.path,
       this.keys = [],
       options);
   }
@@ -2128,10 +2596,10 @@ return dust;
 
   var onpopstate = (function () {
     var loaded = false;
-    if ('undefined' === typeof window) {
+    if ( ! hasWindow ) {
       return;
     }
-    if (document.readyState === 'complete') {
+    if (hasDocument && document.readyState === 'complete') {
       loaded = true;
     } else {
       window.addEventListener('load', function() {
@@ -2145,8 +2613,9 @@ return dust;
       if (e.state) {
         var path = e.state.path;
         page.replace(path, e.state);
-      } else {
-        page.show(location.pathname + location.hash, undefined, undefined, false);
+      } else if (isLocation) {
+        var loc = pageWindow.location;
+        page.show(loc.pathname + loc.hash, undefined, undefined, false);
       }
     };
   })();
@@ -2154,22 +2623,36 @@ return dust;
    * Handle "click" events.
    */
 
+  /* jshint +W054 */
   function onclick(e) {
-
     if (1 !== which(e)) return;
 
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
     if (e.defaultPrevented) return;
 
-
-
     // ensure link
-    // use shadow dom when available
-    var el = e.path ? e.path[0] : e.target;
-    while (el && 'A' !== el.nodeName) el = el.parentNode;
-    if (!el || 'A' !== el.nodeName) return;
+    // use shadow dom when available if not, fall back to composedPath() for browsers that only have shady
+    var el = e.target;
+    var eventPath = e.path || (e.composedPath ? e.composedPath() : null);
 
+    if(eventPath) {
+      for (var i = 0; i < eventPath.length; i++) {
+        if (!eventPath[i].nodeName) continue;
+        if (eventPath[i].nodeName.toUpperCase() !== 'A') continue;
+        if (!eventPath[i].href) continue;
 
+        el = eventPath[i];
+        break;
+      }
+    }
+    // continue ensure link
+    // el.nodeName for svg links are 'a' instead of 'A'
+    while (el && 'A' !== el.nodeName.toUpperCase()) el = el.parentNode;
+    if (!el || 'A' !== el.nodeName.toUpperCase()) return;
+
+    // check if link is inside an svg
+    // in this case, both href and target are always inside an object
+    var svg = (typeof el.href === 'object') && el.href.constructor.name === 'SVGAnimatedString';
 
     // Ignore if tag has
     // 1. "download" attribute
@@ -2178,39 +2661,43 @@ return dust;
 
     // ensure non-hash for the same path
     var link = el.getAttribute('href');
-    if (!hashbang && el.pathname === location.pathname && (el.hash || '#' === link)) return;
-
-
+    if(!hashbang && samePath(el) && (el.hash || '#' === link)) return;
 
     // Check for mailto: in the href
     if (link && link.indexOf('mailto:') > -1) return;
 
     // check target
-    if (el.target) return;
+    // svg target is an object and its desired value is in .baseVal property
+    if (svg ? el.target.baseVal : el.target) return;
 
     // x-origin
-    if (!sameOrigin(el.href)) return;
-
-
+    // note: svg links that are not relative don't call click events (and skip page.js)
+    // consequently, all svg links tested inside page.js are relative and in the same origin
+    if (!svg && !sameOrigin(el.href)) return;
 
     // rebuild path
-    var path = el.pathname + el.search + (el.hash || '');
+    // There aren't .pathname and .search properties in svg links, so we use href
+    // Also, svg href is an object and its desired value is in .baseVal property
+    var path = svg ? el.href.baseVal : (el.pathname + el.search + (el.hash || ''));
+
+    path = path[0] !== '/' ? '/' + path : path;
 
     // strip leading "/[drive letter]:" on NW.js on Windows
-    if (typeof process !== 'undefined' && path.match(/^\/[a-zA-Z]:\//)) {
+    if (hasProcess && path.match(/^\/[a-zA-Z]:\//)) {
       path = path.replace(/^\/[a-zA-Z]:\//, '/');
     }
 
     // same page
     var orig = path;
+    var pageBase = getBase();
 
-    if (path.indexOf(base) === 0) {
+    if (path.indexOf(pageBase) === 0) {
       path = path.substr(base.length);
     }
 
     if (hashbang) path = path.replace('#!', '');
 
-    if (base && orig === path) return;
+    if (pageBase && orig === path) return;
 
     e.preventDefault();
     page.show(orig);
@@ -2221,8 +2708,21 @@ return dust;
    */
 
   function which(e) {
-    e = e || window.event;
-    return null === e.which ? e.button : e.which;
+    e = e || (hasWindow && window.event);
+    return null == e.which ? e.button : e.which;
+  }
+
+  /**
+   * Convert to a URL object
+   */
+  function toURL(href) {
+    if(typeof URL === 'function' && isLocation) {
+      return new URL(href, location.toString());
+    } else if (hasDocument) {
+      var anc = document.createElement('a');
+      anc.href = href;
+      return anc;
+    }
   }
 
   /**
@@ -2230,509 +2730,46 @@ return dust;
    */
 
   function sameOrigin(href) {
-    var origin = location.protocol + '//' + location.hostname;
-    if (location.port) origin += ':' + location.port;
-    return (href && (0 === href.indexOf(origin)));
+    if(!href || !isLocation) return false;
+    var url = toURL(href);
+
+    var loc = pageWindow.location;
+    return loc.protocol === url.protocol &&
+      loc.hostname === url.hostname &&
+      loc.port === url.port;
+  }
+
+  function samePath(url) {
+    if(!isLocation) return false;
+    var loc = pageWindow.location;
+    return url.pathname === loc.pathname &&
+      url.search === loc.search;
+  }
+
+  /**
+   * Gets the `base`, which depends on whether we are using History or
+   * hashbang routing.
+   */
+  function getBase() {
+    if(!!base) return base;
+    var loc = hasWindow && pageWindow && pageWindow.location;
+    return (hasWindow && hashbang && loc && loc.protocol === 'file:') ? loc.pathname : base;
   }
 
   page.sameOrigin = sameOrigin;
 
-}).call(this,require('_process'))
-},{"_process":2,"path-to-regexp":3}],2:[function(require,module,exports){
-// shim for using process in browser
+return page_js;
 
-var process = module.exports = {};
+})));
 
-process.nextTick = (function () {
-    var canSetImmediate = typeof window !== 'undefined'
-    && window.setImmediate;
-    var canMutationObserver = typeof window !== 'undefined'
-    && window.MutationObserver;
-    var canPost = typeof window !== 'undefined'
-    && window.postMessage && window.addEventListener
-    ;
-
-    if (canSetImmediate) {
-        return function (f) { return window.setImmediate(f) };
-    }
-
-    var queue = [];
-
-    if (canMutationObserver) {
-        var hiddenDiv = document.createElement("div");
-        var observer = new MutationObserver(function () {
-            var queueList = queue.slice();
-            queue.length = 0;
-            queueList.forEach(function (fn) {
-                fn();
-            });
-        });
-
-        observer.observe(hiddenDiv, { attributes: true });
-
-        return function nextTick(fn) {
-            if (!queue.length) {
-                hiddenDiv.setAttribute('yes', 'no');
-            }
-            queue.push(fn);
-        };
-    }
-
-    if (canPost) {
-        window.addEventListener('message', function (ev) {
-            var source = ev.source;
-            if ((source === window || source === null) && ev.data === 'process-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
-
-        return function nextTick(fn) {
-            queue.push(fn);
-            window.postMessage('process-tick', '*');
-        };
-    }
-
-    return function nextTick(fn) {
-        setTimeout(fn, 0);
-    };
-})();
-
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-
-function noop() {}
-
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-};
-
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-
-},{}],3:[function(require,module,exports){
-var isarray = require('isarray')
-
-/**
- * Expose `pathToRegexp`.
- */
-module.exports = pathToRegexp
-module.exports.parse = parse
-module.exports.compile = compile
-module.exports.tokensToFunction = tokensToFunction
-module.exports.tokensToRegExp = tokensToRegExp
-
-/**
- * The main path matching regexp utility.
- *
- * @type {RegExp}
- */
-var PATH_REGEXP = new RegExp([
-  // Match escaped characters that would otherwise appear in future matches.
-  // This allows the user to escape special characters that won't transform.
-  '(\\\\.)',
-  // Match Express-style parameters and un-named parameters with a prefix
-  // and optional suffixes. Matches appear as:
-  //
-  // "/:test(\\d+)?" => ["/", "test", "\d+", undefined, "?", undefined]
-  // "/route(\\d+)"  => [undefined, undefined, undefined, "\d+", undefined, undefined]
-  // "/*"            => ["/", undefined, undefined, undefined, undefined, "*"]
-  '([\\/.])?(?:(?:\\:(\\w+)(?:\\(((?:\\\\.|[^()])+)\\))?|\\(((?:\\\\.|[^()])+)\\))([+*?])?|(\\*))'
-].join('|'), 'g')
-
-/**
- * Parse a string for the raw tokens.
- *
- * @param  {String} str
- * @return {Array}
- */
-function parse (str) {
-  var tokens = []
-  var key = 0
-  var index = 0
-  var path = ''
-  var res
-
-  while ((res = PATH_REGEXP.exec(str)) != null) {
-    var m = res[0]
-    var escaped = res[1]
-    var offset = res.index
-    path += str.slice(index, offset)
-    index = offset + m.length
-
-    // Ignore already escaped sequences.
-    if (escaped) {
-      path += escaped[1]
-      continue
-    }
-
-    // Push the current path onto the tokens.
-    if (path) {
-      tokens.push(path)
-      path = ''
-    }
-
-    var prefix = res[2]
-    var name = res[3]
-    var capture = res[4]
-    var group = res[5]
-    var suffix = res[6]
-    var asterisk = res[7]
-
-    var repeat = suffix === '+' || suffix === '*'
-    var optional = suffix === '?' || suffix === '*'
-    var delimiter = prefix || '/'
-    var pattern = capture || group || (asterisk ? '.*' : '[^' + delimiter + ']+?')
-
-    tokens.push({
-      name: name || key++,
-      prefix: prefix || '',
-      delimiter: delimiter,
-      optional: optional,
-      repeat: repeat,
-      pattern: escapeGroup(pattern)
-    })
-  }
-
-  // Match any characters still remaining.
-  if (index < str.length) {
-    path += str.substr(index)
-  }
-
-  // If the path exists, push it onto the end.
-  if (path) {
-    tokens.push(path)
-  }
-
-  return tokens
-}
-
-/**
- * Compile a string to a template function for the path.
- *
- * @param  {String}   str
- * @return {Function}
- */
-function compile (str) {
-  return tokensToFunction(parse(str))
-}
-
-/**
- * Expose a method for transforming tokens into the path function.
- */
-function tokensToFunction (tokens) {
-  // Compile all the tokens into regexps.
-  var matches = new Array(tokens.length)
-
-  // Compile all the patterns before compilation.
-  for (var i = 0; i < tokens.length; i++) {
-    if (typeof tokens[i] === 'object') {
-      matches[i] = new RegExp('^' + tokens[i].pattern + '$')
-    }
-  }
-
-  return function (obj) {
-    var path = ''
-    var data = obj || {}
-
-    for (var i = 0; i < tokens.length; i++) {
-      var token = tokens[i]
-
-      if (typeof token === 'string') {
-        path += token
-
-        continue
-      }
-
-      var value = data[token.name]
-      var segment
-
-      if (value == null) {
-        if (token.optional) {
-          continue
-        } else {
-          throw new TypeError('Expected "' + token.name + '" to be defined')
-        }
-      }
-
-      if (isarray(value)) {
-        if (!token.repeat) {
-          throw new TypeError('Expected "' + token.name + '" to not repeat, but received "' + value + '"')
-        }
-
-        if (value.length === 0) {
-          if (token.optional) {
-            continue
-          } else {
-            throw new TypeError('Expected "' + token.name + '" to not be empty')
-          }
-        }
-
-        for (var j = 0; j < value.length; j++) {
-          segment = encodeURIComponent(value[j])
-
-          if (!matches[i].test(segment)) {
-            throw new TypeError('Expected all "' + token.name + '" to match "' + token.pattern + '", but received "' + segment + '"')
-          }
-
-          path += (j === 0 ? token.prefix : token.delimiter) + segment
-        }
-
-        continue
-      }
-
-      segment = encodeURIComponent(value)
-
-      if (!matches[i].test(segment)) {
-        throw new TypeError('Expected "' + token.name + '" to match "' + token.pattern + '", but received "' + segment + '"')
-      }
-
-      path += token.prefix + segment
-    }
-
-    return path
-  }
-}
-
-/**
- * Escape a regular expression string.
- *
- * @param  {String} str
- * @return {String}
- */
-function escapeString (str) {
-  return str.replace(/([.+*?=^!:${}()[\]|\/])/g, '\\$1')
-}
-
-/**
- * Escape the capturing group by escaping special characters and meaning.
- *
- * @param  {String} group
- * @return {String}
- */
-function escapeGroup (group) {
-  return group.replace(/([=!:$\/()])/g, '\\$1')
-}
-
-/**
- * Attach the keys as a property of the regexp.
- *
- * @param  {RegExp} re
- * @param  {Array}  keys
- * @return {RegExp}
- */
-function attachKeys (re, keys) {
-  re.keys = keys
-  return re
-}
-
-/**
- * Get the flags for a regexp from the options.
- *
- * @param  {Object} options
- * @return {String}
- */
-function flags (options) {
-  return options.sensitive ? '' : 'i'
-}
-
-/**
- * Pull out keys from a regexp.
- *
- * @param  {RegExp} path
- * @param  {Array}  keys
- * @return {RegExp}
- */
-function regexpToRegexp (path, keys) {
-  // Use a negative lookahead to match only capturing groups.
-  var groups = path.source.match(/\((?!\?)/g)
-
-  if (groups) {
-    for (var i = 0; i < groups.length; i++) {
-      keys.push({
-        name: i,
-        prefix: null,
-        delimiter: null,
-        optional: false,
-        repeat: false,
-        pattern: null
-      })
-    }
-  }
-
-  return attachKeys(path, keys)
-}
-
-/**
- * Transform an array into a regexp.
- *
- * @param  {Array}  path
- * @param  {Array}  keys
- * @param  {Object} options
- * @return {RegExp}
- */
-function arrayToRegexp (path, keys, options) {
-  var parts = []
-
-  for (var i = 0; i < path.length; i++) {
-    parts.push(pathToRegexp(path[i], keys, options).source)
-  }
-
-  var regexp = new RegExp('(?:' + parts.join('|') + ')', flags(options))
-
-  return attachKeys(regexp, keys)
-}
-
-/**
- * Create a path regexp from string input.
- *
- * @param  {String} path
- * @param  {Array}  keys
- * @param  {Object} options
- * @return {RegExp}
- */
-function stringToRegexp (path, keys, options) {
-  var tokens = parse(path)
-  var re = tokensToRegExp(tokens, options)
-
-  // Attach keys back to the regexp.
-  for (var i = 0; i < tokens.length; i++) {
-    if (typeof tokens[i] !== 'string') {
-      keys.push(tokens[i])
-    }
-  }
-
-  return attachKeys(re, keys)
-}
-
-/**
- * Expose a function for taking tokens and returning a RegExp.
- *
- * @param  {Array}  tokens
- * @param  {Array}  keys
- * @param  {Object} options
- * @return {RegExp}
- */
-function tokensToRegExp (tokens, options) {
-  options = options || {}
-
-  var strict = options.strict
-  var end = options.end !== false
-  var route = ''
-  var lastToken = tokens[tokens.length - 1]
-  var endsWithSlash = typeof lastToken === 'string' && /\/$/.test(lastToken)
-
-  // Iterate over the tokens and create our regexp string.
-  for (var i = 0; i < tokens.length; i++) {
-    var token = tokens[i]
-
-    if (typeof token === 'string') {
-      route += escapeString(token)
-    } else {
-      var prefix = escapeString(token.prefix)
-      var capture = token.pattern
-
-      if (token.repeat) {
-        capture += '(?:' + prefix + capture + ')*'
-      }
-
-      if (token.optional) {
-        if (prefix) {
-          capture = '(?:' + prefix + '(' + capture + '))?'
-        } else {
-          capture = '(' + capture + ')?'
-        }
-      } else {
-        capture = prefix + '(' + capture + ')'
-      }
-
-      route += capture
-    }
-  }
-
-  // In non-strict mode we allow a slash at the end of match. If the path to
-  // match already ends with a slash, we remove it for consistency. The slash
-  // is valid at the end of a path match, not in the middle. This is important
-  // in non-ending mode, where "/test/" shouldn't match "/test//route".
-  if (!strict) {
-    route = (endsWithSlash ? route.slice(0, -2) : route) + '(?:\\/(?=$))?'
-  }
-
-  if (end) {
-    route += '$'
-  } else {
-    // In non-ending mode, we need the capturing groups to match as much as
-    // possible by using a positive lookahead to the end or next path segment.
-    route += strict && endsWithSlash ? '' : '(?=\\/|$)'
-  }
-
-  return new RegExp('^' + route, flags(options))
-}
-
-/**
- * Normalize the given path string, returning a regular expression.
- *
- * An empty array can be passed in for the keys, which will hold the
- * placeholder key descriptions. For example, using `/user/:id`, `keys` will
- * contain `[{ name: 'id', delimiter: '/', optional: false, repeat: false }]`.
- *
- * @param  {(String|RegExp|Array)} path
- * @param  {Array}                 [keys]
- * @param  {Object}                [options]
- * @return {RegExp}
- */
-function pathToRegexp (path, keys, options) {
-  keys = keys || []
-
-  if (!isarray(keys)) {
-    options = keys
-    keys = []
-  } else if (!options) {
-    options = {}
-  }
-
-  if (path instanceof RegExp) {
-    return regexpToRegexp(path, keys, options)
-  }
-
-  if (isarray(path)) {
-    return arrayToRegexp(path, keys, options)
-  }
-
-  return stringToRegexp(path, keys, options)
-}
-
-},{"isarray":4}],4:[function(require,module,exports){
-module.exports = Array.isArray || function (arr) {
-  return Object.prototype.toString.call(arr) == '[object Array]';
-};
-
-},{}]},{},[1])(1)
-});
 /*!
- * EventEmitter v5.0.0 - git.io/ee
+ * EventEmitter v5.2.4 - git.io/ee
  * Unlicense - http://unlicense.org/
  * Oliver Caldwell - http://oli.me.uk/
  * @preserve
  */
 
-;(function () {
+;(function (exports) {
     'use strict';
 
     /**
@@ -2745,7 +2782,6 @@ module.exports = Array.isArray || function (arr) {
 
     // Shortcuts to improve speed and size
     var proto = EventEmitter.prototype;
-    var exports = this;
     var originalGlobalValue = exports.EventEmitter;
 
     /**
@@ -2846,6 +2882,16 @@ module.exports = Array.isArray || function (arr) {
         return response || listeners;
     };
 
+    function isValidListener (listener) {
+        if (typeof listener === 'function' || listener instanceof RegExp) {
+            return true
+        } else if (listener && typeof listener === 'object') {
+            return isValidListener(listener.listener)
+        } else {
+            return false
+        }
+    }
+
     /**
      * Adds a listener function to the specified event.
      * The listener will not be added if it is a duplicate.
@@ -2857,6 +2903,10 @@ module.exports = Array.isArray || function (arr) {
      * @return {Object} Current instance of EventEmitter for chaining.
      */
     proto.addListener = function addListener(evt, listener) {
+        if (!isValidListener(listener)) {
+            throw new TypeError('listener must be a function');
+        }
+
         var listeners = this.getListenersAsObject(evt);
         var listenerIsWrapped = typeof listener === 'object';
         var key;
@@ -2956,7 +3006,7 @@ module.exports = Array.isArray || function (arr) {
 
     /**
      * Adds listeners in bulk using the manipulateListeners method.
-     * If you pass an object as the second argument you can add to multiple events at once. The object should contain key value pairs of events and listeners or listener arrays. You can also pass it an event name and an array of listeners to be added.
+     * If you pass an object as the first argument you can add to multiple events at once. The object should contain key value pairs of events and listeners or listener arrays. You can also pass it an event name and an array of listeners to be added.
      * You can also pass it a regular expression to add the array of listeners to all events that match it.
      * Yeah, this function does quite a bit. That's probably a bad thing.
      *
@@ -2971,7 +3021,7 @@ module.exports = Array.isArray || function (arr) {
 
     /**
      * Removes listeners in bulk using the manipulateListeners method.
-     * If you pass an object as the second argument you can remove from multiple events at once. The object should contain key value pairs of events and listeners or listener arrays.
+     * If you pass an object as the first argument you can remove from multiple events at once. The object should contain key value pairs of events and listeners or listener arrays.
      * You can also pass it an event name and an array of listeners to be removed.
      * You can also pass it a regular expression to remove the listeners from all events that match it.
      *
@@ -3197,322 +3247,2089 @@ module.exports = Array.isArray || function (arr) {
     else {
         exports.EventEmitter = EventEmitter;
     }
-}.call(this));
+}(this || {}));
 
 /* docma (dust) compiled templates */
-(function(dust){dust.register("docma-404",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{"boxed":"true"}).w("<div id=\"page-content-wrapper\"><div class=\"container container-boxed\"><div class=\"row\"><div class=\"col-md-12\"><br /><br /><h1>404</h1><hr /><h3>Page Not Found</h3><br />The file or page you have requested is not found. &nbsp;&nbsp;<br />Please make sure page address is entered correctly.</div></div><br /><br /><br /></div></div>");}body_0.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("docma-api",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{}).x(ctx.getPath(false, ["template","options","sidebar"]),ctx,{"block":body_1},{}).w("<div id=\"wrapper\">").x(ctx.getPath(false, ["template","options","sidebar"]),ctx,{"block":body_2},{}).w("<div id=\"page-content-wrapper\"><div class=\"container-fluid\"><div class=\"row\"><div class=\"col-lg-12\">").s(ctx.get(["documentation"], false),ctx,{"block":body_3},{}).w("</div></div><br /><span class=\"docma-info\">Documentation built with <b><a target=\"_blank\" href=\"https://github.com/onury/docma\">Docma</a></b>.</span></div></div></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<div class=\"sidebar-toggle\"><span class=\"glyphicon glyphicon-menu-hamburger\"></span></div>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div id=\"sidebar-wrapper\">").p("sidebar",ctx,ctx,{}).w("</div>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(true, []),"template":ctx.get(["template"], false)});}body_3.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("docma-content",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{"boxed":"true"}).w("<div id=\"page-content-wrapper\"><div class=\"container container-boxed\"><div class=\"row\"><div class=\"col-md-12\"><div id=\"docma-content\"></div></div></div><br /><hr /><span class=\"docma-info\">Documentation built with <b><a target=\"_blank\" href=\"https://github.com/onury/docma\">Docma</a></b>.</span></div></div>");}body_0.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("enums",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["$members"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Enumeration</th><th>Type</th><th>Value</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["$members"], false),ctx,{"block":body_2},{}).w("</tbody></table>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<tr><td><code>").f(ctx.getPath(true, []),ctx,"h",["$longname","s","$dot_prop"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["$type"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["$val"]).w("</code></td><td>").f(ctx.getPath(true, []),ctx,"h",["s","$desc"]).w("</td></tr>");}body_2.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("navbar",body_0);function body_0(chk,ctx){return chk.x(ctx.getPath(false, ["template","options","navbar"]),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<nav class=\"navbar navbar-default navbar-fixed-top\"><div class=\"").x(ctx.get(["boxed"], false),ctx,{"else":body_2,"block":body_3},{}).w("\"><div class=\"nav navbar-left nav-left\"><div class=\"navbar-brand\"><b>").f(ctx.getPath(false, ["template","options","title"]),ctx,"h").w("</b></div></div>").h("gt",ctx,{"block":body_4},{"key":ctx.getPath(false, ["template","options","navItems","length"]),"value":0},"h").w("</div></nav>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("container-fluid");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("container container-boxed");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<ul class=\"nav navbar-nav\">").s(ctx.getPath(false, ["template","options","navItems"]),ctx,{"block":body_5},{}).w("</ul>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.x(ctx.get(["items"], false),ctx,{"else":body_6,"block":body_7},{});}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.p("navitem",ctx,ctx.rebase(ctx.getPath(true, [])),{});}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<li class=\"dropdown\"><a href=\"").x(ctx.get(["href"], false),ctx,{"else":body_8,"block":body_9},{}).w("\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" role=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\"><i class=\"ico ").f(ctx.get(["iconClass"], false),ctx,"h").w("\" aria-hidden=\"true\"></i>&nbsp;&nbsp;").f(ctx.get(["label"], false),ctx,"h").w("&nbsp;<span class=\"caret\"></span></a><ul class=\"dropdown-menu\">").s(ctx.get(["items"], false),ctx,{"block":body_10},{}).w("</ul></li>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.w("#");}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.f(ctx.get(["href"], false),ctx,"h");}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.p("navitem",ctx,ctx.rebase(ctx.getPath(true, [])),{});}body_10.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("navitem",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["separator"], false),ctx,{"else":body_1,"block":body_5},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<li><a href=\"").x(ctx.get(["href"], false),ctx,{"else":body_2,"block":body_3},{}).w("\" target=\"").f(ctx.get(["target"], false),ctx,"h").w("\">").x(ctx.get(["iconClass"], false),ctx,{"block":body_4},{}).f(ctx.get(["label"], false),ctx,"h",["s"]).w("</a></li>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("#");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.f(ctx.get(["href"], false),ctx,"h");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<i class=\"ico ").f(ctx.get(["iconClass"], false),ctx,"h").w("\" aria-hidden=\"true\"></i>&nbsp;&nbsp;");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<li role=\"separator\" class=\"divider\"></li>");}body_5.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("params",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["params"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["params"], false),ctx,{"block":body_2},{}).w("</tbody></table>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<tr><td><code>").f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["$type"]).w("</code></td><td>").x(ctx.get(["optional"], false),ctx,{"block":body_3},{}).w("</td><td>").f(ctx.getPath(true, []),ctx,"h",["s","$param_desc"]).w("</td></tr>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<code>").f(ctx.getPath(true, []),ctx,"h",["$def"]).w("</code>");}body_3.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("properties",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["properties"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["properties"], false),ctx,{"block":body_2},{}).w("</tbody></table>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<tr><td><code>").f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["$type"]).w("</code></td><td>").f(ctx.get(["description"], false),ctx,"h",["s","$p"]).w("</td></tr>");}body_2.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("sidebar",body_0);function body_0(chk,ctx){return chk.w("<div class=\"sidebar-header\"><div class=\"sidebar-title\"><span><b>").f(ctx.getPath(false, ["template","options","title"]),ctx,"h").w("</b></span></div>").x(ctx.getPath(false, ["template","options","search"]),ctx,{"block":body_1},{}).w("</div><div class=\"sidebar-nav-container\"><ul class=\"sidebar-nav\">").s(ctx.get(["symbols"], false),ctx,{"block":body_2},{}).w("</ul><div class=\"sidebar-nav-space\"></div></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<div class=\"sidebar-search\"><input id=\"txt-search\" type=\"search\" class=\"form-control\" placeholder=\"Search...\" /><div class=\"sidebar-search-clean\"><span class=\"glyphicon glyphicon-remove-circle\"></span></div></div>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<li>").f(ctx.getPath(true, []),ctx,"h",["s","$menuitem"]).w("</li>");}body_2.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("symbol",body_0);function body_0(chk,ctx){return chk.w("<div id=\"").f(ctx.getPath(true, []),ctx,"h",["$id"]).w("\" class=\"symbol-container\"><div class=\"symbol-heading\"><div class=\"symbol\"><a href=\"#").f(ctx.getPath(true, []),ctx,"h",["$id"]).w("\"><span class=\"glyphicon glyphicon-link color-gray-light\" aria-hidden=\"true\"></span><code class=\"symbol-name\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$longname_params"]).w("</code><span class=\"symbol-sep\">").f(ctx.get(["symbol"], false),ctx,"h",["$type_sep"]).w("</span><code class=\"symbol-type\">").f(ctx.get(["symbol"], false),ctx,"h",["$type"]).w("</code></a>").f(ctx.get(["symbol"], false),ctx,"h",["s","$tags"]).w("</div>").x(ctx.getPath(false, ["symbol","augments"]),ctx,{"block":body_1},{}).x(ctx.getPath(false, ["symbol","alias"]),ctx,{"block":body_2},{}).w("</div><div class=\"symbol-definition\">").x(ctx.getPath(false, ["symbol","classdesc"]),ctx,{"block":body_3},{}).f(ctx.get(["symbol"], false),ctx,"h",["s","$desc"]).x(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_8},{}).h("eq",ctx,{"else":body_13,"block":body_16},{"key":ctx.getPath(false, ["symbol","meta","code","type"]),"value":"ClassDeclaration"},"h").x(ctx.getPath(false, ["symbol","returns"]),ctx,{"block":body_17},{}).x(ctx.getPath(false, ["symbol","exceptions"]),ctx,{"block":body_20},{}).x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"block":body_23},{}).x(ctx.getPath(false, ["symbol","examples"]),ctx,{"block":body_24},{}).x(ctx.getPath(false, ["template","options","symbolMeta"]),ctx,{"block":body_26},{}).w("</div></div><hr />").h("eq",ctx,{"block":body_30},{"key":ctx.getPath(false, ["symbol","meta","code","type"]),"value":"ClassDeclaration"},"h").x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"else":body_32,"block":body_34},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<p class=\"space-left-sm\"><b>Extends:</b> ").f(ctx.get(["symbol"], false),ctx,"h",["s","$extends"]).w("</p>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<p class=\"space-left-sm\"><b>Alias:</b> <code>").f(ctx.getPath(false, ["symbol","alias"]),ctx,"h",["s","$dot_prop"]).w("</code></p>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<table>").x(ctx.getPath(false, ["symbol","version"]),ctx,{"block":body_4},{}).x(ctx.getPath(false, ["symbol","copyright"]),ctx,{"block":body_5},{}).x(ctx.getPath(false, ["symbol","author"]),ctx,{"block":body_6},{}).x(ctx.getPath(false, ["symbol","license"]),ctx,{"block":body_7},{}).w("</table><br />");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<tr><td><b>Version:</b>&nbsp;&nbsp;&nbsp;</td><td>").f(ctx.getPath(false, ["symbol","version"]),ctx,"h",["s"]).w("</td></tr>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<tr><td><b>Copyright:</b>&nbsp;&nbsp;&nbsp;</td><td>").f(ctx.getPath(false, ["symbol","copyright"]),ctx,"h",["s"]).w("</td></tr>");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<tr><td><b>Author:</b>&nbsp;&nbsp;&nbsp;</td><td>").f(ctx.getPath(false, ["symbol","author"]),ctx,"h",["s","$author"]).w("</td></tr>");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<tr><td><b>License:</b>&nbsp;&nbsp;&nbsp;</td><td>").f(ctx.getPath(false, ["symbol","license"]),ctx,"h",["s"]).w("</td></tr>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.w("<p><b>See</b>").h("gt",ctx,{"else":body_9,"block":body_11},{"key":ctx.getPath(false, ["symbol","see","length"]),"value":1},"h").w("</p><br />");}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_10},{});}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.w("&nbsp;").f(ctx.getPath(true, []),ctx,"h",["s","$pl"]);}body_10.__dustBody=!0;function body_11(chk,ctx){return chk.w("<ul>").s(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_12},{}).w("</ul>");}body_11.__dustBody=!0;function body_12(chk,ctx){return chk.w("<li>").f(ctx.getPath(true, []),ctx,"h",["s","$pl"]).w("</li>");}body_12.__dustBody=!0;function body_13(chk,ctx){return chk.p("params",ctx,ctx.rebase(ctx.get(["symbol"], false)),{}).x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"else":body_14,"block":body_15},{});}body_13.__dustBody=!0;function body_14(chk,ctx){return chk.p("properties",ctx,ctx.rebase(ctx.get(["symbol"], false)),{});}body_14.__dustBody=!0;function body_15(chk,ctx){return chk;}body_15.__dustBody=!0;function body_16(chk,ctx){return chk;}body_16.__dustBody=!0;function body_17(chk,ctx){return chk.h("gt",ctx,{"else":body_18,"block":body_19},{"key":ctx.getPath(false, ["symbol","returns","length"]),"value":"1","type":"number"},"h");}body_17.__dustBody=!0;function body_18(chk,ctx){return chk.w("<p><b>Returns:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$returns"]).w("</p>");}body_18.__dustBody=!0;function body_19(chk,ctx){return chk.w("<b>Returns:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$returns"]).w("</p>");}body_19.__dustBody=!0;function body_20(chk,ctx){return chk.h("gt",ctx,{"else":body_21,"block":body_22},{"key":ctx.getPath(false, ["symbol","exceptions","length"]),"value":"1","type":"number"},"h");}body_20.__dustBody=!0;function body_21(chk,ctx){return chk.w("<p><b>Throws:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$exceptions"]).w("</p>");}body_21.__dustBody=!0;function body_22(chk,ctx){return chk.w("<b>Throws:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$exceptions"]).w("</p>");}body_22.__dustBody=!0;function body_23(chk,ctx){return chk.p("enums",ctx,ctx.rebase(ctx.get(["symbol"], false)),{});}body_23.__dustBody=!0;function body_24(chk,ctx){return chk.w("<p><b>Example</b></p>").s(ctx.getPath(false, ["symbol","examples"]),ctx,{"block":body_25},{});}body_24.__dustBody=!0;function body_25(chk,ctx){return chk.w("<pre><code>").f(ctx.getPath(true, []),ctx,"h",["$nt"]).w("</code></pre>");}body_25.__dustBody=!0;function body_26(chk,ctx){return chk.x(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,{"block":body_27},{});}body_26.__dustBody=!0;function body_27(chk,ctx){return chk.w("<p class=\"symbol-meta\">").x(ctx.getPath(false, ["symbol","meta","filename"]),ctx,{"block":body_28},{}).x(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,{"block":body_29},{}).w("</p>");}body_27.__dustBody=!0;function body_28(chk,ctx){return chk.w("<b>File:</b> ").f(ctx.getPath(false, ["symbol","meta","filename"]),ctx,"h").w("&nbsp;&nbsp;");}body_28.__dustBody=!0;function body_29(chk,ctx){return chk.w("<b>Line:</b> ").f(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,"h").w("&nbsp;&nbsp;");}body_29.__dustBody=!0;function body_30(chk,ctx){return chk.x(ctx.getPath(false, ["symbol","$constructor"]),ctx,{"block":body_31},{});}body_30.__dustBody=!0;function body_31(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(false, ["symbol","$constructor"]),"template":ctx.get(["template"], false)});}body_31.__dustBody=!0;function body_32(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","$members"]),ctx,{"block":body_33},{});}body_32.__dustBody=!0;function body_33(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(true, []),"template":ctx.get(["template"], false)});}body_33.__dustBody=!0;function body_34(chk,ctx){return chk;}body_34.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("docma-404",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{"boxed":"true"}).w("<div id=\"page-content-wrapper\"><div class=\"container container-boxed\"><br /><br /><h1>404</h1><hr /><h3>Page Not Found</h3><br />The file or page you have requested is not found. &nbsp;&nbsp;<br />Please make sure page address is entered correctly.<br /><br /><br /></div></div>");}body_0.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("docma-api",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{}).w("<div id=\"wrapper\">").x(ctx.getPath(false, ["template","options","sidebar","enabled"]),ctx,{"block":body_1},{}).w("<div id=\"page-content-wrapper\"><div class=\"container\"><br />").s(ctx.get(["documentation"], false),ctx,{"block":body_2},{}).w("<br /><span class=\"docma-info\">Documentation built with <b><a target=\"_blank\" href=\"https://onury.io/docma\">Docma</a></b>.</span></div></div></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<div id=\"sidebar-wrapper\">").p("sidebar",ctx,ctx,{}).w("</div>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(true, []),"template":ctx.get(["template"], false)});}body_2.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("docma-content",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{"boxed":"true"}).w("<div id=\"page-content-wrapper\"><div class='").h("eq",ctx,{"block":body_1},{"key":ctx.getPath(false, ["currentRoute","sourceType"]),"value":"md"},"h").w("'><div id=\"docma-content\"></div>").h("eq",ctx,{"block":body_2},{"key":ctx.getPath(false, ["currentRoute","sourceType"]),"value":"md"},"h").w("</div></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("container container-boxed");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<br /><hr /><span class=\"docma-info\">Documentation built with <b><a target=\"_blank\" href=\"https://onury.io/docma\">Docma</a></b>.</span>");}body_2.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("enums",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["$members"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.h("eq",ctx,{"else":body_2,"block":body_4},{"key":ctx.getPath(false, ["template","options","symbols","enums"]),"value":"table"},"h");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div class=\"space-top-sm space-bottom-xs fw-bold\">Enumeration</div><ul class=\"param-list\">").s(ctx.get(["$members"], false),ctx,{"block":body_3},{}).w("</ul>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<li><div class=\"param-meta clearfix\"><span class=\"inline-block space-right-sm\"><code>").f(ctx.getPath(true, []),ctx,"h",["$longname","s","$dot_prop"]).w("</code>&nbsp;:&nbsp;<code>").f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></span><span class=\"param-info-box\"><span class=\"param-info value\">Value:&nbsp;</span><code>").f(ctx.getPath(true, []),ctx,"h",["$val"]).w("</code></span></div><div class=\"param-desc\">").f(ctx.getPath(true, []),ctx,"h",["s","$desc"]).w("</div></li>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Enumeration</th><th>Type</th><th>Value</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["$members"], false),ctx,{"block":body_5},{}).w("</tbody></table>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<tr><td><code>").f(ctx.getPath(true, []),ctx,"h",["$longname","s","$dot_prop"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["$val"]).w("</code></td><td>").f(ctx.getPath(true, []),ctx,"h",["s","$desc"]).w("</td></tr>");}body_5.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("navbar",body_0);function body_0(chk,ctx){return chk.x(ctx.getPath(false, ["template","options","navbar","enabled"]),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<nav class=\"navbar ").x(ctx.getPath(false, ["template","options","navbar","dark"]),ctx,{"block":body_2},{}).w("\"><div class=\"navbar-inner ").x(ctx.get(["boxed"], false),ctx,{"block":body_3},{}).w("\"><div class=\"navbar-brand\">").x(ctx.getPath(false, ["template","options","logo","dark"]),ctx,{"block":body_4},{}).w("<span class=\"navbar-title\"><a href=\"").f(ctx.getPath(false, ["template","options","title","href"]),ctx,"h").w("\">").f(ctx.getPath(false, ["template","options","title","label"]),ctx,"h").w("</a></span></div>").h("gt",ctx,{"block":body_7},{"key":ctx.getPath(false, ["template","options","navbar","menu","length"]),"value":0},"h").w("</div></nav>").x(ctx.getPath(false, ["template","options","navbar","fixed"]),ctx,{"block":body_16},{}).w("<div class=\"nav-overlay\"></div>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("dark");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("container container-boxed");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.x(ctx.getPath(false, ["template","options","navbar","dark"]),ctx,{"else":body_5,"block":body_6},{});}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<img src=\"").f(ctx.getPath(false, ["template","options","logo","dark"]),ctx,"h").w("\" alt=\"logo\" class=\"navbar-logo\" />");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<img src=\"").f(ctx.getPath(false, ["template","options","logo","light"]),ctx,"h").w("\" alt=\"logo\" class=\"navbar-logo\" />");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<div class=\"navbar-menu-btn\" tabindex=\"0\"><i class=\"fas fa-lg fa-bars trans-all-ease\"></i><i class=\"fas fa-md fa-times trans-all-ease\"></i></div><div class=\"navbar-menu\"><ul class=\"navbar-list\">").s(ctx.getPath(false, ["template","options","navbar","menu"]),ctx,{"block":body_8},{}).w("</ul></div>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.x(ctx.get(["items"], false),ctx,{"else":body_9,"block":body_10},{});}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.p("navitem",ctx,ctx.rebase(ctx.getPath(true, [])),{});}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.w("<li class=\"dropdown\"><a href=\"").x(ctx.get(["href"], false),ctx,{"else":body_11,"block":body_12},{}).w("\" role=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\"><i class=\"nav-icon ").f(ctx.get(["iconClass"], false),ctx,"h").w("\" aria-hidden=\"true\"></i>").x(ctx.get(["label"], false),ctx,{"block":body_13},{}).x(ctx.get(["chevron"], false),ctx,{"block":body_14},{}).w("</a><ul>").s(ctx.get(["items"], false),ctx,{"block":body_15},{}).w("</ul></li>");}body_10.__dustBody=!0;function body_11(chk,ctx){return chk.w("#");}body_11.__dustBody=!0;function body_12(chk,ctx){return chk.f(ctx.get(["href"], false),ctx,"h");}body_12.__dustBody=!0;function body_13(chk,ctx){return chk.w("<span class=\"nav-label\">").f(ctx.get(["label"], false),ctx,"h").w("</span>");}body_13.__dustBody=!0;function body_14(chk,ctx){return chk.w("<i class=\"nav-arrow fas fa-sm fa-angle-down\"></i>");}body_14.__dustBody=!0;function body_15(chk,ctx){return chk.w(" ").p("navitem",ctx,ctx.rebase(ctx.getPath(true, [])),{}).w(" ");}body_15.__dustBody=!0;function body_16(chk,ctx){return chk.w("<div class=\"nav-spacer\"></div>");}body_16.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("navitem",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["separator"], false),ctx,{"else":body_1,"block":body_6},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<li><a href=\"").x(ctx.get(["href"], false),ctx,{"else":body_2,"block":body_3},{}).w("\" target=\"").f(ctx.get(["target"], false),ctx,"h").w("\">").x(ctx.get(["iconClass"], false),ctx,{"block":body_4},{}).x(ctx.get(["label"], false),ctx,{"block":body_5},{}).w("</a></li>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("#");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.f(ctx.get(["href"], false),ctx,"h");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<i class=\"nav-icon ").f(ctx.get(["iconClass"], false),ctx,"h").w("\" aria-hidden=\"true\"></i>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<span class=\"nav-label\">").f(ctx.get(["label"], false),ctx,"h",["s"]).w("</span>");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<li role=\"separator\" class=\"divider\"></li>");}body_6.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("params",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["params"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.h("eq",ctx,{"else":body_2,"block":body_8},{"key":ctx.getPath(false, ["template","options","symbols","params"]),"value":"table"},"h");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div class=\"space-top-sm space-bottom-xs fw-bold\">Parameters</div><ul class=\"param-list\">").s(ctx.get(["params"], false),ctx,{"block":body_3},{}).w("</ul>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<li><div class=\"param-meta clearfix\"><span class=\"inline-block space-right-sm\"><code>").x(ctx.get(["variable"], false),ctx,{"block":body_4},{}).f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code>&nbsp;:&nbsp;<code>").x(ctx.get(["variable"], false),ctx,{"block":body_5},{}).f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></span><span class=\"param-info-box\">").x(ctx.get(["optional"], false),ctx,{"else":body_6,"block":body_7},{}).w("</span></div><div class=\"param-desc\">").f(ctx.getPath(true, []),ctx,"h",["s","$param_desc"]).w("</div></li>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("...");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("...");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<span class=\"param-info required boxed\">Required</span>");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<span class=\"param-info default\">Default:&nbsp;</span><code>").f(ctx.getPath(true, []),ctx,"h",["$def"]).w("</code>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["params"], false),ctx,{"block":body_9},{}).w("</tbody></table>");}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.w("<tr><td><code>").x(ctx.get(["variable"], false),ctx,{"block":body_10},{}).f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code></td><td><code>").x(ctx.get(["variable"], false),ctx,{"block":body_11},{}).f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></td><td>").x(ctx.get(["optional"], false),ctx,{"else":body_12,"block":body_13},{}).f(ctx.getPath(true, []),ctx,"h",["s","$param_desc"]).w("</td></tr>");}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.w("...");}body_10.__dustBody=!0;function body_11(chk,ctx){return chk.w("...");}body_11.__dustBody=!0;function body_12(chk,ctx){return chk.w("<span class=\"param-info required boxed\">Required</span>");}body_12.__dustBody=!0;function body_13(chk,ctx){return chk.w("<span class=\"param-info default boxed\">Default</span><span class=\"color-gray\">:</span><code>").f(ctx.getPath(true, []),ctx,"h",["$def"]).w("</code>");}body_13.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("properties",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["properties"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.h("eq",ctx,{"else":body_2,"block":body_4},{"key":ctx.getPath(false, ["template","options","symbols","props"]),"value":"table"},"h");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div class=\"space-top-sm space-bottom-xs fw-bold\">Properties</div><ul class=\"param-list\">").s(ctx.get(["properties"], false),ctx,{"block":body_3},{}).w("</ul>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<li><div class=\"param-meta clearfix\"><span class=\"inline-block space-right-sm\"><code>").f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code>&nbsp;:&nbsp;<code>").f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></span></div><div class=\"param-desc\">").f(ctx.get(["description"], false),ctx,"h",["s","$p"]).w("</div></li>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["properties"], false),ctx,{"block":body_5},{}).w("</tbody></table>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<tr><td><code>").f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></td><td>").f(ctx.get(["description"], false),ctx,"h",["s","$p"]).w("</td></tr>");}body_5.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("sidebar",body_0);function body_0(chk,ctx){return chk.w("<div class=\"sidebar-header\"><div id=\"sidebar-toggle\"><i class=\"fas fa-lg fa-bars trans-all-ease\"></i></div><div class=\"sidebar-brand\">").x(ctx.getPath(false, ["template","options","logo","light"]),ctx,{"block":body_1},{}).w("<span class=\"sidebar-title\"><a href=\"").f(ctx.getPath(false, ["template","options","title","href"]),ctx,"h").w("\">").f(ctx.getPath(false, ["template","options","title","label"]),ctx,"h").w("</a></span></div>").x(ctx.getPath(false, ["template","options","sidebar","search"]),ctx,{"block":body_2},{}).x(ctx.getPath(false, ["template","options","sidebar","toolbar"]),ctx,{"block":body_3},{}).w("</div><div class=\"sidebar-nav-container\"><ul class=\"sidebar-nav\">").f(ctx.get(["symbols"], false),ctx,"h",["s","$navnodes"]).w("</ul></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<img src=\"").f(ctx.getPath(false, ["template","options","logo","light"]),ctx,"h").w("\" alt=\"logo\" class=\"sidebar-logo\" />");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div class=\"sidebar-search\"><div class=\"sidebar-search-icon\"><i class=\"fas fa-md fa-search\"></i></div><input id=\"txt-search\" type=\"search\" placeholder=\"Search...\" autocorrect=\"off\" autocapitalize=\"off\" spellcheck=\"false\" /><div class=\"sidebar-search-clean\"><i class=\"fas fa-lg fa-times-circle\"></i></div></div>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<div class=\"sidebar-toolbar\"><div class=\"toolbar-scope-filters\"></div><div class=\"toolbar-kind-filters\"></div><div class=\"toolbar-buttons\"><span class=\"btn-switch-fold inline-block\" title=\"Fold Symbols\">").h("eq",ctx,{"else":body_4,"block":body_5},{"key":ctx.getPath(false, ["template","options","sidebar","itemsFolded"]),"type":"boolean","value":"true"},"h").w("</span><span class=\"btn-switch-outline inline-block space-left-xs\" title=\"Toggle Outline\">").h("eq",ctx,{"else":body_6,"block":body_7},{"key":ctx.getPath(false, ["template","options","sidebar","outline"]),"type":"string","value":"tree"},"h").w("</span></div></div>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<i class=\"far fa-lg fa-caret-square-down\"></i>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<i class=\"far fa-lg fa-caret-square-right\"></i>");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<i class=\"fas fa-lg fa-outdent\"></i>");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<i class=\"fas fa-lg fa-indent\"></i>");}body_7.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("symbol",body_0);function body_0(chk,ctx){return chk.nx(ctx.getPath(false, ["symbol","$hide"]),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<div id=\"").f(ctx.get(["symbol"], false),ctx,"h",["$id"]).w("\" class=\"symbol-container\"><div class=\"symbol-heading\"><div class=\"symbol\"><a href=\"#").f(ctx.get(["symbol"], false),ctx,"h",["$id"]).w("\"><i class=\"fas fa-link color-gray-light\" aria-hidden=\"true\"></i></a><code class=\"symbol-name\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$longname_params"]).w("</code><span class=\"symbol-sep\">").f(ctx.get(["symbol"], false),ctx,"h",["$type_sep"]).w("</span><code class=\"symbol-type\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$type"]).w("</code>").f(ctx.get(["symbol"], false),ctx,"h",["s","$tags"]).w("</div></div><div class=\"symbol-definition\"><div class=\"symbol-info\">").x(ctx.getPath(false, ["symbol","alias"]),ctx,{"block":body_2},{}).x(ctx.getPath(false, ["symbol","augments"]),ctx,{"block":body_4},{}).x(ctx.getPath(false, ["symbol","version"]),ctx,{"block":body_5},{}).x(ctx.getPath(false, ["symbol","since"]),ctx,{"block":body_6},{}).x(ctx.getPath(false, ["symbol","copyright"]),ctx,{"block":body_7},{}).x(ctx.getPath(false, ["symbol","author"]),ctx,{"block":body_8},{}).x(ctx.getPath(false, ["symbol","license"]),ctx,{"block":body_9},{}).w("</div>").f(ctx.get(["symbol"], false),ctx,"h",["s","$desc"]).x(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_10},{}).h("ne",ctx,{"block":body_15},{"key":ctx.getPath(false, ["symbol","meta","code","type"]),"value":"ClassDeclaration"},"h").x(ctx.getPath(false, ["symbol","fires"]),ctx,{"block":body_18},{}).x(ctx.getPath(false, ["symbol","returns"]),ctx,{"block":body_20},{}).x(ctx.getPath(false, ["symbol","generator"]),ctx,{"block":body_23},{}).x(ctx.getPath(false, ["symbol","exceptions"]),ctx,{"block":body_27},{}).x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"block":body_30},{}).x(ctx.getPath(false, ["symbol","examples"]),ctx,{"block":body_31},{}).x(ctx.getPath(false, ["template","options","symbols","meta"]),ctx,{"block":body_34},{}).w("</div></div><hr />").x(ctx.getPath(false, ["symbol","$constructor"]),ctx,{"block":body_38},{}).nx(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"block":body_40},{});}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.nx(ctx.get(["$constructor"], false),ctx,{"block":body_3},{});}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<p><b class=\"caption\">Alias:</b> <code>").f(ctx.getPath(false, ["symbol","alias"]),ctx,"h",["s","$dot_prop"]).w("</code></p>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<p><b class=\"caption\">Extends:</b> ").f(ctx.get(["symbol"], false),ctx,"h",["s","$extends"]).w("</p>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<p><b class=\"caption\">Version:</b>&nbsp;").f(ctx.getPath(false, ["symbol","version"]),ctx,"h",["s"]).w("</p>");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<p><b class=\"caption\">Since:</b>&nbsp;").f(ctx.getPath(false, ["symbol","since"]),ctx,"h",["s"]).w("</p>");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<p><b class=\"caption\">Copyright:</b>&nbsp;").f(ctx.getPath(false, ["symbol","copyright"]),ctx,"h",["s"]).w("</p>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.w("<p><b class=\"caption\">Author:</b>&nbsp;").f(ctx.getPath(false, ["symbol","author"]),ctx,"h",["s","$author"]).w("</p>");}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.w("<p><b class=\"caption\">License:</b>&nbsp;").f(ctx.getPath(false, ["symbol","license"]),ctx,"h",["s"]).w("</p>");}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.w("<p class=\"no-margin\"><b>See</b>").h("gt",ctx,{"else":body_11,"block":body_13},{"key":ctx.getPath(false, ["symbol","see","length"]),"value":1},"h").w("</p>");}body_10.__dustBody=!0;function body_11(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_12},{});}body_11.__dustBody=!0;function body_12(chk,ctx){return chk.w("&nbsp;").f(ctx.getPath(true, []),ctx,"h",["s","$pl"]);}body_12.__dustBody=!0;function body_13(chk,ctx){return chk.w("<ul>").s(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_14},{}).w("</ul>");}body_13.__dustBody=!0;function body_14(chk,ctx){return chk.w("<li>").f(ctx.getPath(true, []),ctx,"h",["s","$pl"]).w("</li>");}body_14.__dustBody=!0;function body_15(chk,ctx){return chk.p("params",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ").x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"else":body_16,"block":body_17},{});}body_15.__dustBody=!0;function body_16(chk,ctx){return chk.p("properties",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ");}body_16.__dustBody=!0;function body_17(chk,ctx){return chk;}body_17.__dustBody=!0;function body_18(chk,ctx){return chk.h("gt",ctx,{"block":body_19},{"key":ctx.getPath(false, ["symbol","fires","length"]),"value":"0","type":"number"},"h");}body_18.__dustBody=!0;function body_19(chk,ctx){return chk.w("<p><b class=\"caption\">Emits:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$emits"]).w("</p>");}body_19.__dustBody=!0;function body_20(chk,ctx){return chk.h("gt",ctx,{"else":body_21,"block":body_22},{"key":ctx.getPath(false, ["symbol","returns","length"]),"value":"1","type":"number"},"h");}body_20.__dustBody=!0;function body_21(chk,ctx){return chk.w("<p><b class=\"caption\">Returns:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$returns"]).w("</p>");}body_21.__dustBody=!0;function body_22(chk,ctx){return chk.w("<b class=\"caption\">Returns:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$returns"]).w("</p>");}body_22.__dustBody=!0;function body_23(chk,ctx){return chk.x(ctx.getPath(false, ["symbol","yields"]),ctx,{"block":body_24},{});}body_23.__dustBody=!0;function body_24(chk,ctx){return chk.h("gt",ctx,{"else":body_25,"block":body_26},{"key":ctx.getPath(false, ["symbol","yields","length"]),"value":"1","type":"number"},"h");}body_24.__dustBody=!0;function body_25(chk,ctx){return chk.w("<p><b class=\"caption\">Yields:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$yields"]).w("</p>");}body_25.__dustBody=!0;function body_26(chk,ctx){return chk.w("<b class=\"caption\">Yields:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$yields"]).w("</p>");}body_26.__dustBody=!0;function body_27(chk,ctx){return chk.h("gt",ctx,{"else":body_28,"block":body_29},{"key":ctx.getPath(false, ["symbol","exceptions","length"]),"value":"1","type":"number"},"h");}body_27.__dustBody=!0;function body_28(chk,ctx){return chk.w("<p><b class=\"caption\">Throws:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$exceptions"]).w("</p>");}body_28.__dustBody=!0;function body_29(chk,ctx){return chk.w("<b class=\"caption\">Throws:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$exceptions"]).w("</p>");}body_29.__dustBody=!0;function body_30(chk,ctx){return chk.p("enums",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ");}body_30.__dustBody=!0;function body_31(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","examples"]),ctx,{"block":body_32},{});}body_31.__dustBody=!0;function body_32(chk,ctx){return chk.w("<p><b>Example").h("gt",ctx,{"block":body_33},{"key":ctx.getPath(false, ["symbol","examples","length"]),"value":1},"h").w("</b>").f(ctx.getPath(true, []),ctx,"h",["$get_caption","s"]).w("</p><pre><code>").f(ctx.getPath(true, []),ctx,"h",["$nt","$tnl","$remove_caption"]).w("</code></pre>");}body_32.__dustBody=!0;function body_33(chk,ctx){return chk.w("&nbsp;#").h("math",ctx,{},{"key":ctx.get(["$idx"], false),"method":"add","operand":"1"},"h");}body_33.__dustBody=!0;function body_34(chk,ctx){return chk.x(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,{"block":body_35},{});}body_34.__dustBody=!0;function body_35(chk,ctx){return chk.w("<p class=\"symbol-meta\">").x(ctx.getPath(false, ["symbol","meta","filename"]),ctx,{"block":body_36},{}).x(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,{"block":body_37},{}).w("</p>");}body_35.__dustBody=!0;function body_36(chk,ctx){return chk.w("<b>File:</b> ").f(ctx.getPath(false, ["symbol","meta","filename"]),ctx,"h").w("&nbsp;&nbsp;");}body_36.__dustBody=!0;function body_37(chk,ctx){return chk.w("<b>Line:</b> ").f(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,"h").w("&nbsp;&nbsp;");}body_37.__dustBody=!0;function body_38(chk,ctx){return chk.h("ne",ctx,{"block":body_39},{"key":ctx.getPath(false, ["symbol","hideconstructor"]),"type":"boolean","value":"true"},"h");}body_38.__dustBody=!0;function body_39(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(false, ["symbol","$constructor"]),"template":ctx.get(["template"], false)});}body_39.__dustBody=!0;function body_40(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","$members"]),ctx,{"block":body_41},{});}body_40.__dustBody=!0;function body_41(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(true, []),"template":ctx.get(["template"], false)});}body_41.__dustBody=!0;return body_0}(dust));
 /*!
  * Docma (Web) Core
  * https://github.com/onury/docma
  * @license MIT
  */
-var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","contentPath":null},{"id":"api:lavalink","type":"api","name":"lavalink","path":"/?api=lavalink","contentPath":null},{"id":"content:readme","type":"content","name":"readme","path":"/?content=readme","contentPath":"content/readme.html"}],"apis":{"_def_":{"documentation":[],"symbols":[]},"lavalink":{"documentation":[{"comment":"/**\n * Lavalink Websocket\n * @extends {EventEmitter}\n */","meta":{"range":[135,5909],"filename":"LavalinkNode.js","lineno":8,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000016","name":"LavalinkNode","type":"ClassDeclaration","paramnames":["manager","options"]}},"classdesc":"Lavalink Websocket","augments":["EventEmitter"],"name":"LavalinkNode","longname":"LavalinkNode","kind":"class","scope":"global","description":"LavaLink options","params":[{"type":{"names":["PlayerManager"]},"description":"The PlayerManager that created the Node","name":"manager"},{"type":{"names":["LavalinkNodeOptions"]},"description":"LavaLink options","name":"options"}],"$longname":"LavalinkNode","$members":[{"comment":"/**\n     * Connects to the WebSocket server\n     */","meta":{"range":[2647,3119],"filename":"LavalinkNode.js","lineno":98,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000157","name":"LavalinkNode#connect","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Connects to the WebSocket server","name":"connect","longname":"LavalinkNode#connect","kind":"function","memberof":"LavalinkNode","scope":"instance","params":[],"$longname":"LavalinkNode#connect"},{"comment":"/**\n     * Destroys the WebSocket\n     * @returns {boolean}\n     */","meta":{"range":[3849,3987],"filename":"LavalinkNode.js","lineno":148,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000311","name":"LavalinkNode#destroy","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Destroys the WebSocket","returns":[{"type":{"names":["boolean"]}}],"name":"destroy","longname":"LavalinkNode#destroy","kind":"function","memberof":"LavalinkNode","scope":"instance","params":[],"$longname":"LavalinkNode#destroy"},{"comment":"/**\n\t\t * Emmited when the node disconnects from the WebSocket and won't attempt to reconnect\n\t\t * @event LavalinkNode#disconnect\n\t\t * @param {string} reason The reason for the disconnect\n\t\t */","meta":{"filename":"LavalinkNode.js","lineno":182,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node disconnects from the WebSocket and won't attempt to reconnect","kind":"event","name":"disconnect","params":[{"type":{"names":["string"]},"description":"The reason for the disconnect","name":"reason"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:disconnect","scope":"instance","$longname":"LavalinkNode#event:disconnect"},{"comment":"/**\n         * Emitted whenever the Node's WebSocket encounters a connection error.\n         * @event LavalinkNode#error\n         * @param {Error} error The encountered error\n         */","meta":{"filename":"LavalinkNode.js","lineno":217,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted whenever the Node's WebSocket encounters a connection error.","kind":"event","name":"error","params":[{"type":{"names":["Error"]},"description":"The encountered error","name":"error"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:error","scope":"instance","$longname":"LavalinkNode#event:error"},{"comment":"/**\n\t\t     * Emmited when a message is received and parsed\n\t\t     * @event LavalinkNode#message\n\t\t     * @param {Object} data The raw message data\n\t\t     */","meta":{"filename":"LavalinkNode.js","lineno":200,"columnno":12,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when a message is received and parsed","kind":"event","name":"message","params":[{"type":{"names":["Object"]},"description":"The raw message data","name":"data"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:message","scope":"instance","$longname":"LavalinkNode#event:message"},{"comment":"/**\n\t\t * Emmited when the node gets ready\n\t\t * @event LavalinkNode#ready\n\t\t */","meta":{"filename":"LavalinkNode.js","lineno":119,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node gets ready","kind":"event","name":"ready","memberof":"LavalinkNode","longname":"LavalinkNode#event:ready","scope":"instance","$longname":"LavalinkNode#event:ready"},{"comment":"/**\n\t\t\t * Emmited when the node is attempting a reconnect\n\t\t\t * @event LavalinkNode#reconnecting\n\t\t\t */","meta":{"filename":"LavalinkNode.js","lineno":162,"columnno":12,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node is attempting a reconnect","kind":"event","name":"reconnecting","memberof":"LavalinkNode","longname":"LavalinkNode#event:reconnecting","scope":"instance","$longname":"LavalinkNode#event:reconnecting"},{"comment":"/**\n         * If the lavalink websocket is ready or not\n         * @type {boolean}\n         */","meta":{"range":[1978,1996],"filename":"LavalinkNode.js","lineno":67,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000115","name":"this.ready","type":"Literal","value":false,"paramnames":[]}},"description":"If the lavalink websocket is ready or not","type":{"names":["boolean"]},"name":"ready","longname":"LavalinkNode#ready","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#ready"},{"comment":"/**\n         * Roconnection interval\n         * @type {?NodeJS.Timer}\n         */","meta":{"range":[2199,2220],"filename":"LavalinkNode.js","lineno":77,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000127","name":"this.reconnect","type":"Literal","value":null,"paramnames":[]}},"description":"Roconnection interval","type":{"names":["NodeJS.Timer"]},"nullable":true,"name":"reconnect","longname":"LavalinkNode#reconnect","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#reconnect"},{"comment":"/**\n         * The interval to use for auto Reconnecting\n         * @type {number}\n         */","meta":{"range":[2333,2391],"filename":"LavalinkNode.js","lineno":82,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000133","name":"this.reconnectInterval","type":"LogicalExpression","value":"","paramnames":[]}},"description":"The interval to use for auto Reconnecting","type":{"names":["number"]},"name":"reconnectInterval","longname":"LavalinkNode#reconnectInterval","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#reconnectInterval"},{"comment":"/**\n         * Region\n         * @type {?string}\n         */","meta":{"range":[1618,1654],"filename":"LavalinkNode.js","lineno":56,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000091","name":"this.region","type":"LogicalExpression","value":"","paramnames":[]}},"description":"Region","type":{"names":["string"]},"nullable":true,"name":"region","longname":"LavalinkNode#region","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#region"},{"comment":"/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {boolean}\n     */","meta":{"range":[3485,3771],"filename":"LavalinkNode.js","lineno":131,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000266","name":"LavalinkNode#send","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Sends data to the Lavalink Node","params":[{"type":{"names":["Object"]},"description":"Object to send","name":"data"}],"returns":[{"type":{"names":["boolean"]}}],"name":"send","longname":"LavalinkNode#send","kind":"function","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#send"},{"comment":"/**\n         * Player stats\n         * @type {Object}\n         */","meta":{"range":[2475,2553],"filename":"LavalinkNode.js","lineno":87,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000143","name":"this.stats","type":"ObjectExpression","value":"{\"players\":0,\"playingPlayers\":0}","paramnames":[]}},"description":"Player stats","type":{"names":["Object"]},"name":"stats","longname":"LavalinkNode#stats","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#stats"},{"comment":"/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */","meta":{"range":[2085,2099],"filename":"LavalinkNode.js","lineno":72,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000121","name":"this.ws","type":"Literal","value":null,"paramnames":[]}},"description":"The WebSocket","type":{"names":["WebSocket"]},"nullable":true,"name":"ws","longname":"LavalinkNode#ws","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#ws"}],"$constructor":{"comment":"/**\n     * LavaLink options\n     * @param {PlayerManager} manager The PlayerManager that created the Node\n     * @param {LavalinkNodeOptions} options LavaLink options\n     */","meta":{"range":[758,2585],"filename":"LavalinkNode.js","lineno":25,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000020","name":"LavalinkNode","type":"MethodDefinition","paramnames":["manager","options"]},"vars":{"":null}},"description":"LavaLink options","params":[{"type":{"names":["PlayerManager"]},"description":"The PlayerManager that created the Node","name":"manager"},{"type":{"names":["LavalinkNodeOptions"]},"description":"LavaLink options","name":"options"}],"name":"LavalinkNode","longname":"LavalinkNode","kind":"class","scope":"global","undocumented":true,"$longname":"LavalinkNode"}},{"comment":"/**\n\t\t         * Emmited when the player encounters an error\n\t\t         * @event LavaPlayer#error\n\t\t         * @prop {object} message The raw message\n\t\t         */","meta":{"filename":"Player.js","lineno":238,"columnno":16,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the player encounters an error","kind":"event","name":"error","properties":[{"type":{"names":["object"]},"description":"The raw message","name":"message"}],"memberof":"LavaPlayer","longname":"LavaPlayer#event:error","scope":"instance","$longname":"LavaPlayer#event:error"},{"kind":"package","name":"discord.js-lavalink","longname":"package:discord.js-lavalink","author":"Jacz","bugs":{"url":"https://github.com/MrJacz/discord.js-lavalink/issues"},"dependencies":{"ws":"^5.1.1"},"description":"A discord.js lavalink client","devDependencies":{"@types/node":"^9.6.2","@types/ws":"^4.0.2","discord.js":"^11.3.2","docma":"^1.5.3","eslint":"^4.19.1","eslint-plugin-node":"^6.0.1","eslint-plugin-promise":"^3.7.0","tslint":"^5.9.1","typescript":"^2.8.1"},"files":["/home/travis/build/MrJacz/discord.js-lavalink/src/lib/LavalinkNode.js","/home/travis/build/MrJacz/discord.js-lavalink/src/lib/Player.js","/home/travis/build/MrJacz/discord.js-lavalink/src/lib/PlayerManager.js","/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures/PlayerStore.js","/home/travis/build/MrJacz/discord.js-lavalink/src/lib/util/util.js"],"homepage":"https://github.com/MrJacz/discord.js-lavalink#readme","keywords":["Discord","Discord","Bot","Discord","Music","Discord.js","Discord.js","music","music","discord","api","lava","lavalink","lavalink.js","discord.js","lavalink"],"licenses":[{"type":"MIT"}],"main":"src/index.js","repository":{"type":"git","url":"git+https://github.com/MrJacz/discord.js-lavalink.git"},"version":"2.0.2","$longname":"package:discord.js-lavalink"},{"comment":"/**\n * LavaLink Player\n * @extends {EventEmitter}\n */","meta":{"range":[99,7186],"filename":"Player.js","lineno":7,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000479","name":"Player","type":"ClassDeclaration","paramnames":["options"]}},"classdesc":"LavaLink Player","augments":["EventEmitter"],"name":"Player","longname":"Player","kind":"class","scope":"global","description":"LavaLink Player Options","params":[{"type":{"names":["PlayerOptions"]},"description":"Player Options","name":"options"}],"$longname":"Player","$members":[{"comment":"/**\n         * The current channel id\n         * @type {string}\n         */","meta":{"range":[1336,1366],"filename":"Player.js","lineno":54,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000532","name":"this.channel","type":"MemberExpression","value":"options.channel","paramnames":[]}},"description":"The current channel id","type":{"names":["string"]},"name":"channel","longname":"Player#channel","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#channel"},{"comment":"/**\n         * Discord.js Client\n         * @type {external:Client}\n         */","meta":{"range":[927,955],"filename":"Player.js","lineno":39,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000508","name":"this.client","type":"MemberExpression","value":"options.client","paramnames":[]}},"description":"Discord.js Client","type":{"names":["external:Client"]},"name":"client","longname":"Player#client","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#client"},{"comment":"/**\n     * Sends a packet to Lavalink for voiceUpdate\n     * @param {Object} data voiceUpdate event data\n     * @returns {Player}\n     */","meta":{"range":[2145,2352],"filename":"Player.js","lineno":87,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000571","name":"Player#connect","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Sends a packet to Lavalink for voiceUpdate","params":[{"type":{"names":["Object"]},"description":"voiceUpdate event data","name":"data"}],"returns":[{"type":{"names":["Player"]}}],"name":"connect","longname":"Player#connect","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#connect"},{"comment":"/**\n     * Destroys the Player\n     * @returns {Player}\n     */","meta":{"range":[4778,4909],"filename":"Player.js","lineno":202,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000825","name":"Player#destroy","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Destroys the Player","returns":[{"type":{"names":["Player"]}}],"name":"destroy","longname":"Player#destroy","kind":"function","memberof":"Player","scope":"instance","params":[],"$longname":"Player#destroy"},{"comment":"/**\n     * Disconnects the player\n     * @param {string} msg Disconnect reason\n     * @returns {Player}\n     */","meta":{"range":[2474,2766],"filename":"Player.js","lineno":102,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000600","name":"Player#disconnect","type":"MethodDefinition","paramnames":["msg"]},"vars":{"":null}},"description":"Disconnects the player","params":[{"type":{"names":["string"]},"description":"Disconnect reason","name":"msg"}],"returns":[{"type":{"names":["Player"]}}],"name":"disconnect","longname":"Player#disconnect","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#disconnect"},{"comment":"/**\n                 * Emitted whenever the Player gets Stuck or ends\n                 * @event Player#end\n                 * @param {string} message Data containg reason\n                 */","meta":{"filename":"Player.js","lineno":248,"columnno":16,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted whenever the Player gets Stuck or ends","kind":"event","name":"end","params":[{"type":{"names":["string"]},"description":"Data containg reason","name":"message"}],"memberof":"Player","longname":"Player#event:end","scope":"instance","$longname":"Player#event:end"},{"comment":"/**\n         * Player id (Guild ID)\n         * @type {string}\n         */","meta":{"range":[809,829],"filename":"Player.js","lineno":34,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000500","name":"this.id","type":"MemberExpression","value":"options.id","paramnames":[]}},"description":"Player id (Guild ID)","type":{"names":["string"]},"name":"id","longname":"Player#id","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#id"},{"comment":"/**\n         * The PlayerManager that initilized the player\n         * @type {PlayerManager}\n         */","meta":{"range":[1078,1108],"filename":"Player.js","lineno":44,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000516","name":"this.manager","type":"MemberExpression","value":"options.manager","paramnames":[]}},"description":"The PlayerManager that initilized the player","type":{"names":["PlayerManager"]},"name":"manager","longname":"Player#manager","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#manager"},{"comment":"/**\n         * The current node for this Player\n         * @type {LavalinkNode}\n         */","meta":{"range":[1218,1242],"filename":"Player.js","lineno":49,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000524","name":"this.node","type":"MemberExpression","value":"options.node","paramnames":[]}},"description":"The current node for this Player","type":{"names":["LavalinkNode"]},"name":"node","longname":"Player#node","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#node"},{"comment":"/**\n         * Player options\n         * @type {Object}\n         */","meta":{"range":[695,717],"filename":"Player.js","lineno":29,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000494","name":"this.options","type":"Identifier","value":"options","paramnames":[]}},"description":"Player options","type":{"names":["Object"]},"name":"options","longname":"Player#options","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#options"},{"comment":"/**\n     * Pauses or Resumes the player\n     * @param {boolean} [pause=true] Whether to resume or pause the player\n     * @returns {Player}\n     */","meta":{"range":[3772,4040],"filename":"Player.js","lineno":154,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000713","name":"Player#pause","type":"MethodDefinition","paramnames":["pause"]},"vars":{"":null}},"description":"Pauses or Resumes the player","params":[{"type":{"names":["boolean"]},"optional":true,"defaultvalue":true,"description":"Whether to resume or pause the player","name":"pause"}],"returns":[{"type":{"names":["Player"]}}],"name":"pause","longname":"Player#pause","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#pause"},{"comment":"/**\n         * Whether the Player is paused or not.\n         * @type {boolean}\n         */","meta":{"range":[1583,1602],"filename":"Player.js","lineno":64,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000546","name":"this.paused","type":"Literal","value":false,"paramnames":[]}},"description":"Whether the Player is paused or not.","type":{"names":["boolean"]},"name":"paused","longname":"Player#paused","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#paused"},{"comment":"/**\n     * Plays a song\n     * @param {string} track A Base64 string from LavaLink API\n     * @param {Object} [options] Other options\n     * @param {number} [options.startTime] Start time\n     * @param {number} [options.endTime] End time\n     * @returns {Player}\n     */","meta":{"range":[3047,3361],"filename":"Player.js","lineno":122,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000625","name":"Player#play","type":"MethodDefinition","paramnames":["track","options"]},"vars":{"":null}},"description":"Plays a song","params":[{"type":{"names":["string"]},"description":"A Base64 string from LavaLink API","name":"track"},{"type":{"names":["Object"]},"optional":true,"description":"Other options","name":"options"},{"type":{"names":["number"]},"optional":true,"description":"Start time","name":"options.startTime"},{"type":{"names":["number"]},"optional":true,"description":"End time","name":"options.endTime"}],"returns":[{"type":{"names":["Player"]}}],"name":"play","longname":"Player#play","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#play"},{"comment":"/**\n         * Playing boolean\n         * @type {boolean}\n         */","meta":{"range":[1454,1474],"filename":"Player.js","lineno":59,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000540","name":"this.playing","type":"Literal","value":false,"paramnames":[]}},"description":"Playing boolean","type":{"names":["boolean"]},"name":"playing","longname":"Player#playing","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#playing"},{"comment":"/**\n     * Seeks to a specified position\n     * @param {number} position The position to seek to\n     * @returns {Player}\n     */","meta":{"range":[4549,4704],"filename":"Player.js","lineno":189,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000802","name":"Player#seek","type":"MethodDefinition","paramnames":["position"]},"vars":{"":null}},"description":"Seeks to a specified position","params":[{"type":{"names":["number"]},"description":"The position to seek to","name":"position"}],"returns":[{"type":{"names":["Player"]}}],"name":"seek","longname":"Player#seek","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#seek"},{"comment":"/**\n         * LavaLink Player state\n         * @type {Object}\n         */","meta":{"range":[1695,1723],"filename":"Player.js","lineno":69,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000552","name":"this.state","type":"ObjectExpression","value":"{\"volume\":100}","paramnames":[]}},"description":"LavaLink Player state","type":{"names":["Object"]},"name":"state","longname":"Player#state","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#state"},{"comment":"/**\n     * stops the Player\n     * @returns {Player}\n     */","meta":{"range":[3432,3614],"filename":"Player.js","lineno":139,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000681","name":"Player#stop","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"stops the Player","returns":[{"type":{"names":["Player"]}}],"name":"stop","longname":"Player#stop","kind":"function","memberof":"Player","scope":"instance","params":[],"$longname":"Player#stop"},{"comment":"/**\n     * Switch player channel\n     * @param {string} channel Channel id\n     * @param {boolean} [reactive=false] Whether to switch channel\n     * @return {boolean}\n     */","meta":{"range":[5094,5301],"filename":"Player.js","lineno":216,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000845","name":"Player#switchChannel","type":"MethodDefinition","paramnames":["channel","reactive"]},"vars":{"":null}},"description":"Switch player channel","params":[{"type":{"names":["string"]},"description":"Channel id","name":"channel"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Whether to switch channel","name":"reactive"}],"returns":[{"type":{"names":["boolean"]}}],"name":"switchChannel","longname":"Player#switchChannel","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#switchChannel"},{"comment":"/**\n         * The timestamp the Player started playing\n         * @type {number}\n         */","meta":{"range":[1969,1990],"filename":"Player.js","lineno":79,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000566","name":"this.timestamp","type":"Literal","value":null,"paramnames":[]}},"description":"The timestamp the Player started playing","type":{"names":["number"]},"name":"timestamp","longname":"Player#timestamp","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#timestamp"},{"comment":"/**\n         * The current track that the Player is playing\n         * @type {?string}\n         */","meta":{"range":[1840,1857],"filename":"Player.js","lineno":74,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000560","name":"this.track","type":"Literal","value":null,"paramnames":[]}},"description":"The current track that the Player is playing","type":{"names":["string"]},"nullable":true,"name":"track","longname":"Player#track","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#track"},{"comment":"/**\n     * Sets the volume for the player\n     * @param {number} volume Volume\n     * @returns {Player}\n     */","meta":{"range":[4218,4409],"filename":"Player.js","lineno":174,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000771","name":"Player#volume","type":"MethodDefinition","paramnames":["volume"]},"vars":{"":null}},"description":"Sets the volume for the player","params":[{"type":{"names":["number"]},"description":"Volume","name":"volume"}],"returns":[{"type":{"names":["Player"]}}],"name":"volume","longname":"Player#volume","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#volume"}],"$constructor":{"comment":"/**\n     * LavaLink Player Options\n     * @param {PlayerOptions} options Player Options\n     */","meta":{"range":[565,1997],"filename":"Player.js","lineno":22,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000483","name":"Player","type":"MethodDefinition","paramnames":["options"]},"vars":{"":null}},"description":"LavaLink Player Options","params":[{"type":{"names":["PlayerOptions"]},"description":"Player Options","name":"options"}],"name":"Player","longname":"Player","kind":"class","scope":"global","undocumented":true,"$longname":"Player"}},{"comment":"/**\n         * Emitted when the Player disconnects\n         * @event PLayer#disconnect\n         * @param {string} msg Disconnection reason\n         */","meta":{"filename":"Player.js","lineno":105,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted when the Player disconnects","kind":"event","name":"disconnect","params":[{"type":{"names":["string"]},"description":"Disconnection reason","name":"msg"}],"memberof":"PLayer","longname":"PLayer#event:disconnect","scope":"instance","$longname":"PLayer#event:disconnect"},{"comment":"/**\n * Player Manager class\n * @extends {PlayerStore}\n */","meta":{"range":[249,6309],"filename":"PlayerManager.js","lineno":10,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001049","name":"PlayerManager","type":"ClassDeclaration","paramnames":["client","nodes","options"]}},"classdesc":"Player Manager class","augments":["PlayerStore"],"name":"PlayerManager","longname":"PlayerManager","kind":"class","scope":"global","description":"Constructs the PlayerManager","params":[{"type":{"names":["external:Client"]},"description":"Discord.js Client","name":"client"},{"type":{"names":["Array.<Object>"]},"description":"Array of Lavalink Nodes","name":"nodes"},{"type":{"names":["PlayerManagerOptions"]},"description":"PlayerManager Options","name":"options"}],"$longname":"PlayerManager","$members":[{"comment":"/**\n         * Discord.js Client for the Player Manager\n         * @type {external:Client}\n         */","meta":{"range":[1025,1045],"filename":"PlayerManager.js","lineno":33,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001080","name":"this.client","type":"Identifier","value":"client","paramnames":[]}},"description":"Discord.js Client for the Player Manager","type":{"names":["external:Client"]},"name":"client","longname":"PlayerManager#client","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#client"},{"comment":"/**\n     * A function to create LavaLink nodes and set them to PlayerManager#nodes\n     * @param {Object} options Node options\n     */","meta":{"range":[1958,2209],"filename":"PlayerManager.js","lineno":66,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001163","name":"PlayerManager#createNode","type":"MethodDefinition","paramnames":["options"]},"vars":{"":null}},"description":"A function to create LavaLink nodes and set them to PlayerManager#nodes","params":[{"type":{"names":["Object"]},"description":"Node options","name":"options"}],"name":"createNode","longname":"PlayerManager#createNode","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#createNode"},{"comment":"/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object with guild, channel, host infomation\n     * @param {string} data.guild Guild id\n     * @param {string} data.channel Channel id\n     * @param {string} data.host host\n     * @param {Object} [options] Options\n     * @param {boolean} [options.selfmute=false] Selfmute\n     * @param {boolean} [options.selfdeaf=false] Selfdeaf\n     * @returns {Promise<Player>}\n     * @example\n     * // Join voice channel\n     * PlayerManager.join({\n     *  guild: \"412180910587379712\",\n     *  channel: \"412180910587379716\",\n     *  host: \"localhost\"\n     * });\n     */","meta":{"range":[3842,4441],"filename":"PlayerManager.js","lineno":129,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001322","name":"PlayerManager#join","type":"MethodDefinition","paramnames":["data",""]},"vars":{"":null}},"description":"Joins the voice channel and spawns a new player","params":[{"type":{"names":["Object"]},"description":"Object with guild, channel, host infomation","name":"data"},{"type":{"names":["string"]},"description":"Guild id","name":"data.guild"},{"type":{"names":["string"]},"description":"Channel id","name":"data.channel"},{"type":{"names":["string"]},"description":"host","name":"data.host"},{"type":{"names":["Object"]},"optional":true,"description":"Options","name":"options"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Selfmute","name":"options.selfmute"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Selfdeaf","name":"options.selfdeaf"}],"returns":[{"type":{"names":["Promise.<Player>"]}}],"examples":["// Join voice channel\nPlayerManager.join({\n guild: \"412180910587379712\",\n channel: \"412180910587379716\",\n host: \"localhost\"\n});"],"name":"join","longname":"PlayerManager#join","kind":"function","memberof":"PlayerManager","scope":"instance","async":true,"$longname":"PlayerManager#join"},{"comment":"/**\n     * Leaves voice channel and deletes Player\n     * @param {string} guild Guild id\n     * @returns {boolean}\n     * @example\n     * // Leave the current channel\n     * PlayerManager.leave(\"412180910587379712\");\n     */","meta":{"range":[4676,5160],"filename":"PlayerManager.js","lineno":157,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001411","name":"PlayerManager#leave","type":"MethodDefinition","paramnames":["guild"]},"vars":{"":null}},"description":"Leaves voice channel and deletes Player","params":[{"type":{"names":["string"]},"description":"Guild id","name":"guild"}],"returns":[{"type":{"names":["boolean"]}}],"examples":["// Leave the current channel\nPlayerManager.leave(\"412180910587379712\");"],"name":"leave","longname":"PlayerManager#leave","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#leave"},{"comment":"/**\n         * Collection of LavaLink Nodes\n         * @type {Collection<string, LavalinkNode>}\n         */","meta":{"range":[1171,1200],"filename":"PlayerManager.js","lineno":38,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001086","name":"this.nodes","type":"NewExpression","value":"","paramnames":[]}},"description":"Collection of LavaLink Nodes","type":{"names":["Collection.<string, LavalinkNode>"]},"name":"nodes","longname":"PlayerManager#nodes","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#nodes"},{"comment":"/**\n         * PlayerManager Options\n         * @type {Object}\n         */","meta":{"range":[1570,1592],"filename":"PlayerManager.js","lineno":53,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001115","name":"this.options","type":"Identifier","value":"options","paramnames":[]}},"description":"PlayerManager Options","type":{"names":["Object"]},"name":"options","longname":"PlayerManager#options","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#options"},{"comment":"/**\n     * Removes a node by host\n     * @param {string} host Node host\n     * @returns {boolean}\n     */","meta":{"range":[2325,2500],"filename":"PlayerManager.js","lineno":80,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001215","name":"PlayerManager#removeNode","type":"MethodDefinition","paramnames":["host"]},"vars":{"":null}},"description":"Removes a node by host","params":[{"type":{"names":["string"]},"description":"Node host","name":"host"}],"returns":[{"type":{"names":["boolean"]}}],"name":"removeNode","longname":"PlayerManager#removeNode","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#removeNode"},{"comment":"/**\n         * Total number of shards your bot is operating on\n         * @type {number}\n         */","meta":{"range":[1449,1477],"filename":"PlayerManager.js","lineno":48,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001107","name":"this.shards","type":"MemberExpression","value":"options.shards","paramnames":[]}},"description":"Total number of shards your bot is operating on","type":{"names":["number"]},"name":"shards","longname":"PlayerManager#shards","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#shards"},{"comment":"/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @param {string} data.guild Player guild id\n     * @param {string} data.channel Player channel id\n     * @param {string} data.host Player host id\n     * @returns {Player}\n     */","meta":{"range":[5886,6306],"filename":"PlayerManager.js","lineno":200,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001533","name":"PlayerManager#spawnPlayer","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Creates or returns a player","params":[{"type":{"names":["Object"]},"description":"Data for the player","name":"data"},{"type":{"names":["string"]},"description":"Player guild id","name":"data.guild"},{"type":{"names":["string"]},"description":"Player channel id","name":"data.channel"},{"type":{"names":["string"]},"description":"Player host id","name":"data.host"}],"returns":[{"type":{"names":["Player"]}}],"name":"spawnPlayer","longname":"PlayerManager#spawnPlayer","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#spawnPlayer"},{"comment":"/**\n         * This client's id\n         * @type {string}\n         */","meta":{"range":[1288,1330],"filename":"PlayerManager.js","lineno":43,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001093","name":"this.user","type":"LogicalExpression","value":"","paramnames":[]}},"description":"This client's id","type":{"names":["string"]},"name":"user","longname":"PlayerManager#user","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#user"}],"$constructor":{"comment":"/**\n     * Constructs the PlayerManager\n     * @param {external:Client} client Discord.js Client\n     * @param {Object[]} nodes Array of Lavalink Nodes\n     * @param {PlayerManagerOptions} options PlayerManager Options\n     */","meta":{"range":[760,1813],"filename":"PlayerManager.js","lineno":25,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001053","name":"PlayerManager","type":"MethodDefinition","paramnames":["client","nodes","options"]},"vars":{"":null}},"description":"Constructs the PlayerManager","params":[{"type":{"names":["external:Client"]},"description":"Discord.js Client","name":"client"},{"type":{"names":["Array.<Object>"]},"description":"Array of Lavalink Nodes","name":"nodes"},{"type":{"names":["PlayerManagerOptions"]},"description":"PlayerManager Options","name":"options"}],"name":"PlayerManager","longname":"PlayerManager","kind":"class","scope":"global","undocumented":true,"$longname":"PlayerManager"}},{"comment":"/**\n     * PlayerStore player\n     * @param {Player} Player The Player for the store\n     */","meta":{"range":[293,509],"filename":"PlayerStore.js","lineno":14,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures","code":{"id":"astnode100001626","name":"PlayerStore","type":"MethodDefinition","paramnames":["Player"]},"vars":{"":null}},"description":"PlayerStore player","params":[{"type":{"names":["Player"]},"description":"The Player for the store","name":"Player"}],"name":"PlayerStore","longname":"PlayerStore","kind":"class","scope":"global","undocumented":true,"$longname":"PlayerStore"},{"comment":"/**\n     * check to see if something is a class???\n     * @param {Function} input Function to check. what else?\n     * @returns {boolean}\n     */","meta":{"range":[188,448],"filename":"util.js","lineno":11,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib/util","code":{"id":"astnode100001693","name":"Util.isClass","type":"MethodDefinition","paramnames":["input"]},"vars":{"":null}},"description":"check to see if something is a class???","params":[{"type":{"names":["function"]},"description":"Function to check. what else?","name":"input"}],"returns":[{"type":{"names":["boolean"]}}],"name":"isClass","longname":"Util.isClass","kind":"function","memberof":"Util","scope":"static","$longname":"Util.isClass"}],"symbols":["LavalinkNode","LavalinkNode#connect","LavalinkNode#destroy","LavalinkNode#event:disconnect","LavalinkNode#event:error","LavalinkNode#event:message","LavalinkNode#event:ready","LavalinkNode#event:reconnecting","LavalinkNode#ready","LavalinkNode#reconnect","LavalinkNode#reconnectInterval","LavalinkNode#region","LavalinkNode#send","LavalinkNode#stats","LavalinkNode#ws","LavaPlayer#event:error","package:discord.js-lavalink","Player","Player#channel","Player#client","Player#connect","Player#destroy","Player#disconnect","PLayer#event:disconnect","Player#event:end","Player#id","Player#manager","Player#node","Player#options","Player#pause","Player#paused","Player#play","Player#playing","Player#seek","Player#state","Player#stop","Player#switchChannel","Player#timestamp","Player#track","Player#volume","PlayerManager","PlayerManager#client","PlayerManager#createNode","PlayerManager#join","PlayerManager#leave","PlayerManager#nodes","PlayerManager#options","PlayerManager#removeNode","PlayerManager#shards","PlayerManager#spawnPlayer","PlayerManager#user","PlayerStore","Util.isClass"]}},"app":{"title":"discord.js-lavalink","base":"/discord.js-lavalink/","entrance":"content:readme","routing":{"method":"query","caseSensitive":true},"server":"github","meta":null},"template":{"name":"Docma Default Template","version":"1.7.0","author":"Onur Yıldırım (onur@cutepilot.com)","license":"MIT","main":"index.html","options":{"title":"discord.js-lavalink","navItems":[{"label":"Readme","href":"?content=readme"},{"label":"Documentation","href":"?api=lavalink","iconClass":"ico-book"},{"label":"GitHub","href":"https://github.com/MrJacz/discord.js-lavalink#readme","target":"_blank","iconClass":"ico-md ico-github"}],"sidebar":true,"collapsed":false,"outline":"flat","badges":true,"symbolMeta":false,"search":true,"navbar":true}},"_":{"partials":{"api":"docma-api","content":"docma-content","notFound":"docma-404"},"elementID":"docma-main","contentElementID":"docma-content","logsEnabled":true}};
-/* global docma */
-/* eslint no-nested-ternary:0 */
+var DocmaWeb = (function () {
+'use strict';
 
-// docma.dom
+/* global */
+/* eslint max-depth:0, no-var:0, prefer-template:0, prefer-arrow-callback:0 */
+
+// Note: This is for use in the browser. ES2015 rules don't apply here (yet).
+
+/**
+ *  Docma (web) core class.
+ *  See {@link ?api=docma-web|documentation}.
+ *  @name DocmaWeb
+ *  @class
+ */
+
+// --------------------------------
+// NAMESPACE: DocmaWeb.Utils
 // https://github.com/onury/docma
-(function () {
+// --------------------------------
 
-    // --------------------------------
-    // DOM METHODS
-    // --------------------------------
+/**
+ *  Utilities for inspecting JSDoc documentation and symbols; and parsing
+ *  documentation data into proper HTML.
+ *  @name DocmaWeb.Utils
+ *  @type {Object}
+ *  @namespace
+ */
+var Utils = {};
 
-    var dom = {};
+/** @private */
+function getStr(value) {
+    return value && value.trim() !== '' ? value : null;
+}
 
-    /**
-     *  Creates and appends a child DOM element to the target, from the given
-     *  element definition.
-     *  @private
-     *  @memberof docma.dom
-     *
-     *  @param {HTMLElement} target
-     *         Target container element.
-     *  @param {String} [type="div"]
-     *         Type of the element to be appended.
-     *  @param {Object} [attrs]
-     *         Element attributes.
-     *
-     *  @returns {HTMLElement} - Appended element.
-     */
-    dom.createChild = function (target, type, attrs) {
-        attrs = attrs || {};
-        var el = document.createElement(type || 'div');
-        Object.keys(attrs).forEach(function (key) {
-            el[key] = attrs[key]; // e.g. id, innerHTML, etc...
+/**
+ *  Cleans the given symbol name.
+ *  e.g. <anonymous>~obj.doStuff —> obj.doStuff
+ *  @private
+ */
+function cleanName(name) {
+    return (name || '').replace(/([^>]+>)?~?(.*)/, '$2')
+        .replace(/^(module\.)?exports\./, '');
+}
+
+/** @private */
+function getMetaCodeName(symbol) {
+    return cleanName(Utils.notate(symbol, 'meta.code.name') || '');
+}
+
+/** @private */
+function identity(o) {
+    return o;
+}
+
+/**
+ *  Gets the type of the given object.
+ *  @name DocmaWeb.Utils.type
+ *  @function
+ *  @static
+ *
+ *  @param {*} obj - Object to be inspected.
+ *  @returns {String} - Lower-case name of the type.
+ */
+Utils.type = function (obj) {
+    return Object.prototype.toString.call(obj).match(/\s(\w+)/i)[1].toLowerCase();
+};
+
+/**
+ *  Gets the value of the target property by the given dot
+ *  {@link https://github.com/onury/notation|notation}.
+ *  @name DocmaWeb.Utils.notate
+ *  @function
+ *  @static
+ *
+ *  @param {Object} obj - Source object.
+ *  @param {String} notation - Path of the property in dot-notation.
+ *
+ *  @returns {*} - The value of the notation. If the given notation does
+ *  not exist, safely returns `undefined`.
+ *
+ *  @example
+ *  var symbol = { code: { meta: { type: "MethodDefinition" } } };
+ *  DocmaWeb.Utils.notate(symbol, "code.meta.type"); // returns "MethodDefinition"
+ */
+Utils.notate = function (obj, notation) {
+    if (typeof obj !== 'object') return;
+    var o,
+        props = !Array.isArray(notation)
+            ? notation.split('.')
+            : notation,
+        prop = props[0];
+    if (!prop) return;
+    o = obj[prop];
+    if (props.length > 1) {
+        props.shift();
+        return Utils.notate(o, props);
+    }
+    return o;
+};
+
+/**
+ *  Gets the short name of the given symbol.
+ *  JSDoc overwrites the `longname` and `name` of the symbol, if it has an
+ *  alias. This returns the correct short name.
+ *  @name DocmaWeb.Utils.getName
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {String}
+ */
+Utils.getName = function (symbol) {
+    // if @alias is set, the original (long) name is only found at meta.code.name
+    if (symbol.alias) {
+        var codeName = getMetaCodeName(symbol);
+        if (codeName) return codeName.replace(/.*?[#.~:](\w+)$/i, '$1');
+    }
+    return symbol.name;
+};
+
+/**
+ *  Gets the original long name of the given symbol.
+ *  JSDoc overwrites the `longname` and `name` of the symbol, if it has an
+ *  alias. This returns the correct long name.
+ *  @name DocmaWeb.Utils.getLongName
+ *  @function
+ *  @alias getFullName
+ *  @static
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {String}
+ */
+Utils.getLongName = function (symbol) {
+    var longName = cleanName(symbol.longname);
+    var metaCodeName = getMetaCodeName(symbol) || longName;
+    var memberOf = cleanName(symbol.memberof || '');
+
+    // JSDoc bug: if the constructor is not marked with @constructs, the
+    // longname is incorrect. e.g. `ClassName#ClassName`. So we return
+    // (clean) meta.code.name in this case. e.g. `ClassName`
+    if (symbol.name === memberOf && Utils.isConstructor(symbol)) {
+        return metaCodeName;
+    }
+
+    // if @alias is set, the original (long) name is generally found at
+    // meta.code.name
+    var codeName = symbol.alias ? metaCodeName : longName;
+
+    if (!memberOf) return codeName;
+    var re = new RegExp('^' + memberOf + '[#.~:]'),
+        dot = symbol.scope === 'instance' ? '#' : '.';
+
+    return re.test(codeName) ? codeName : memberOf + dot + codeName;
+};
+Utils.getFullName = Utils.getLongName;
+
+/**
+ *  Gets the code name of the given symbol.
+ *  @name DocmaWeb.Utils.getCodeName
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {String} - If no code name, falls back to long name.
+ */
+Utils.getCodeName = function (symbol) {
+    return getMetaCodeName(symbol) || Utils.getLongName(symbol);
+};
+
+/**
+ *  Gets the first matching symbol by the given name.
+ *  @name DocmaWeb.Utils.getSymbolByName
+ *  @function
+ *
+ *  @param {Array|Object} docsOrApis - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
+ *  @param {String} name - Symbol name to be checked. Better, pass the
+ *  `longname` (or `$longname`). It will still find a short name but it'll
+ *  return the first occurence if there are multiple symbols with the same
+ *  short name. e.g. `create` is ambiguous but `Docma.create` is unique.
+ *
+ *  @returns {Object} - Symbol object if found. Otherwise, returns `null`.
+ */
+Utils.getSymbolByName = function (docsOrApis, name) {
+    var i, symbol, docs, found;
+    if (Utils.type(docsOrApis) === 'object') {
+        var apiNames = Object.keys(docsOrApis);
+        for (i = 0; i < apiNames.length; i++) {
+            docs = docsOrApis[apiNames[i]].documentation;
+            found = Utils.getSymbolByName(docs, name);
+            if (found) return found;
+        }
+        return null;
+    }
+
+    docs = docsOrApis;
+    for (i = 0; i < docs.length; i++) {
+        symbol = docs[i];
+        if (symbol.name === name
+                || symbol.longname === name
+                || Utils.getFullName(symbol) === name) {
+            return symbol;
+        }
+        if (symbol.$members) {
+            found = Utils.getSymbolByName(symbol.$members, name);
+            if (found) return found;
+        }
+    }
+    return null;
+};
+
+/**
+ *  Gets the number of levels for the given symbol or name. e.g.
+ *  `mylib.prop` has 2 levels.
+ *  @name DocmaWeb.Utils.getLevels
+ *  @function
+ *
+ *  @param {Object|String} symbol - Documented symbol object or long name.
+ *  @returns {Number}
+ */
+Utils.getLevels = function (symbol) {
+    var longname = (typeof symbol === 'string' ? symbol : symbol.$longname) || '';
+    longname = cleanName(longname);
+    // colon (:) is not a level separator. JSDoc uses colon in cases like:
+    // `obj~event:ready` or `module:someModule`
+    return longname
+        ? ((longname || '').split(/[.#~]/) || []).length
+        : 0;
+};
+
+/**
+ *  Gets the parent symbol name from the given symbol object or symbol's name
+ *  (notation). Note that, this will return the parent name even if the parent
+ *  symbol does not exist in the documentation. If there is no parent, returns
+ *  `""` (empty string).
+ *  @name DocmaWeb.Utils.getParentName
+ *  @function
+ *
+ *  @param {Object|String} symbol - Documented symbol object or long name.
+ *  @returns {Number}
+ */
+Utils.getParentName = function (symbol) {
+    var longname;
+    if (typeof symbol !== 'string') {
+        if (symbol.memberof) return cleanName(symbol.memberof);
+        longname = cleanName(symbol.$longname);
+    } else {
+        longname = cleanName(symbol);
+    }
+    // colon (:) is not a level separator. JSDoc uses colon in cases like:
+    // `obj~event:ready` or `module:someModule`
+    if (!longname || !(/[.#~]/g).test(longname)) return '';
+    return longname.replace(/[.#~][^.#~]*$/, '');
+};
+
+/**
+ *  Gets the parent symbol object from the given symbol object or symbol's
+ *  name.
+ *  @name DocmaWeb.Utils.getParent
+ *  @function
+ *
+ *  @param {Object|String} symbol - Documented symbol object or long name.
+ *  @returns {String} - `null` if symbol has no parent.
+ */
+Utils.getParent = function (docs, symbol) {
+    var sym = typeof symbol === 'string'
+        ? Utils.getSymbolByName(docs, symbol)
+        : symbol;
+    if (!sym) return null;
+    var parentName = (sym && cleanName(sym.memberof)) || Utils.getParentName(symbol);
+    if (parentName) return Utils.getSymbolByName(docs, parentName);
+    return null;
+};
+
+/**
+ *  Checks whether the given symbol is deprecated.
+ *  @name DocmaWeb.Utils.isDeprecated
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isDeprecated = function (symbol) {
+    return symbol.deprecated;
+};
+
+/**
+ *  Checks whether the given symbol has global scope.
+ *  @name DocmaWeb.Utils.isGlobal
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isGlobal = function (symbol) {
+    return symbol.scope === 'global';
+};
+
+/**
+ *  Checks whether the given symbol is a namespace.
+ *  @name DocmaWeb.Utils.isNamespace
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isNamespace = function (symbol) {
+    return symbol.kind === 'namespace';
+};
+
+/**
+ *  Checks whether the given symbol is a module.
+ *  @name DocmaWeb.Utils.isModule
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isModule = function (symbol) {
+    return symbol.kind === 'module';
+};
+
+/**
+ *  Checks whether the given symbol is marked as a mixin (is intended to be
+ *  added to other objects).
+ *  @name DocmaWeb.Utils.isMixin
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isMixin = function (symbol) {
+    return symbol.kind === 'mixin';
+};
+
+/**
+ *  Checks whether the given symbol is a class.
+ *  @name DocmaWeb.Utils.isClass
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isClass = function (symbol) {
+    return symbol.kind === 'class'
+        && Utils.notate(symbol, 'meta.code.type') !== 'MethodDefinition'; // constructor if MethodDefinition
+    // && Utils.notate(symbol, 'meta.code.type') === 'ClassDeclaration';
+};
+
+/**
+ *  Checks whether the given symbol is marked as a constant.
+ *  @name DocmaWeb.Utils.isConstant
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isConstant = function (symbol) {
+    return symbol.kind === 'constant';
+};
+
+/**
+ *  Checks whether the given symbol is a constructor.
+ *  @name DocmaWeb.Utils.isConstructor
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isConstructor = function (symbol) {
+    return symbol.kind === 'class'
+        && Utils.notate(symbol, 'meta.code.type') === 'MethodDefinition';
+};
+
+/**
+ *  Checks whether the given symbol is a static member.
+ *  @name DocmaWeb.Utils.isStaticMember
+ *  @function
+ *  @alias isStatic
+ *  @static
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isStaticMember = function (symbol) {
+    return symbol.scope === 'static';
+};
+/**
+ *  Alias for `Utils.isStaticMember`
+ *  @private
+ */
+Utils.isStatic = Utils.isStaticMember;
+
+/**
+ *  Checks whether the given symbol has an inner scope.
+ *  @name DocmaWeb.Utils.isInner
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isInner = function (symbol) {
+    return symbol.scope === 'inner';
+};
+
+/**
+ *  Checks whether the given symbol is an instance member.
+ *  @name DocmaWeb.Utils.isInstanceMember
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isInstanceMember = function (symbol) {
+    return symbol.scope === 'instance';
+};
+
+/**
+ *  Checks whether the given symbol is marked as an interface that other symbols
+ *  can implement.
+ *  @name DocmaWeb.Utils.isInterface
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isInterface = function (symbol) {
+    return symbol.scope === 'interface';
+};
+
+/**
+ *  Checks whether the given symbol is a method (function).
+ *  @name DocmaWeb.Utils.isMethod
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isMethod = function (symbol) {
+    var codeType = Utils.notate(symbol, 'meta.code.type');
+    return symbol.kind === 'function'
+        || codeType === 'FunctionExpression'
+        || codeType === 'FunctionDeclaration';
+    // for getters/setters codeType might return 'MethodDefinition'
+    // so we leave it out.
+};
+Utils.isFunction = Utils.isMethod;
+
+/**
+ *  Checks whether the given symbol is an instance method.
+ *  @name DocmaWeb.Utils.isInstanceMethod
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isInstanceMethod = function (symbol) {
+    return Utils.isInstanceMember(symbol) && Utils.isMethod(symbol);
+};
+
+/**
+ *  Checks whether the given symbol is a static method.
+ *  @name DocmaWeb.Utils.isStaticMethod
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isStaticMethod = function (symbol) {
+    return Utils.isStaticMember(symbol) && Utils.isMethod(symbol);
+};
+
+/**
+ *  Checks whether the given symbol is a property (and not a method/function).
+ *  @name DocmaWeb.Utils.isProperty
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isProperty = function (symbol) {
+    return symbol.kind === 'member' && !Utils.isMethod(symbol);
+};
+
+/**
+ *  Checks whether the given symbol is an instance property.
+ *  @name DocmaWeb.Utils.isInstanceProperty
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isInstanceProperty = function (symbol) {
+    return Utils.isInstanceMember(symbol) && Utils.isProperty(symbol);
+};
+
+/**
+ *  Checks whether the given symbol is a static property.
+ *  @name DocmaWeb.Utils.isStaticProperty
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isStaticProperty = function (symbol) {
+    return Utils.isStaticMember(symbol) && Utils.isProperty(symbol);
+};
+
+/**
+ *  Checks whether the given symbol is a custom type definition.
+ *  @name DocmaWeb.Utils.isTypeDef
+ *  @function
+ *  @alias isCustomType
+ *  @static
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isTypeDef = function (symbol) {
+    return symbol.kind === 'typedef';
+};
+/**
+ *  Alias for `Utils.isTypeDef`
+ *  @private
+ */
+Utils.isCustomType = Utils.isTypeDef;
+
+/**
+ *  Checks whether the given symbol is a callback definition.
+ *  @name DocmaWeb.Utils.isCallback
+ *  @function
+ *  @static
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isCallback = function (symbol) {
+    var typeNames = (symbol.type || {}).names || [];
+    return symbol.kind === 'typedef'
+        && (symbol.comment || '').indexOf('@callback ' + symbol.longname) >= 0
+        && (typeNames.length === 1 && typeNames[0] === 'function');
+};
+
+/**
+ *  Checks whether the given symbol is an enumeration.
+ *  @name DocmaWeb.Utils.isEnum
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isEnum = function (symbol) {
+    return Boolean(symbol.isEnum);
+};
+
+/**
+ *  Checks whether the given symbol is an event.
+ *  @name DocmaWeb.Utils.isEvent
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isEvent = function (symbol) {
+    return symbol.kind === 'event';
+};
+
+/**
+ *  Checks whether the given symbol is defined outside of the current package.
+ *  @name DocmaWeb.Utils.isExternal
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isExternal = function (symbol) {
+    return symbol.kind === 'external';
+};
+
+/**
+ *  Checks whether the given symbol is a generator function.
+ *  @name DocmaWeb.Utils.isGenerator
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isGenerator = function (symbol) {
+    return symbol.generator && symbol.kind === 'function';
+};
+
+/**
+ *  Checks whether the given symbol is read-only.
+ *  @name DocmaWeb.Utils.isReadOnly
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isReadOnly = function (symbol) {
+    return symbol.readonly;
+};
+
+/**
+ *  Checks whether the given symbol has `public` access.
+ *  @name DocmaWeb.Utils.isPublic
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isPublic = function (symbol) {
+    return typeof symbol.access !== 'string' || symbol.access === 'public';
+};
+
+/**
+ *  Checks whether the given symbol has `private` access.
+ *  @name DocmaWeb.Utils.isPrivate
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isPrivate = function (symbol) {
+    return symbol.access === 'private';
+};
+
+/**
+ *  Checks whether the given symbol has `package` private access; indicating
+ *  that the symbol is available only to code in the same directory as the
+ *  source file for this symbol.
+ *  @name DocmaWeb.Utils.isPackagePrivate
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isPackagePrivate = function (symbol) {
+    return symbol.access === 'package';
+};
+
+/**
+ *  Checks whether the given symbol has `protected` access.
+ *  @name DocmaWeb.Utils.isProtected
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isProtected = function (symbol) {
+    return symbol.access === 'protected';
+};
+
+/**
+ *  Checks whether the given symbol is undocumented.
+ *  This checks if the symbol has any comments.
+ *  @name DocmaWeb.Utils.isUndocumented
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.isUndocumented = function (symbol) {
+    // we could use the `undocumented` property but it still seems buggy.
+    // https://github.com/jsdoc3/jsdoc/issues/241
+    // `undocumented` is omitted (`undefined`) for documented symbols.
+    // return symbol.undocumented !== true;
+    return !symbol.comments;
+};
+
+/**
+ *  Checks whether the given symbol has description.
+ *  @name DocmaWeb.Utils.hasDescription
+ *  @function
+ *
+ *  @param {Object} symbol - Documented symbol object.
+ *  @returns {Boolean}
+ */
+Utils.hasDescription = function (symbol) {
+    return Boolean(getStr(symbol.classdesc) || getStr(symbol.description));
+};
+
+/**
+ *  Removes leading spaces and dashes. Useful when displaying symbol
+ *  descriptions.
+ *  @name DocmaWeb.Utils.trimLeft
+ *  @function
+ *
+ *  @param {String} string - String to be trimmed.
+ *  @returns {String}
+ */
+Utils.trimLeft = function (string) {
+    // remove leading space and dashes.
+    return string.replace(/^[\s\n\r\-—]*/, '');
+};
+
+/**
+ *  Removes leading and trailing new lines.
+ *  @name DocmaWeb.Utils.trimNewLines
+ *  @function
+ *
+ *  @param {String} string - String to be trimmed.
+ *  @returns {String}
+ */
+Utils.trimNewLines = function (string) {
+    return string.replace(/^[\r\n]+|[\r\n]+$/, '');
+};
+
+/**
+ *  Converts back-ticks to HTML code tags.
+ *  @name DocmaWeb.Utils.parseTicks
+ *  @function
+ *
+ *  @param {String} string
+ *         String to be parsed.
+ *
+ *  @returns {String}
+ */
+Utils.parseTicks = function (string) {
+    return string
+        .replace(/(```\s*)([\s\S]*?)(\s*```)/g, function (match, p1, p2) { // , p3, offset, string
+            return Utils.normalizeTabs(Utils._wrapCode(p2, true, true).replace(/`/g, '&#x60;'));
+        })
+        .replace(/(`)(.*?)(`)/g, function (match, p1, p2) { // , p3, offset, string
+            return Utils._wrapCode(p2, true);
         });
-        target.appendChild(el);
-        return el;
-    };
+};
 
-    /**
-     *  Gets Docma main DOM element which the Dust templates will be rendered
-     *  into.
-     *  @private
-     *  @memberof docma.dom
-     *
-     *  @returns {HTMLElement} - Docma main DOM element.
-     */
-    dom.getDocmaElem = function () {
-        var docmaElem = document.getElementById(docma._.elementID);
-        if (!docmaElem) {
-            docmaElem = dom.createChild(document.body, 'div', {
-                id: docma._.elementID
+/**
+ *  Converts new lines to HTML paragraphs.
+ *  @name DocmaWeb.Utils.parseNewLines
+ *  @function
+ *
+ *  @param {String} string
+ *         String to be parsed.
+ *  @param {Object} [options]
+ *         Parse options.
+ *         @param {Boolean} [options.keepIfSingle=false]
+ *                If `true`, lines will not be converted to paragraphs.
+ *
+ *  @returns {String}
+ */
+Utils.parseNewLines = function (string, options) {
+    options = options || {};
+    return Utils._tokenize(string, function (block, isCode) {
+        if (isCode) return block;
+        var parts = block.split(/[\r\n]{2,}/);
+        if (parts.length <= 1 && options.keepIfSingle) return block;
+        return parts.map(function (part) {
+            return '<p>' + part + '</p>';
+        }).join('');
+    }).join('');
+};
+
+/**
+ *  Converts JSDoc `@link` directives to HTML anchor tags.
+ *  @name DocmaWeb.Utils.parseLinks
+ *  @function
+ *
+ *  @param {String} string
+ *         String to be parsed.
+ *  @param {Object} [options]
+ *         Parse options.
+ *         @param {String} [options.target]
+ *                Href target. e.g. `"_blank"`
+ *
+ *  @returns {String}
+ */
+Utils.parseLinks = function (string, options) {
+    options = options || {};
+    var re = /\{@link +([^}]*?)\}/g;
+    var out = string.replace(re, function (match, p1) { // , offset, string
+        var link, label,
+            parts = p1.split('|');
+        if (parts.length === 1) {
+            link = label = parts[0].trim(); // eslint-disable-line
+        } else {
+            link = parts[0].trim();
+            label = parts[1].trim();
+        }
+        // label = Utils.parseTicks(label);
+        // if the link is a symbol, prepend with a hash to trigger the bookmark when clicked
+        // if (symbolNames && symbolNames.indexOf(link) >= 0) {..}
+        // if no slash, treat this as a bookmark
+        // if ((/\//i).test(link) === false) {
+        //     return '<a href="#' + link + '">' + label + '</a>';
+        // }
+        var target = options.target
+            ? ' target="' + options.target + '"'
+            : '';
+        return '<a href="' + link + '"' + target + '>' + label + '</a>';
+    });
+    return Utils.parseTicks(out);
+};
+
+/**
+ *  Parses the given string into proper HTML. Removes leading whitespace,
+ *  converts new lines to paragraphs, ticks to code tags and JSDoc links to
+ *  anchors.
+ *  @name DocmaWeb.Utils.parse
+ *  @function
+ *
+ *  @param {String} string
+ *         String to be parsed.
+ *  @param {Object} [options]
+ *         Parse options.
+ *         @param {Object} [options.keepIfSingle=false]
+ *                If enabled, single lines will not be converted to paragraphs.
+ *         @param {String} [options.target]
+ *                Href target for links. e.g. `"_blank"`
+ *
+ *  @returns {String}
+ */
+Utils.parse = function (string, options) {
+    options = options || {};
+    string = Utils.trimLeft(string);
+    string = Utils.parseNewLines(string, options);
+    string = Utils.parseTicks(string);
+    return Utils.parseLinks(string, options);
+};
+
+/**
+ *  Normalizes the number of spaces/tabs to multiples of 2 spaces, in the
+ *  beginning of each line. Useful for fixing mixed indets of a description
+ *  or example.
+ *  @name DocmaWeb.Utils.normalizeTabs
+ *  @function
+ *
+ *  @param {String} string
+ *         String to process.
+ *
+ *  @returns {String}
+ */
+Utils.normalizeTabs = function (string) {
+    var m = string.match(/^\s*/gm),
+        min = Infinity;
+
+    m.forEach(function (wspace, index) {
+        // tabs to spaces
+        wspace = wspace.replace(/\t/g, '  ');
+        // ignoring first line's indent
+        if (index > 0) min = Math.min(wspace.length, min);
+    });
+
+    // replace the minimum indent from all lines (except first)
+    if (min !== Infinity) {
+        var re = new RegExp('^\\s{' + min + '}', 'g');
+        string = string.replace(re, '');
+    }
+    // replace all leading spaces from first line
+    string = string.replace(/^\s*/, '');
+
+    var spaces;
+    return string.replace(/([\r\n]+)(\s+)/gm, function (match, p1, p2) { // , offset, string
+        // convert tabs to spaces
+        spaces = p2.replace(/\t/g, '  ');
+        // convert indent to multiples of 2
+        spaces = new Array(spaces.length - (spaces.length % 2) + 1).join(' ');
+        return p1 + spaces;
+    });
+};
+
+/**
+ *  Builds a string of keywords from the given symbol.
+ *  This is useful for filter/search features of a template.
+ *  @name DocmaWeb.Utils.getKeywords
+ *  @function
+ *
+ *  @param {Object} symbol - Target documentation symbol.
+ *  @returns {String}
+ */
+Utils.getKeywords = function (symbol) {
+    if (typeof symbol === 'string') return symbol.toLowerCase();
+    var k = Utils.getFullName(symbol) + ' '
+        + symbol.longname + ' '
+        + symbol.name + ' '
+        + (symbol.alias || '') + ' '
+        + (symbol.memberOf || '') + ' '
+        + (symbol.$kind || '') + ' '
+        + (symbol.scope || '') + ' '
+        + (symbol.classdesc || '') + ' '
+        + (symbol.description || '') + ' '
+        + (symbol.filename || '') + ' '
+        + (symbol.readonly ? 'readonly' : '')
+        + (symbol.isEnum ? 'enum' : '');
+    if (Utils.isConstructor(symbol)) k += ' constructor';
+    if (Utils.isMethod(symbol)) k += ' method';
+    if (Utils.isProperty(symbol)) k += ' property';
+    return k.replace(/[><"'`\n\r]/g, '').toLowerCase();
+};
+
+/**
+ *  Gets code file information from the given symbol.
+ *  @name DocmaWeb.Utils.getCodeFileInfo
+ *  @function
+ *
+ *  @param {Object} symbol - Target documentation symbol.
+ *  @returns {Object}
+ */
+Utils.getCodeFileInfo = function (symbol) {
+    return {
+        filename: Utils.notate(symbol, 'meta.filename'),
+        lineno: Utils.notate(symbol, 'meta.lineno'),
+        path: Utils.notate(symbol, 'meta.path')
+    };
+};
+
+/**
+ *  Gets Docma route link for the given symbol or symbol name.
+ *  @name DocmaWeb.Utils.getSymbolLink
+ *  @function
+ *  @static
+ *
+ *  @param {Array|Object} docsOrApis - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
+ *  @param {Object|String} symbolOrName - Either the symbol itself or the
+ *  name of the symbol.
+ *
+ *  @returns {String} - Empty string if symbol is not found.
+ */
+Utils.getSymbolLink = function (docsOrApis, symbolOrName) {
+    if (typeof symbolOrName !== 'string') {
+        return symbolOrName.$docmaLink;
+    }
+    var symbol = Utils.getSymbolByName(docsOrApis, symbolOrName);
+    return symbol ? symbol.$docmaLink : '';
+};
+
+var reEndBrackets = /\[\]$/;
+// regexp for inspecting type parts such as `Promise<Boolean|String>[]` or
+// simply `Boolean`. this also removes/ignores dots from types such as
+// Array.<String>
+var reTypeParts = /^([^<]+?)(?:\.)?(?:<([^>]+)>)?(\[\])?$/;
+
+function _link(docsOrApis, type, options) {
+    var endBrackets = reEndBrackets.test(type) ? '[]' : '';
+    var t = type.replace(reEndBrackets, '');
+    var opts = options || {};
+    var link;
+    var target = '';
+    if (opts.linkType !== 'internal') {
+        link = Utils._getTypeExternalLink(t);
+        if (link) target = ' target="_blank"';
+    }
+    if (!link && opts.linkType !== 'external') link = Utils.getSymbolLink(docsOrApis, t);
+    if (link) type = '<a href="' + link + '"' + target + '>' + (opts.displayText || t) + endBrackets + '</a>';
+    return type;
+}
+
+/**
+ *  Gets Docma route link for the given symbol or symbol name and returns a
+ *  string with anchor tags.
+ *  @private
+ *
+ *  @param {Array|Object} docsOrApis - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
+ *  @param {String} type - Symbol name or type.
+ *  @param {String} [options] - Options
+ *      @param {String} [options.displayText] - Alternative display text to
+ *      be placed within the anchor tag.
+ *      @param {String} [options.linkType] - Set to `"internal"` (Docma
+ *      symbol link) or `"external"` (JS or Web-API MDN link), or omit to
+ *      get any of them, if found.
+ *
+ *  @returns {String}
+ */
+Utils._parseAnchorLinks = function (docsOrApis, strType, options) {
+    // see reTypeParts and reEndBrackets
+    var m = strType.match(reTypeParts);
+    if (!m || !m[1]) return '';
+    // maybe we have end brackets e.g. Boolean[] or Promise<Boolean>[]
+    var endBrackets = m[3] || '';
+    var sTypes = '';
+    // check for sub-types e.g. Promise<Boolean|String>
+    if (m[2]) {
+        sTypes = m[2].split('|');
+        sTypes = sTypes.map(function (t) {
+            return _link(docsOrApis, t, options);
+        }).join('<span class="code-delim">|</span>');
+        if (sTypes) sTypes = '&lt;' + sTypes + '&gt;';
+    }
+    return _link(docsOrApis, m[1], options) + sTypes + endBrackets;
+};
+
+/**
+ *  Gets the types of the symbol as a string (joined with pipes `|`).
+ *  @name DocmaWeb.Utils.getTypes
+ *  @function
+ *
+ *  @param {Array|Object} docsOrApis - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
+ *  @param {Object} symbol - Target documentation symbol.
+ *  @param {Object} [options] - Options.
+ *      @param {Boolean|String} [options.links=false] - Whether to add
+ *      HTML anchor links to output. Set to `"internal"` to link
+ *      internally (to Docma route with symbol hash, if found) or
+ *      `"external"` to link externally (to MDN URL if this is a
+ *      JS/Web-API built-in type/object) or `true` to try linking either
+ *      to an internal or external target, which ever is found.
+ *
+ *  @returns {String}
+ *
+ *  @example
+ *  var symbol = { "type": { "names": ["Number", "String"] } };
+ *  DocmaWeb.Utils.getTypes(docs, symbol); // "Number|String"
+ */
+Utils.getTypes = function (docsOrApis, symbol, options) {
+    var opts = options || {};
+    var types = symbol.kind === 'class'
+        ? ['class']
+        : Utils.notate(symbol, 'type.names') || [];
+    types = types.map(function (type) {
+        if (opts.links) type = Utils._parseAnchorLinks(docsOrApis, type, { linkType: opts.links });
+        return type;
+    }).join('<span class="code-delim">|</span>');
+    return symbol.isEnum ? 'enum&lt;' + types + '&gt;' : types;
+};
+
+// e.g.
+// "returns": [
+//   {
+//     "type": { "names": ["Date"] },
+//     "description": "- Current date."
+//   }
+// ]
+
+/**
+ *  Gets the return types of the symbol as a string (joined with pipes `|`).
+ *  @name DocmaWeb.Utils.getReturnTypes
+ *  @function
+ *
+ *  @param {Array|Object} docsOrApis - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
+ *  @param {Object} symbol - Target documentation symbol.
+ *  @param {Object} [options] - Options.
+ *      @param {Boolean|String} [options.links=false] - Whether to add
+ *      HTML anchor links to output. Set to `"internal"` to link
+ *      internally (to Docma route with symbol hash, if found) or
+ *      `"external"` to link externally (to MDN URL if this is a
+ *      JS/Web-API built-in type/object) or `true` to try linking either
+ *      to an internal or external target, which ever is found.
+ *
+ *  @returns {String}
+ */
+Utils.getReturnTypes = function (docsOrApis, symbol, options) {
+    var ret = symbol.returns;
+    if (!Array.isArray(ret)) return 'void';
+    var opts = options || {};
+
+    var allTypes = ret.reduce(function (memo, r) {
+        var types = Utils.notate(r, 'type.names') || [];
+        if (opts.links) {
+            types = types.map(function (type) {
+                return Utils._parseAnchorLinks(docsOrApis, type, { linkType: opts.links });
             });
         }
-        return docmaElem;
-    };
+        return memo.concat(types);
+    }, []);
+    return allTypes.length > 0
+        ? allTypes.join('<span class="code-delim">|</span>')
+        : 'void';
+};
 
-    /**
-     *  Gets Docma content DOM element that the HTML content will be loaded
-     *  into. This should be called for `docma-content` partial.
-     *  @private
-     *  @memberof docma.dom
-     *
-     *  @returns {HTMLElement} - Docma content DOM element.
-     */
-    dom.getContentElem = function () {
-        // docma-content template (should) have a
-        // <div id="docma-content"></div> element whithin.
-        var dContent = document.getElementById(docma._.contentElementID);
-        if (!dContent) {
-            // this is fatal, so we always throw if invalid content partial
-            // TODO: this should be checked during build process
-            throw new Error('Partial ' + docma._.partials.content + ' should have an element with id="' + docma._.contentElementID + '".');
+/**
+ *  Gets HTML formatted, delimeted code tags.
+ *  @name DocmaWeb.Utils.getCodeTags
+ *  @function
+ *
+ *  @param {Array|Object} docsOrApis - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
+ *  @param {Array} list - String list of values to be placed within code
+ *  tags.
+ *  @param {Object} [options] - Options.
+ *      @param {String} [options.delimeter=","] - String delimeter.
+ *      @param {Boolean|String} [options.links=false] - Whether to add
+ *      HTML anchor links to output. Set to `"internal"` to link
+ *      internally (to Docma route with symbol hash, if found) or
+ *      `"external"` to link externally (to MDN URL if this is a
+ *      JS/Web-API built-in type/object) or `true` to try linking either
+ *      to an internal or external target, which ever is found.
+ *
+ *  @returns {String}
+ */
+Utils.getCodeTags = function (docsOrApis, list, options) {
+    var opts = options || {};
+    return list.map(function (item) {
+        if (opts.links) {
+            var parsed = Utils._parseAnchorLinks(docsOrApis, item, {
+                linkType: opts.links
+            });
+            return Utils._wrapCode(parsed, false);
         }
-        return dContent;
-    };
+        return Utils._wrapCode(item, true);
+    }).join(opts.demileter || ',');
+};
 
-    /**
-     *  Loads dust-compiled HTML content into `docma-main` element.
-     *  @private
-     *  @memberof docma.dom
-     *
-     *  @param {String} compiledHTML - Dust-compiled HTML content.
-     */
-    dom.loadCompiledContent = function (compiledHTML) {
-        // load compiled content into <div id="docma-main"></div>
-        var docmaElem = dom.getDocmaElem();
-        docmaElem.innerHTML = compiledHTML;
-        // dom.fixAnchors();
-    };
+/**
+ *  Gets HTML formatted list of types from the given symbols list. Type
+ *  items are wrapped with code tags. If multiple, formatted as an HTML
+ *  unordered list.
+ *  @name DocmaWeb.Utils.getFormattedTypeList
+ *  @function
+ *
+ *  @param {Array|Object} docsOrApis - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
+ *  @param {Array} list - List of symbols to be converted to formatted
+ *  string.
+ *  @param {Object} [options] - Format options.
+ *      @param {String} [options.delimeter="|"] - Types delimeter.
+ *      @param {Boolean|String} [options.links=false] - Whether to add
+ *      HTML anchor links to output. Set to `"internal"` to link
+ *      internally (to Docma route with symbol hash, if found) or
+ *      `"external"` to link externally (to MDN URL if this is a
+ *      JS/Web-API built-in type/object) or `true` to try linking either
+ *      to an internal or external target, which ever is found.
+ *      @param {Boolean} [options.descriptions=true] - Whether to include descriptions.
+ *      @param {String} [options.descDelimeter="  —  "] - Description delimiter.
+ *
+ *  @returns {String}
+ */
+Utils.getFormattedTypeList = function (docsOrApis, list, options) {
+    if (!list || list.length === 0) return '';
 
-    /**
-     *  Loads the given HTML content into `docma-content` element.
-     *  @private
-     *  @memberof docma.dom
-     *
-     *  @param {String} html - Content to be loaded.
-     */
-    dom.loadContent = function (html) {
-        var dContent = dom.getContentElem();
-        dContent.innerHTML = html;
-        // dom.fixAnchors();
-        dom.scrollTo(); // top
-    };
+    var opts = options || {};
+    var delim = '<span class="code-delim">' + (opts.delimeter || '|') + '</span>';
+    var addDesc = typeof opts.descriptions !== 'boolean' ? true : opts.descriptions;
+    var descDelim = opts.descDelimeter || '&nbsp;&nbsp;—&nbsp;&nbsp;';
 
-    /**
-     *  Gets the offset coordinates of the given element, relative to document
-     *  body.
-     *  @private
-     *  @memberof docma.dom
-     *
-     *  @param {HTMLElement} e - Target element.
-     */
-    dom.getOffset = function (e) {
-        var elem = typeof e === 'object' ? e : document.getElementById(e);
-        if (!elem) return;
-        var rect = elem.getBoundingClientRect();
-        // Make sure element is not hidden (display: none) or disconnected
-        if (rect.width || rect.height || elem.getClientRects().length) {
-            var docElem = document.documentElement;
-            return {
-                top: rect.top + window.pageYOffset - docElem.clientTop,
-                left: rect.left + window.pageXOffset - docElem.clientLeft
-            };
+    var desc = '';
+    var pList = list.map(function (item) {
+        if (addDesc) {
+            desc = Utils.parse(item.description || '', { keepIfSingle: true });
+            if (desc) desc = descDelim + desc;
         }
-    };
+        var types = item.type.names;
+        types = types.map(function (type) {
+            if (opts.links) {
+                var parsed = Utils._parseAnchorLinks(docsOrApis, type, {
+                    linkType: opts.links
+                });
+                return Utils._wrapCode(parsed, false);
+            }
+            return Utils._wrapCode(type, true);
+        });
+        return types.join(delim) + desc;
+    });
+    if (pList.length > 1) {
+        return '<ul><li>' + pList.join('</li><li>') + '</li></ul>';
+    }
+    return pList; // single item
+};
 
-    /**
-     *  Scrolls the document to the given hash target.
-     *  @private
-     *  @memberof docma.dom
-     *
-     *  @param {String} [hash] - Bookmark target. If omitted, document is
-     *  scrolled to the top.
-     */
-    dom.scrollTo = function (hash) {
-        hash = (hash || window.location.hash || '').replace(/^#/, '');
-        if (!hash) {
-            document.body.scrollTop = 0;
-            return;
+/**
+ *  Gets HTML formatted list of emitted events from the given list. Event
+ *  names items are wrapped with code tags. If multiple, formatted as an
+ *  HTML unordered list.
+ *  @name DocmaWeb.Utils.getEmittedEvents
+ *  @function
+ *
+ *  @param {Array|Object} docsOrApis - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
+ *  @param {Array} list - List of emitted (fired) events.
+ *  @param {String} [options.delimeter=", "] - Events delimeter.
+ *  @param {Boolean|String} [options.links=false] - Whether to add
+ *      HTML anchor links to output. Set to `"internal"` to link
+ *      internally (to Docma route with symbol hash, if found) or
+ *      `"external"` to link externally (to MDN URL if this is a
+ *      JS/Web-API built-in type/object) or `true` to try linking either
+ *      to an internal or external target, which ever is found.
+ *
+ *  @returns {String}
+ */
+Utils.getEmittedEvents = function (docsOrApis, list, options) {
+    if (!list || list.length === 0) return '';
+
+    var opts = options || {};
+    var delim = opts.delimeter || ', ';
+
+    // example:
+    // "fires": [
+    //     "event:render - some desc." // this is incorrect. no desc allowed here.
+    // ]
+    var parts, name;
+    var events = (list || []).map(function (event) {
+        parts = event.split(/\s*[\s-—]\s*/g);
+        name = (parts[0] || '').trim(); // .replace(/event:/, '').trim()
+        if (opts.links) {
+            var parsed = Utils._parseAnchorLinks(docsOrApis, name, {
+                linkType: opts.links
+            });
+            return Utils._wrapCode(parsed, false);
         }
-        var elem = document.getElementById(hash);
-        if (!elem) return;
-        document.body.scrollTop = dom.getOffset(elem).top;
-    };
+        return Utils._wrapCode(name, true);
+    });
+    return events.join(delim);
+};
 
-    /**
-     *  Fixes the base+hash issue. When base tag is set in the head of an HTML,
-     *  bookmark anchors will navigate to the base URL with a hash; even with
-     *  sub paths. This will fix that behaviour.
-     *  @private
-     *  @memberof docma.dom
-     *
-     *  @returns {void}
-     */
-    dom.fixAnchors = function () {
-        if (docma.app.base) {
-            setTimeout(function () {
-                var i, el,
-                    nodes = document.querySelectorAll('a[href^="#"]');
-                for (i = 0; i < nodes.length; i++) {
-                    el = nodes[i];
-                    var href = el.getAttribute('href');
-                    if (href.slice(0, 1) === '#' && href.length > 1) {
-                        href = window.location.pathname + (window.location.search || '') + href;
-                        el.setAttribute('href', href);
+// ----------------------
+// PRIVATE
+// ----------------------
+
+/**
+ *  Iterates and gets the first matching item in the array.
+ *  @name DocmaWeb.Utils._find
+ *  @function
+ *  @private
+ *
+ *  @param {Array} array
+ *         Source array.
+ *  @param {Object} map
+ *         Key/value mapping for the search.
+ *
+ *  @returns {*} - First matching result. `null` if not found.
+ */
+Utils._find = function (array, map) {
+    // don't type check
+    if (!array || !map) return null;
+    var i, item,
+        found = null;
+    for (i = 0; i < array.length; i++) {
+        item = array[i];
+        if (item && typeof item === 'object') {
+            for (var prop in map) {
+                // we also ignore undefined !!!
+                if (map[prop] !== undefined && map.hasOwnProperty(prop)) {
+                    if (map[prop] !== item[prop]) {
+                        found = null;
+                        break;
+                    } else {
+                        found = item;
                     }
                 }
-            }, 50);
+            }
+            if (found) break; // exit
         }
-    };
-
-    // --------------------------------
-
-    /**
-     *  Utilities for Docma DOM operations.
-     *  @namespace
-     *  @private
-     */
-    docma.dom = Object.freeze(dom);
-
-})();
-
-/* global docma, dust */
-/* eslint */
-
-// docma.web.filters
-// https://github.com/onury/docma
-(function () {
-
-    dust.filters = dust.filters || {};
-
-    dust.filters.$pt = function (str) {
-        return docma.utils.parseTicks(str);
-    };
-
-    dust.filters.$pnl = function (str) {
-        return docma.utils.parseNewLines(str, { keepIfSingle: true });
-    };
-
-    dust.filters.$pl = function (str) {
-        return docma.utils.parseLinks(str);
-    };
-
-    dust.filters.$tl = function (str) {
-        return docma.utils.trimLeft(str);
-    };
-
-    dust.filters.$p = function (str) {
-        return docma.utils.parse(str, { keepIfSingle: true });
-    };
-
-    dust.filters.$nt = function (str) {
-        return docma.utils.normalizeTabs(str);
-    };
-
-    dust.filters.$desc = function (symbol) {
-        return docma.utils.parse(symbol.classdesc || symbol.description || '');
-    };
-
-    dust.filters.$def = function (param) {
-        return param.optional ? String(param.defaultvalue) : '';
-    };
-
-    var reJSValues = (/true|false|null|undefined|Infinity|NaN|\d+|Number\.\w+|Math\.(PI|E|LN(2|10)|LOG(2|10)E|SQRT(1_)?2)|\[.*?]|\{.*?}|new [a-zA-Z]+.*|\/.+\/[gmiu]*|Date\.(now\(\)|UTC\(.*)|window|document/);
-    dust.filters.$val = function (symbol) {
-        var val = docma.utils.notate(symbol, 'meta.code.value');
-        if (val === undefined) return '';
-        if (typeof val !== 'string') return val;
-        var types = docma.utils.notate(symbol, 'type.names') || [];
-        // first char is NOT a single or double quote or tick
-        if (!(/['"`]/).test(val.slice(0, 1))
-                // types include "String"
-                && types.indexOf('String') >= 0
-                // only "String" type or value is NOT a JS non-string value/keyword
-                && (types.length === 1 || reJSValues.indexOf(val) === -1)) {
-            return '"' + val + '"';
-        }
-        return val;
-    };
-
-    dust.filters.$id = function (symbol) {
-        var id;
-        if (typeof symbol === 'string') {
-            id = symbol;
-        } else {
-            var nw = docma.utils.isConstructor(symbol) ? 'new-' : '';
-            id = nw + symbol.$longname; // docma.utils.getFullName(symbol);
-        }
-        return id.replace(/ /g, '-');
-    };
-
-})();
-
-/* global docma */
-/* eslint no-nested-ternary:0 */
-
-// docma.location
-// https://github.com/onury/docma
-(function () {
-
-    // --------------------------------
-    // HELPER METHODS
-    // --------------------------------
-
-    /**
-     *  @private
-     */
-    function _ensureSlash(left, str, right) {
-        if (!str) return left || right ? '/' : '';
-        if (left && str.slice(0, 1) !== '/') str = '/' + str;
-        if (right && str.slice(-1) !== '/') str += '/';
-        return str;
     }
+    return found;
+};
+
+/**
+ *  Assignes the source properties to the target object.
+ *  @name DocmaWeb.Utils._assign
+ *  @function
+ *  @private
+ *
+ *  @param {Object} target
+ *         Target object.
+ *  @param {Object} source
+ *         Source object.
+ *  @param {Boolean} [enumerable=false]
+ *         Whether the assigned properties should be enumerable.
+ *
+ *  @returns {Object} - Modified target object.
+ */
+Utils._assign = function (target, source, enumerable) {
+    target = target || {};
+    var prop;
+    for (prop in source) {
+        if (source.hasOwnProperty(prop)) {
+            if (enumerable) {
+                Object.defineProperty(target, prop, {
+                    enumerable: true,
+                    value: source[prop]
+                });
+            } else {
+                target[prop] = source[prop];
+            }
+        }
+    }
+    return target;
+};
+
+/**
+ *  Gets the values of the source object as an `Array`.
+ *  @name DocmaWeb.Utils._values
+ *  @function
+ *  @private
+ *
+ *  @param {Object} source - Source object.
+ *
+ *  @returns {Array}
+ */
+Utils._values = function (source) {
+    if (Array.isArray(source)) return source;
+    var prop,
+        values = [];
+    for (prop in source) {
+        if (source.hasOwnProperty(prop)) {
+            values.push(source[prop]);
+        }
+    }
+    return values;
+};
+
+/**
+ *  Wraps the whole string within `&lt;code&gt;` tags.
+ *  @name DocmaWeb.Utils._wrapCode
+ *  @function
+ *  @private
+ *
+ *  @param {String} code - Code to be processed.
+ *  @param {Boolean} [escape=true] - Whether to escape open/close tags. i.e.
+ *  `&lt;` and `&gt;`.
+ *  @param {Boolean} [pre=false] - Whether to also wrap the code with
+ *         `&lt;pre&gt;` tags.
+ *
+ *  @returns {String}
+ */
+Utils._wrapCode = function (code, escape, pre) {
+    if (escape === undefined || escape === true) {
+        code = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    code = '<code>' + code + '</code>';
+    return pre ? '<pre>' + code + '</pre>' : code;
+};
+
+/**
+ *  Tokenizes the given string into blocks.
+ *  Each block is either a multiline code block (e.g. ```code```) or
+ *  regular string block.
+ *  @name DocmaWeb.Utils._tokenize
+ *  @function
+ *  @private
+ *
+ *  @param {String} string - String to be tokenized.
+ *  @param {Function} [callback=identity] - Function to be executed
+ *         on each block. Two arguments are passed; `block`, `isCode`.
+ *  @returns {Array}
+ *           Array of tokenized blocks.
+ */
+Utils._tokenize = function (string, callback) {
+    if (typeof callback !== 'function') callback = identity;
+    var mark = '```';
+    if (string.indexOf(mark) < 0) return [callback(string, false)];
+    var i,
+        len = mark.length,
+        token = '',
+        mem = '',
+        blocks = [],
+        entered = false;
+    for (i = 0; i < string.length; i++) {
+        token += string[i];
+        mem += string[i];
+        if (token.length > len) token = token.slice(-len);
+        if (token === mark) {
+            entered = !entered;
+            if (entered) {
+                blocks.push(callback(mem.slice(0, -len), false));
+                mem = token;
+            } else {
+                blocks.push(callback(mem, true));
+                mem = '';
+            }
+        }
+    }
+    return blocks;
+};
+
+/**
+ *  Ensures left and/or right slashes for the give string.
+ *  @name DocmaWeb.Utils._ensureSlash
+ *  @function
+ *  @private
+ *
+ *  @param {Boolean} left - Whether to ensure left slash.
+ *  @param {String} string - String to be checked and modified.
+ *  @param {Boolean} left - Whether to ensure right slash.
+ *
+ *  @returns {String}
+ */
+Utils._ensureSlash = function (left, str, right) {
+    if (!str) return left || right ? '/' : '';
+    if (left && str.slice(0, 1) !== '/') str = '/' + str;
+    if (right && str.slice(-1) !== '/') str += '/';
+    return str;
+};
+
+// ----------------------
+// DOM Utils
+// ----------------------
+
+// e.g. #Docma%7EBuildConfiguration will not work if "%7E" is not decoded to "~".
+function decodeHash(hash) {
+    // return hash.replace(/%7E/gi, '~').replace(/^#/, '');
+    return decodeURIComponent(hash).replace(/^#/, '');
+}
+
+/**
+ *  DOM utilities.
+ *  @name DocmaWeb.Utils.DOM
+ *  @namespace
+ *  @type {Object}
+ */
+Utils.DOM = {};
+
+// this is an attribute name used to mark style tags found within the body,
+// that are moved to the head of the document.
+var ATTR_BODY_STYLE = 'data-body-style';
+
+/**
+ *  Gets the offset coordinates of the given element, relative to document
+ *  body.
+ *  @name DocmaWeb.Utils.DOM.getOffset
+ *  @function
+ *  @static
+ *
+ *  @param {HTMLElement} e - Target element.
+ */
+Utils.DOM.getOffset = function (e) {
+    var elem = typeof e === 'object' ? e : document.getElementById(e);
+    if (!elem) return;
+    var rect = elem.getBoundingClientRect();
+    // Make sure element is not hidden (display: none) or disconnected
+    if (rect.width || rect.height || elem.getClientRects().length) {
+        var docElem = document.documentElement;
+        return {
+            top: rect.top + window.pageYOffset - docElem.clientTop,
+            left: rect.left + window.pageXOffset - docElem.clientLeft
+        };
+    }
+};
+
+/**
+ *  Scrolls the document to the given hash target.
+ *  @name DocmaWeb.Utils.DOM.scrollTo
+ *  @function
+ *  @static
+ *
+ *  @param {String} [hash] - Bookmark target. If omitted, document is
+ *  scrolled to the top.
+ */
+Utils.DOM.scrollTo = function (hash) {
+    // Some browsers place the overflow at the <html> level, unless else is
+    // specified. Therefore, we use the documentElement property for these
+    // browsers
+    var body = document.documentElement // Chrome, Firefox, IE/Edge, Opera
+        || document.body; // safari
+    hash = decodeHash(hash || window.location.hash || '');
+    if (!hash) {
+        body.scrollTop = 0;
+        return;
+    }
+    var elem = document.getElementById(hash);
+    if (!elem) return;
+    body.scrollTop = Utils.DOM.getOffset(elem).top;
+};
+
+/**
+ *  Creates and appends a child DOM element to the target, from the given
+ *  element definition.
+ *  @private
+ *  @name DocmaWeb.Utils.DOM._createChild
+ *  @function
+ *  @static
+ *
+ *  @param {HTMLElement} target
+ *         Target container element.
+ *  @param {String} [type="div"]
+ *         Type of the element to be appended.
+ *  @param {Object} [attrs]
+ *         Element attributes.
+ *
+ *  @returns {HTMLElement} - Appended element.
+ */
+Utils.DOM._createChild = function (target, type, attrs) {
+    attrs = attrs || {};
+    var el = document.createElement(type || 'div');
+    Object.keys(attrs).forEach(function (key) {
+        el[key] = attrs[key]; // e.g. id, innerHTML, etc...
+    });
+    target.appendChild(el);
+    return el;
+};
+
+/**
+ *  Removes the style tags that are previously marked to indicate that they
+ *  were moved from the body to head.
+ *  @private
+ *  @name DocmaWeb.Utils.DOM._removePrevBodyStyles
+ *  @function
+ *  @static
+ */
+Utils.DOM._removePrevBodyStyles = function () {
+    var head = document.getElementsByTagName('head')[0];
+    var prevBodyStyles = head.querySelectorAll('[' + ATTR_BODY_STYLE + ']');
+    while (prevBodyStyles.length > 0) {
+        prevBodyStyles[0].parentNode.removeChild(prevBodyStyles[0]);
+    }
+};
+
+/**
+ *  Moves style tags found within the body and appends them to the head of
+ *  the document.
+ *  @private
+ *  @name DocmaWeb.Utils.DOM._moveBodyStylesToHead
+ *  @function
+ *  @static
+ */
+Utils.DOM._moveBodyStylesToHead = function () {
+    var head = document.getElementsByTagName('head')[0];
+    var stylesInBody = document.body.getElementsByTagName('style');
+    var i, styleElem;
+    for (i = 0; i < stylesInBody.length; i++) {
+        styleElem = stylesInBody[i];
+        styleElem.parentNode.removeChild(styleElem);
+        styleElem.setAttribute(ATTR_BODY_STYLE, '');
+        head.appendChild(styleElem);
+    }
+};
+
+// ----------------------
+// LINKS for JS & WEB-API BUILT-IN Objects/Types
+// ----------------------
+
+// Data below is around 5KB.
+
+var _builtinURLs = {
+    globals: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/',
+    statements: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/',
+    operators: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/',
+    functions: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/',
+    web: 'https://developer.mozilla.org/en-US/docs/Web/API/'
+};
+var _builtins = {
+    globals: [
+        'Infinity',
+        'NaN',
+        'undefined',
+        'null',
+        'Object',
+        'Function',
+        'function',
+        'Boolean',
+        'boolean',
+        'Symbol',
+        'Error',
+        'EvalError',
+        'InternalError',
+        'RangeError',
+        'ReferenceError',
+        'SyntaxError',
+        'TypeError',
+        'URIError',
+        'Number',
+        'number',
+        'Math',
+        'Date',
+        'String',
+        'string',
+        'RegExp',
+        'Array',
+        'Int8Array',
+        'Uint8Array',
+        'Uint8ClampedArray',
+        'Int16Array',
+        'Uint16Array',
+        'Int32Array',
+        'Uint32Array',
+        'Float32Array',
+        'Float64Array',
+        'Map',
+        'Set',
+        'WeakMap',
+        'WeakSet',
+        'ArrayBuffer',
+        'DataView',
+        'JSON',
+        'Promise',
+        'Generator',
+        'GeneratorFunction',
+        'Reflect',
+        'Proxy',
+        'TypedArray',
+        'Intl',
+        'Intl.Collator',
+        'Intl.DateTimeFormat',
+        'Intl.NumberFormat',
+        'WebAssembly',
+        'WebAssembly.Module',
+        'WebAssembly.Instance',
+        'WebAssembly.Memory',
+        'WebAssembly.Table',
+        'WebAssembly.CompileError',
+        'WebAssembly.LinkError',
+        'WebAssembly.RuntimeError'
+    ],
+    statements: [
+        'function',
+        'function*',
+        'async function',
+        'class',
+        'debugger'
+    ],
+    operators: [
+        'void',
+        'super',
+        'this'
+    ],
+    functions: [
+        'arguments'
+    ],
+    web: [
+        'AbstractWorker',
+        'AnalyserNode',
+        'AudioBuffer',
+        'AudioContext',
+        'AudioListener',
+        'AudioNode',
+        'BaseAudioContext',
+        'BeforeUnloadEvent',
+        'Blob',
+        'BlobEvent',
+        'BufferSource',
+        'ByteString',
+        'CSSMediaRule',
+        'CSSPageRule',
+        'CSSPrimitiveValue',
+        'CSSRule',
+        'CSSRuleList',
+        'CSSStyleDeclaration',
+        'CSSStyleRule',
+        'CSSStyleSheet',
+        'CSSSupportsRule',
+        'CSSValue',
+        'CSSValueList',
+        'CloseEvent',
+        'CompositionEvent',
+        'Console',
+        'Coordinates',
+        'Crypto',
+        'CryptoKey',
+        'CustomEvent',
+        'DOMException',
+        'DOMImplementation',
+        'Document',
+        'DocumentFragment',
+        'DocumentType',
+        'DoubleRange',
+        'DragEvent',
+        'Element',
+        'ErrorEvent',
+        'Event',
+        'EventListener',
+        'EventSource',
+        'EventTarget',
+        'File',
+        'FileList',
+        'FileReader',
+        'FileReaderSync',
+        'FormData',
+        'Geolocation',
+        'HTMLAnchorElement',
+        'HTMLAreaElement',
+        'HTMLAudioElement',
+        'HTMLBRElement',
+        'HTMLBaseElement',
+        'HTMLBodyElement',
+        'HTMLButtonElement',
+        'HTMLCanvasElement',
+        'HTMLCollection',
+        'HTMLDListElement',
+        'HTMLDataElement',
+        'HTMLDataListElement',
+        'HTMLDetailsElement',
+        'HTMLDivElement',
+        'HTMLDocument',
+        'HTMLElement',
+        'HTMLEmbedElement',
+        'HTMLFieldSetElement',
+        'HTMLFormControlsCollection',
+        'HTMLFormElement',
+        'HTMLHRElement',
+        'HTMLHeadElement',
+        'HTMLHeadingElement',
+        'HTMLHtmlElement',
+        'HTMLIFrameElement',
+        'HTMLImageElement',
+        'HTMLInputElement',
+        'HTMLKeygenElement',
+        'HTMLLIElement',
+        'HTMLLabelElement',
+        'HTMLLegendElement',
+        'HTMLLinkElement',
+        'HTMLMapElement',
+        'HTMLMediaElement',
+        'HTMLMetaElement',
+        'HTMLMeterElement',
+        'HTMLModElement',
+        'HTMLOListElement',
+        'HTMLObjectElement',
+        'HTMLOptGroupElement',
+        'HTMLOptionElement',
+        'HTMLOptionsCollection',
+        'HTMLOutputElement',
+        'HTMLParagraphElement',
+        'HTMLParamElement',
+        'HTMLPreElement',
+        'HTMLProgressElement',
+        'HTMLQuoteElement',
+        'HTMLScriptElement',
+        'HTMLSelectElement',
+        'HTMLSlotElement',
+        'HTMLSourceElement',
+        'HTMLSpanElement',
+        'HTMLStyleElement',
+        'HTMLTableCaptionElement',
+        'HTMLTableCellElement',
+        'HTMLTableColElement',
+        'HTMLTableDataCellElement',
+        'HTMLTableElement',
+        'HTMLTableHeaderCellElement',
+        'HTMLTableRowElement',
+        'HTMLTableSectionElement',
+        'HTMLTemplateElement',
+        'HTMLTextAreaElement',
+        'HTMLTimeElement',
+        'HTMLTitleElement',
+        'HTMLTrackElement',
+        'HTMLUListElement',
+        'HTMLUnknownElement',
+        'HTMLVideoElement',
+        'HashChangeEvent',
+        'History',
+        'ImageData',
+        'InputEvent',
+        'KeyboardEvent',
+        'LinkStyle',
+        'Location',
+        'LongRange',
+        'MediaDevices',
+        'MediaDeviceInfo',
+        'MediaError',
+        'MediaRecorder',
+        'MediaStream',
+        'MessageChannel',
+        'MessageEvent',
+        'MessagePort',
+        'MouseEvent',
+        'MutationObserver',
+        'MutationRecord',
+        'NamedNodeMap',
+        'Navigator',
+        'NavigatorGeolocation',
+        'Node',
+        'NodeIterator',
+        'NodeList',
+        'NonDocumentTypeChildNode',
+        'Notification',
+        'PageTransitionEvent',
+        'PointerEvent',
+        'PopStateEvent',
+        'Position',
+        'PositionError',
+        'PositionOptions',
+        'ProgressEvent',
+        'PromiseRejectionEvent',
+        'RTCCertificate',
+        'RTCConfiguration',
+        'RTCDTMFSender',
+        'RTCDTMFToneChangeEvent',
+        'RTCDataChannel',
+        'RTCPeerConnection',
+        'RTCPeerConnection',
+        'RTCRtpCodecParameters',
+        'RTCRtpContributingSource',
+        'RTCRtpReceiver',
+        'RTCRtpSender',
+        'RTCRtpSynchronizationSource',
+        'RTCRtpTransceiver',
+        'RTCRtpTransceiverDirection',
+        'RTCRtpTransceiverInit',
+        'RTCStatsReport',
+        'RadioNodeList',
+        'RandomSource',
+        'Range',
+        'RenderingContext',
+        'SVGAnimateElement',
+        'SVGAnimateMotionElement',
+        'SVGAnimateTransformElement',
+        'SVGAnimationElement',
+        'SVGCircleElement',
+        'SVGClipPathElement',
+        'SVGCursorElement',
+        'SVGElement',
+        'SVGEllipseElement',
+        'SVGEvent',
+        'SVGFilterElement',
+        'SVGGeometryElement',
+        'SVGGradientElement',
+        'SVGGraphicsElement',
+        'SVGImageElement',
+        'SVGLineElement',
+        'SVGLinearGradientElement',
+        'SVGMPathElement',
+        'SVGMaskElement',
+        'SVGMetadataElement',
+        'SVGPathElement',
+        'SVGPatternElement',
+        'SVGPolygonElement',
+        'SVGPolylineElement',
+        'SVGRadialGradientElement',
+        'SVGRect',
+        'SVGRectElement',
+        'SVGSVGElement',
+        'SVGScriptElement',
+        'SVGSetElement',
+        'SVGStopElement',
+        'SVGStyleElement',
+        'SVGSwitchElement',
+        'SVGSymbolElement',
+        'SVGTSpanElement',
+        'SVGTextContentElement',
+        'SVGTextElement',
+        'SVGTextPathElement',
+        'SVGTextPositioningElement',
+        'SVGTitleElement',
+        'SVGTransform',
+        'SVGTransformList',
+        'SVGTransformable',
+        'SVGUseElement',
+        'SVGViewElement',
+        'ShadowRoot',
+        'SharedWorker',
+        'Storage',
+        'StorageEvent',
+        'StyleSheet',
+        'StyleSheetList',
+        'Text',
+        'TextMetrics',
+        'TimeEvent',
+        'TimeRanges',
+        'Touch',
+        'TouchEvent',
+        'TouchList',
+        'Transferable',
+        'TreeWalker',
+        'UIEvent',
+        'URL',
+        'WebGLActiveInfo',
+        'WebGLBuffer',
+        'WebGLContextEvent',
+        'WebGLFramebuffer',
+        'WebGLProgram',
+        'WebGLRenderbuffer',
+        'WebGLRenderingContext',
+        'WebGLShader',
+        'WebGLTexture',
+        'WebGLUniformLocation',
+        'WebGLVertexArrayObject',
+        'WebSocket',
+        'WheelEvent',
+        'Window',
+        'Worker',
+        'WorkerGlobalScope',
+        'WorkerLocation',
+        'WorkerNavigator',
+        'XMLHttpRequest',
+        'XMLHttpRequestEventTarget',
+        'XMLSerializer',
+        'XPathExpression',
+        'XPathResult',
+        'XSLTProcessor'
+    ]
+};
+
+/** @private */
+var _cats = Object.keys(_builtins);
+
+/**
+ *  Gets an external link for documentation of the given type or object.
+ *  @private
+ *  @param {String} type
+ *  @returns {String}
+ */
+Utils._getTypeExternalLink = function (type) {
+    var i, cat;
+    for (i = 0; i < _cats.length; i++) {
+        cat = _cats[i];
+        if (_builtins[cat].indexOf(type) >= 0) {
+            return _builtinURLs[cat] + type.replace(/^([^.]*\.)/, '');
+            // e.g. remove "WebAssembly." from "WebAssembly.Instance" bec. MDN link is .../Instance
+        }
+    }
+    return '';
+};
+
+
+/* global docma, Utils, dust, EventEmitter, XMLHttpRequest */
+/* eslint no-nested-ternary:0, max-depth:0, no-var:0, prefer-template:0, prefer-arrow-callback:0, prefer-spread:0, object-shorthand:0 */
+
+// Note: This is for use in the browser. ES2015 rules don't apply here (yet).
+
+// --------------------------------
+// CLASS: DocmaWeb
+// https://github.com/onury/docma
+// --------------------------------
+
+/**
+ *  Gets Docma version which the documentation is built with.
+ *  @name DocmaWeb#version
+ *  @type {String}
+ */
+
+/**
+ *  Docma (web) core.
+ *
+ *  When you build the documentation with a template, `docma-web.js` will be
+ *  generated (and linked in the main HTML); which is the core engine for the
+ *  documentation web app. This will include everything the app needs such as
+ *  the documentation data, compiled partials, dustjs engine, etc...
+ *
+ *  <blockquote>An instance of this object is globally accessible within the generated SPA
+ *  as <code>docma</code>. Note that the size of the `docma-web.js` script depends primarily
+ *  on the generated documentation data.</blockquote>
+ *
+ *  @class
+ *  @hideconstructor
+ *  @emits DocmaWeb~event:ready
+ *  @emits DocmaWeb~event:render
+ *  @emits DocmaWeb~event:route
+ *  @emits DocmaWeb~event:navigate
+ */
+function DocmaWeb(data) {
+    this._ = data || {};
+
+    // Flag for page load. Used for triggering the "ready" event only for page
+    // load and not for route changes.
+    this._.initialLoad = false;
+    // app entrance optionally set @ build-time
+    this._.appEntranceRI = null;
+
+    this._.emitter = new EventEmitter();
 
     /**
-     *  @private
+     *  Provides configuration data of the generated SPA, which is originally set
+     *  at build-time, by the user.
+     *  See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
+     *  details on how these settings take affect.
+     *  @name DocmaWeb#app
+     *  @type {Object}
+     *
+     *  @property {String} title
+     *            Document title for the main file of the generated app.
+     *            (Value of the `&lt;title/>` tag.)
+     *  @property {Array} meta
+     *            Array of arbitrary objects set for main document meta (tags).
+     *  @property {String} base
+     *            Base path of the generated web app.
+     *  @property {String} entrance
+     *            Name of the initial content displayed, when the web app is first
+     *            loaded.
+     *  @property {String|Object} routing
+     *            Routing settings for the generated SPA.
+     *  @property {String} server
+     *            Server/host type of the generated SPA.
      */
-    function _getQueryValue(name, query) {
-        // Modified from http://stackoverflow.com/a/901144/112731
-        query = query === undefined ? (window.location.search || '') : query;
-        if (query.slice(0, 1) === '?') query = query.slice(1);
-        name = name.replace(/[\[\]]/g, '\\$&');
-        var regex = new RegExp('&?' + name + '(=([^&#]*)|&|#|$)'),
-            results = regex.exec(query);
-        if (!results || !results[2]) return '';
-        return decodeURIComponent(results[2].replace(/\+/g, ' '));
-    }
+    Object.defineProperty(this, 'app', {
+        configurable: false,
+        get: function () {
+            return this._.app || null;
+        }
+    });
+
+    /**
+     *	Hash-map of JSDoc documentation outputs.
+        *	Each key is the name of an API (formed by grouped Javascript files).
+        *	e.g. `docma.apis["some-api"]`
+        *
+        *  Unnamed documentation data (consisting of ungrouped Javascript files) can be
+        *  accessed via `docma.apis._def_`.
+        *
+        *	Each value is an `Object` with the following signature:
+        *	`{ documentation:Array, symbols:Array }`. `documentation` is the actual
+        *	JSDoc data, and `symbols` is a flat array of symbol names.
+        *
+        *  <blockquote>See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
+        *  details on how Javascript files can be grouped (and named) to form separate
+        *  API documentations and SPA routes.</blockquote>
+        *
+        *  @name DocmaWeb#apis
+        *  @type {Object}
+        *
+        *  @example <caption>Programmatic access to documentation data</caption>
+        *  // output ungrouped (unnamed) API documentation data
+        *  console.log(docma.apis._def_.documentation);
+        *  console.log(docma.apis._def_.symbols); // flat list of symbol names
+        *  // output one of the grouped (named) API documentation data
+        *  console.log(docma.apis['my-scondary-api'].documentation);
+        *
+        *  @example <caption>Usage in a Dust partial</caption>
+        *  <!--
+        *  	Each API data is passed to the partial, according to the route.
+        *  	So you'll always use `documentation` within the partials.
+        *  -->
+        *  {#documentation}
+        *      <h4>{longname}</h4>
+        *      <p>{description}</p>
+        *      <hr />
+        *  {/documentation}
+        */
+    Object.defineProperty(this, 'apis', {
+        configurable: false,
+        get: function () {
+            return this._.apis || {};
+        }
+    });
+
+    /**
+     *  Array of available SPA routes of the documentation.
+     *  This is created at build-time and defined via the `src` param of the
+     *  {@link ?api=docma#Docma~BuildConfiguration|build configuration}.
+     *
+     *  @name DocmaWeb#routes
+     *  @type {Array}
+     *
+     *  @see {@link #DocmaWeb.Route|`DocmaWeb.Route`}
+     */
+    Object.defineProperty(this, 'routes', {
+        configurable: false,
+        get: function () {
+            return this._.routes || {};
+        }
+    });
+
+    /**
+     *  Provides template specific configuration data.
+     *  This is also useful within the Dust partials of the Docma template.
+     *  @name DocmaWeb#template
+     *  @type {Object}
+     *
+     *  @property {Object} options - Docma template options. Defined at build-time,
+     *  by the user.
+     *  @property {String} name
+     *            Name of the Docma template.
+     *  @property {String} version
+     *            Version of the Docma template.
+     *  @property {String} author
+     *            Author information for the Docma template.
+     *  @property {String} license
+     *            License information for the Docma template.
+     *  @property {String} mainHTML
+     *            Name of the main file of the template. i.e. `index.html`
+     *
+     *  @example <caption>Usage in a Dust partial</caption>
+     *  <div>
+     *      {?template.options.someOption}
+     *      <span>Displayed if someOption is true.</span>
+     *      {/template.options.someOption}
+     *  </div>
+     *  <div class="footer">{template.name} by {template.author}</div>
+     */
+    Object.defineProperty(this, 'template', {
+        configurable: false,
+        get: function () {
+            return this._.template || {};
+        }
+    });
 
     // --------------------------------
-    // docma.location
+    // DOCMA-WEB STATE
     // --------------------------------
 
     /**
      *  Similar to `window.location` but with differences and additional
      *  information.
      *
-     *  @name docma.location
+     *  @name DocmaWeb#location
      *  @type {Object}
      *  @readonly
      *
@@ -3543,11 +5360,11 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
      *  @property {Function} getQuery()
      *            Gets the value of the given querystring parameter.
      */
-    Object.defineProperty(docma, 'location', {
+    Object.defineProperty(this, 'location', {
         configurable: false,
         get: function () {
-            var fullpath = _ensureSlash(true, window.location.pathname, true),
-                base = _ensureSlash(true, docma.app.base, true),
+            var fullpath = Utils._ensureSlash(true, window.location.pathname, true),
+                base = Utils._ensureSlash(true, docma.app.base, true),
                 pathname = fullpath;
             if (fullpath.slice(0, base.length) === base) {
                 pathname = fullpath.slice(base.length - 1, fullpath.length);
@@ -3558,7 +5375,7 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
                 origin: window.location.origin,
                 port: window.location.port,
                 protocol: (window.location.protocol || '').replace(/:$/, ''),
-                entrance: _ensureSlash(true, docma.app.entrance, false),
+                entrance: Utils._ensureSlash(true, docma.app.entrance, false),
                 base: base,
                 hash: (window.location.hash || '').replace(/^#/, ''),
                 query: (window.location.search || '').replace(/^\?/, ''),
@@ -3566,1112 +5383,27 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
                 fullpath: fullpath,
                 pathname: pathname,
                 path: pathname + (window.location.search || ''),
-                getQuery: _getQueryValue
+                getQuery: function (name, query) {
+                    // Modified from http://stackoverflow.com/a/901144/112731
+                    query = query === undefined ? (window.location.search || '') : query;
+                    if (query.slice(0, 1) === '?') query = query.slice(1);
+                    name = name.replace(/[[\]]/g, '\\$&');
+                    var regex = new RegExp('&?' + name + '(=([^&#]*)|&|#|$)'),
+                        results = regex.exec(query);
+                    if (!results || !results[2]) return '';
+                    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+                }
 
             };
         }
     });
-
-    // --------------------------------
-
-    docma.location = Object.freeze(docma.location);
-
-})();
-
-/* global docma */
-/* eslint */
-
-// docma.web.utils
-// https://github.com/onury/docma
-
-/**
- *  Utilities for inspecting JSDoc documentation and symbols; and parsing
- *  documentation data into proper HTML.
- *  @name docma.utils
- *  @type {Object}
- *  @namespace
- */
-(function () {
-
-    var utils = {};
-
-    function _getStr(value) {
-        return value && value.trim() !== '' ? value : null;
-    }
-
-    // cleans the given symbol name.
-    // e.g. <anonymous>~obj.doStuff —> obj.doStuff
-    function _cleanName(name) {
-        return (name || '').replace(/([^>]+>)?~?(.*)/, '$2');
-    }
-
-    function _identity(o) { return o; }
-
-    /**
-     *  Gets the value of the target property by the given dot
-     *  {@link https://github.com/onury/notation|notation}.
-     *  @memberof docma
-     *
-     *  @param {Object} obj - Source object.
-     *  @param {String} notation - Path of the property in dot-notation.
-     *
-     *  @returns {*} - The value of the notation. If the given notation does
-     *  not exist, safely returns `undefined`.
-     *
-     *  @example
-     *  var symbol = { code: { meta: { type: "MethodDefinition" } } };
-     *  docma.utils.notate(symbol, "code.meta.type"); // returns "MethodDefinition"
-     */
-    utils.notate = function (obj, notation) {
-        if (typeof obj !== 'object') return;
-        var o,
-            props = !Array.isArray(notation)
-                ? notation.split('.')
-                : notation,
-            prop = props[0];
-        if (!prop) return;
-        o = obj[prop];
-        if (props.length > 1) {
-            props.shift();
-            return utils.notate(o, props);
-        }
-        return o;
-    };
-
-    /**
-     *  Gets the short name of the given symbol.
-     *  JSDoc overwrites the `longname` and `name` of the symbol, if it has an
-     *  alias. This returns the correct short name.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {String}
-     */
-    utils.getName = function (symbol) {
-        // if @alias is set, the original (long) name is only found at meta.code.name
-        if (symbol.alias) {
-            var codeName = _cleanName(utils.notate(symbol, 'meta.code.name') || '');
-            if (codeName) return codeName.replace(/.*?[#.~:](\w+)$/i, '$1');
-        }
-        return symbol.name;
-    };
-
-    /**
-     *  Gets the original long name of the given symbol.
-     *  JSDoc overwrites the `longname` and `name` of the symbol, if it has an
-     *  alias. This returns the correct long name.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {String}
-     */
-    utils.getLongName = function (symbol) {
-        var longName = _cleanName(symbol.longname);
-        if (symbol.alias) {
-            var codeName = _cleanName(utils.notate(symbol, 'meta.code.name') || '');
-            if (!codeName) return longName;
-            var memberOf = _cleanName(symbol.memberof || '');
-            if (!memberOf) return codeName;
-            var re = new RegExp('^' + memberOf + '[#\\.~:]'),
-                dot = symbol.scope === 'instance' ? '#' : '.';
-            return re.test(codeName) ? codeName : memberOf + dot + codeName;
-        }
-        return longName;
-    };
-    utils.getFullName = utils.getLongName;
-
-    /**
-     *  Gets the code name of the given symbol.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {String} - If no code name, falls back to long name.
-     */
-    utils.getCodeName = function (symbol) {
-        return _cleanName(utils.notate(symbol, 'meta.code.name') || '')
-            || utils.getLongName(symbol);
-    };
-
-    /**
-     *  Gets the first matching symbol by the given name.
-     *  @memberof docma
-     *
-     *  @param {Array} docs - Documentation symbols array.
-     *  @param {String} name - Symbol name to be checked.
-     *  @returns {Object} - Symbol object if found. Otherwise, returns `null`.
-     */
-    utils.getSymbolByName = function (docs, name) {
-        var i, symbol;
-        for (i = 0; i < docs.length; i++) {
-            symbol = docs[i];
-            if (symbol.name === name
-                    || symbol.longname === name
-                    || utils.getFullName(symbol) === name) {
-                return symbol;
-            }
-            if (symbol.$members) {
-                var sym = utils.getSymbolByName(symbol.$members, name);
-                if (sym) return sym;
-            }
-        }
-        return null;
-    };
-
-    /**
-     *  Checks whether the given symbol is deprecated.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isDeprecated = function (symbol) {
-        return symbol.deprecated;
-    };
-
-    /**
-     *  Checks whether the given symbol has global scope.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isGlobal = function (symbol) {
-        return symbol.scope === 'global';
-    };
-
-    /**
-     *  Checks whether the given symbol is a namespace.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isNamespace = function (symbol) {
-        return symbol.kind === 'namespace';
-    };
-
-    /**
-     *  Checks whether the given symbol is a module.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isModule = function (symbol) {
-        return symbol.kind === 'module';
-    };
-
-    /**
-     *  Checks whether the given symbol is a class.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isClass = function (symbol) {
-        return !utils.isConstructor(symbol)
-            && (symbol.kind === 'class'
-                || utils.notate(symbol, 'meta.code.type') === 'ClassDeclaration');
-    };
-
-    /**
-     *  Checks whether the given symbol is a constructor.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isConstructor = function (symbol) {
-        return symbol.kind === 'class'
-            && utils.notate(symbol, 'meta.code.type') === 'MethodDefinition';
-    };
-
-    /**
-     *  Checks whether the given symbol is a static member.
-     *  @memberof docma
-     *  @alias utils.isStatic
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isStaticMember = function (symbol) {
-        return symbol.scope === 'static';
-    };
-    /**
-     *  Alias for `utils.isStaticMember`
-     *  @private
-     */
-    utils.isStatic = utils.isStaticMember;
-
-    /**
-     *  Checks whether the given symbol has an inner scope.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isInner = function (symbol) {
-        return symbol.scope === 'inner';
-    };
-
-    /**
-     *  Checks whether the given symbol is an instance member.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isInstanceMember = function (symbol) {
-        return symbol.scope === 'instance';
-    };
-
-    /**
-     *  Checks whether the given symbol is a method (function).
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isMethod = function (symbol) {
-        var codeType = utils.notate(symbol, 'meta.code.type');
-        return symbol.kind === 'function'
-            || (codeType === 'MethodDefinition' || codeType === 'FunctionExpression');
-    };
-    utils.isFunction = utils.isMethod;
-
-    /**
-     *  Checks whether the given symbol is an instance method.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isInstanceMethod = function (symbol) {
-        return utils.isInstanceMember(symbol) && utils.isMethod(symbol);
-    };
-
-    /**
-     *  Checks whether the given symbol is a static method.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isStaticMethod = function (symbol) {
-        return utils.isStaticMember(symbol) && utils.isMethod(symbol);
-    };
-
-    /**
-     *  Checks whether the given symbol is a property.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isProperty = function (symbol) {
-        return symbol.kind === 'member';
-            // && notate(symbol, 'meta.code.type') === 'MethodDefinition';
-    };
-
-    /**
-     *  Checks whether the given symbol is an instance property.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isInstanceProperty = function (symbol) {
-        return utils.isInstanceMember(symbol) && utils.isProperty(symbol);
-    };
-
-    /**
-     *  Checks whether the given symbol is a static property.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isStaticProperty = function (symbol) {
-        return utils.isStaticMember(symbol) && utils.isProperty(symbol);
-    };
-
-    /**
-     *  Checks whether the given symbol is a custom type definition.
-     *  @memberof docma
-     *  @alias utils.isCustomType
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isTypeDef = function (symbol) {
-        return symbol.kind === 'typedef';
-    };
-    /**
-     *  Alias for `utils.isTypeDef`
-     *  @private
-     */
-    utils.isCustomType = utils.isTypeDef;
-
-    /**
-     *  Checks whether the given symbol is an enumeration.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isEnum = function (symbol) {
-        return symbol.isEnum;
-    };
-
-    /**
-     *  Checks whether the given symbol is read-only.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isReadOnly = function (symbol) {
-        return symbol.readonly;
-    };
-
-    /**
-     *  Checks whether the given symbol has `public` access.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isPublic = function (symbol) {
-        return typeof symbol.access !== 'string' || symbol.access === 'public';
-    };
-
-    /**
-     *  Checks whether the given symbol has `private` access.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isPrivate = function (symbol) {
-        return symbol.access === 'private';
-    };
-
-    /**
-     *  Checks whether the given symbol has `protected` access.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isProtected = function (symbol) {
-        return symbol.access === 'protected';
-    };
-
-    /**
-     *  Checks whether the given symbol is undocumented.
-     *  This checks if the symbol has any comments.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.isUndocumented = function (symbol) {
-        // we could use the `undocumented` property but it still seems buggy.
-        // https://github.com/jsdoc3/jsdoc/issues/241
-        // `undocumented` is omitted (`undefined`) for documented symbols.
-        // return symbol.undocumented !== true;
-        return !symbol.comments;
-    };
-
-    /**
-     *  Checks whether the given symbol has description.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Documented symbol object.
-     *  @returns {Boolean}
-     */
-    utils.hasDescription = function (symbol) {
-        return Boolean(_getStr(symbol.classdesc) || _getStr(symbol.description));
-    };
-
-    // ----
-
-    /**
-     *  GGets the types of the symbol as a string (joined with pipes `|`).
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Target documentation symbol.
-     *  @returns {String}
-     *
-     *  @example
-     *  var symbol = { "type": { "names": ["Number", "String"] } };
-     *  docma.util.getTypes(symbol); // Number|String
-     */
-    utils.getTypes = function (symbol) {
-        if (symbol.kind === 'class') return 'class';
-        var types = utils.notate(symbol, 'type.names') || [];
-        // remove dots from types such as Array.<String>
-        types = types.map(function (t) {
-            return t.replace(/\.</g, '<');
-        }).join('|');
-        return symbol.isEnum ? 'enum<' + types + '>' : types;
-    };
-
-    // e.g.
-    // "returns": [
-    //   {
-    //     "type": { "names": ["Date"] },
-    //     "description": "- Current date."
-    //   }
-    // ]
-
-    /**
-     *  Gets the return types of the symbol as a string (joined with pipes `|`).
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Target documentation symbol.
-     *  @returns {String}
-     */
-    utils.getReturnTypes = function (symbol) {
-        var ret = symbol.returns;
-        if (!Array.isArray(ret)) return 'void';
-        var names;
-        var allNames = ret.reduce(function (memo, r) {
-            names = utils.notate(r, 'type.names');
-            if (Array.isArray(names)) {
-                return memo.concat(names);
-            }
-            return memo;
-        }, []);
-        return allNames.length > 0
-            ? allNames.join('|')
-            : 'void';
-    };
-
-    /**
-     *  Removes leading spaces and dashes. Useful when displaying symbol
-     *  descriptions.
-     *  @memberof docma
-     *
-     *  @param {String} string - String to be trimmed.
-     *  @returns {String}
-     */
-    utils.trimLeft = function (string) {
-        // remove leading space and dashes.
-        return string.replace(/^[\s\n\r\-—]*/, '');
-    };
-
-    /**
-     *  Converts back-ticks to HTML code tags.
-     *  @memberof docma
-     *
-     *  @param {String} string
-     *         String to be parsed.
-     *
-     *  @returns {String}
-     */
-    utils.parseTicks = function (string) {
-        return string
-            .replace(/(```\s*)([\s\S]*?)(\s*```)/g, function (match, p1, p2) { // , p3, offset, string
-                return utils.normalizeTabs(utils._wrapEscapeCode(p2, true).replace(/`/g, '&#x60;'));
-            })
-            .replace(/(`)(.*?)(`)/g, function (match, p1, p2) { // , p3, offset, string
-                return utils._wrapEscapeCode(p2);
-            });
-    };
-
-    /**
-     *  Converts new lines to HTML paragraphs.
-     *  @memberof docma
-     *
-     *  @param {String} string
-     *         String to be parsed.
-     *  @param {Object} [options]
-     *         Parse options.
-     *         @param {Boolean} [options.keepIfSingle=false]
-     *                If `true`, lines will not be converted to paragraphs.
-     *
-     *  @returns {String}
-     */
-    utils.parseNewLines = function (string, options) {
-        options = options || {};
-        return utils._tokenize(string, function (block, isCode) {
-            if (isCode) return block;
-            var parts = block.split(/[\r\n]{2,}/);
-            if (parts.length <= 1 && options.keepIfSingle) return block;
-            return parts.map(function (part) {
-                return '<p>' + part + '</p>';
-            }).join('');
-        }).join('');
-    };
-
-    /**
-     *  Converts JSDoc `@link` directives to HTML anchor tags.
-     *  @memberof docma
-     *
-     *  @param {String} string
-     *         String to be parsed.
-     *  @param {Object} [options]
-     *         Parse options.
-     *         @param {String} [options.target]
-     *                Href target. e.g. `"_blank"`
-     *
-     *  @returns {String}
-     */
-    utils.parseLinks = function (string, options) { // TODO: base path
-        options = options || {};
-        var re = /\{@link +([^}]*?)\}/g;
-        var out = string.replace(re, function (match, p1) { // , offset, string
-            var link, label,
-                parts = p1.split('|');
-            if (parts.length === 1) {
-                link = label = parts[0].trim();
-            } else {
-                link = parts[0].trim();
-                label = parts[1].trim();
-            }
-            // label = utils.parseTicks(label);
-            // if the link is a symbol, prepend with a hash to trigger the bookmark when clicked
-            // if (symbolNames && symbolNames.indexOf(link) >= 0) {..}
-            // if no slash, treat this as a bookmark
-            // if ((/\//i).test(link) === false) {
-            //     return '<a href="#' + link + '">' + label + '</a>';
-            // }
-            var target = options.target
-                ? ' target="' + options.target + '"'
-                : '';
-            return '<a href="' + link + '"' + target + '>' + label + '</a>';
-        });
-        return utils.parseTicks(out);
-    };
-
-    /**
-     *  Parses the given string into proper HTML. Removes leading whitespace,
-     *  converts new lines to paragraphs, ticks to code tags and JSDoc links to
-     *  anchors.
-     *  @memberof docma
-     *
-     *  @param {String} string
-     *         String to be parsed.
-     *  @param {Object} [options]
-     *         Parse options.
-     *         @param {Object} [options.keepIfSingle=false]
-     *                If enabled, single lines will not be converted to paragraphs.
-     *         @param {String} [options.target]
-     *                Href target for links. e.g. `"_blank"`
-     *
-     *  @returns {String}
-     */
-    utils.parse = function (string, options) {
-        options = options || {};
-        string = utils.trimLeft(string);
-        string = utils.parseNewLines(string, options);
-        string = utils.parseTicks(string);
-        return utils.parseLinks(string, options);
-    };
-
-    /**
-     *  Normalizes the number of spaces/tabs to multiples of 2 spaces, in the
-     *  beginning of each line. Useful for fixing mixed indets of a description
-     *  or example.
-     *  @memberof docma
-     *
-     *  @param {String} string
-     *         String to process.
-     *
-     *  @returns {String}
-     */
-    utils.normalizeTabs = function (string) {
-        var m = string.match(/^\s*/gm),
-            min = Infinity;
-
-        m.forEach(function (wspace, index) {
-            // tabs to spaces
-            wspace = wspace.replace(/\t/g, '  ');
-            // ignoring first line's indent
-            if (index > 0) min = Math.min(wspace.length, min);
-        });
-
-        // replace the minimum indent from all lines (except first)
-        if (min !== Infinity) {
-            var re = new RegExp('^\\s{' + min + '}', 'g');
-            string = string.replace(re, '');
-        }
-        // replace all leading spaces from first line
-        string = string.replace(/^\s*/, '');
-
-        var spaces;
-        return string.replace(/([\r\n]+)(\s+)/gm, function (match, p1, p2) { // , offset, string
-            // convert tabs to spaces
-            spaces = p2.replace(/\t/g, '  ');
-            // convert indent to multiples of 2
-            spaces = new Array(spaces.length - (spaces.length % 2) + 1).join(' ');
-            return p1 + spaces;
-        });
-    };
-
-    /**
-     *  Builds a string of keywords from the given symbol.
-     *  This is useful for filter/search features of a template.
-     *  @memberof docma
-     *
-     *  @param {Object} symbol - Target documentation symbol.
-     *  @returns {String}
-     */
-    utils.getKeywords = function (symbol) {
-        if (typeof symbol === 'string') return symbol.toLowerCase();
-        var k = utils.getFullName(symbol) + ' '
-            + symbol.longname + ' '
-            + symbol.name + ' '
-            + (symbol.alias || '') + ' '
-            + (symbol.memberOf || '') + ' '
-            + (symbol.kind || '') + ' '
-            + (symbol.scope || '') + ' '
-            + (symbol.classdesc || '') + ' '
-            + (symbol.description || '') + ' '
-            + (symbol.filename || '') + ' '
-            + (symbol.readonly ? 'readonly' : '')
-            + (symbol.isEnum ? 'enum' : '');
-        if (utils.isConstructor(symbol)) k += ' constructor';
-        if (utils.isMethod(symbol)) k += ' method';
-        if (utils.isProperty(symbol)) k += ' property';
-        return k.replace(/[><"'`\n\r]/g, '').toLowerCase();
-    };
-
-    /**
-     *  Gets code file information from the given symbol.
-     *
-     *  @param {Object} symbol - Target documentation symbol.
-     *  @returns {Object}
-     */
-    utils.getCodeFileInfo = function (symbol) {
-        return {
-            filename: utils.notate(symbol, 'meta.filename'),
-            lineno: utils.notate(symbol, 'meta.lineno'),
-            path: utils.notate(symbol, 'meta.path')
-        };
-    };
-
-    // ---------------------------
-
-    utils.listType = function (list) {
-        return list.map(function (item) {
-            return utils._wrapEscapeCode(item); // '<code>' + item + '</code>';
-        }).join(', ');
-    };
-
-    utils.listTypeDesc = function (list) {
-        if (!list || list.length === 0) return '';
-        var desc;
-        var pList = list.map(function (item) {
-            desc = utils.parse(item.description || '', { keepIfSingle: true });
-            if (desc) desc = '&nbsp;&nbsp;—&nbsp;&nbsp;' + desc;
-            return utils._wrapEscapeCode(item.type.names.join('|')) + desc; // '<code>' + item.type.names.join('|') + '</code>' + desc;
-        });
-        if (pList.length > 1) {
-            return '<ul>\n' + pList.join('</li>\n<li>') + '\n</ul>';
-        }
-        return pList; // single item
-    };
-
-    // ----------------------
-    // PRIVATE
-    // ----------------------
-
-    /**
-     *  Iterates and gets the first matching item in the array.
-     *  @memberof docma
-     *  @private
-     *
-     *  @param {Array} array
-     *         Source array.
-     *  @param {Object} map
-     *         Key/value mapping for the search.
-     *
-     *  @returns {*} - First matching result. `null` if not found.
-     */
-    utils._find = function (array, map) {
-        // don't type check
-        if (!array || !map) return null;
-        var i, item,
-            found = null;
-        for (i = 0; i < array.length; i++) {
-            item = array[i];
-            if (item && typeof item === 'object') {
-                for (var prop in map) {
-                    // we also ignore undefined !!!
-                    if (map[prop] !== undefined && map.hasOwnProperty(prop)) {
-                        if (map[prop] !== item[prop]) {
-                            found = null;
-                            break;
-                        } else {
-                            found = item;
-                        }
-                    }
-                }
-                if (found) break; // exit
-            }
-        }
-        return found;
-    };
-
-    /**
-     *  Assignes the source properties to the target object.
-     *  @memberof docma
-     *  @private
-     *
-     *  @param {Object} target
-     *         Target object.
-     *  @param {Object} source
-     *         Source object.
-     *  @param {Boolean} [enumerable=false]
-     *         Whether the assigned properties should be enumerable.
-     *
-     *  @returns {Object} - Modified target object.
-     */
-    utils._assign = function (target, source, enumerable) {
-        target = target || {};
-        var prop;
-        for (prop in source) {
-            if (source.hasOwnProperty(prop)) {
-                if (enumerable) {
-                    Object.defineProperty(target, prop, {
-                        enumerable: true,
-                        value: source[prop]
-                    });
-                } else {
-                    target[prop] = source[prop];
-                }
-            }
-        }
-        return target;
-    };
-
-    /**
-     *  Gets the values of the source object as an `Array`.
-     *  @memberof docma
-     *  @private
-     *
-     *  @param {Object} source - Source object.
-     *
-     *  @returns {Array}
-     */
-    utils._values = function (source) {
-        if (Array.isArray(source)) return source;
-        var prop,
-            values = [];
-        for (prop in source) {
-            if (source.hasOwnProperty(prop)) {
-                values.push(source[prop]);
-            }
-        }
-        return values;
-    };
-
-    /**
-     *  Escapes the HTML tags in the given code with entities and wraps the
-     *  whole string with `&lt;code&gt;` tags.
-     *  @memberof docma
-     *  @private
-     *
-     *  @param {String} code - Code to be processed.
-     *  @param {Boolean} [pre=false] - Whether to also wrap the code with
-     *         `&lt;pre&gt;` tags.
-     *
-     *  @returns {String}
-     */
-    utils._wrapEscapeCode = function (code, pre) {
-        code = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        code = '<code>' + code + '</code>';
-        return pre ? '<pre>' + code + '</pre>' : code;
-    };
-
-    /**
-     *  Tokenizes the given string into blocks.
-     *  Each block is either a multiline code block (e.g. ```code```) or
-     *  regular string block.
-     *  @memberof docma
-     *  @private
-     *
-     *  @param {String} string - String to be tokenized.
-     *  @param {Function} [callback=_identity] - Function to be executed
-     *         on each block. Two arguments are passed; `block`, `isCode`.
-     *  @returns {Array}
-     *           Array of tokenized blocks.
-     */
-    utils._tokenize = function (string, callback) {
-        if (typeof callback !== 'function') callback = _identity;
-        var mark = '```';
-        if (string.indexOf(mark) < 0) return [callback(string, false)];
-        var i,
-            len = mark.length,
-            token = '',
-            mem = '',
-            blocks = [],
-            entered = false;
-        for (i = 0; i < string.length; i++) {
-            token += string[i];
-            mem += string[i];
-            if (token.length > len) token = token.slice(-len);
-            if (token === mark) {
-                entered = !entered;
-                if (entered) {
-                    blocks.push(callback(mem.slice(0, -len), false));
-                    mem = token;
-                } else {
-                    blocks.push(callback(mem, true));
-                    mem = '';
-                }
-            }
-        }
-        return blocks;
-    };
-
-    // ----------------------
-
-    docma.utils = utils;
-
-})();
-
-/* global docma, dust, page, EventEmitter */
-/* eslint no-nested-ternary:0 */
-
-// docma.core
-// https://github.com/onury/docma
-
-/**
- *  Docma (web) core.
- *
- *  When you build the documentation with a template, `docma-web.js` will be
- *  generated (and linked in the main HTML); which is the core engine for the
- *  documentation web app. This will include everything the app needs such as
- *  the documentation data, compiled partials, dustjs engine, etc...
- *
- *  This object is globally accessible from the generated SPA (Single Page
- *  Application).
- *
- *  Note that the size of this script depends especially on the generated
- *  documentation data.
- *
- *  @type {Object}
- *  @global
- *  @name docma
- */
-(function () {
-
-    // Flag for page load. Used for triggering the "ready" event only for page
-    // load and not for route changes.
-    var _initialLoad = false,
-        // app entrance optionally set @ build-time
-        _appEntranceRI,
-        _arrRouteTypes,
-        // flag for app routing method
-        PATH_ROUTING = docma.app.routing.method === 'path',
-        UNNAMED_API = '_def_',
-        utils = docma.utils,
-        dom = docma.dom;
-
-    // --------------------------------
-    // DEBUG / LOGS
-    // --------------------------------
-
-    var _debug = {};
-    ['log', 'info', 'warn', 'error'].forEach(function (fn) {
-        (function () {
-            _debug[fn] = function () {
-                if (!docma._.logsEnabled) return;
-                console[fn].apply(console, arguments);
-            };
-        })();
-    });
-
-    // --------------------------------
-    // DUST FILTERS
-    // --------------------------------
-
-    /**
-     *  Adds a new Dust filter.
-     *  @chainable
-     *  @see {@link ?content=docma-filters|Existing Docma (Dust) filters}
-     *  @see {@link http://www.dustjs.com/docs/filter-api|Dust Filter API}
-     *
-     *  @param {String} name
-     *         Name of the filter to be added.
-     *  @param {Function} fn
-     *         Filter function.
-     *
-     *  @returns {docma} - `docma` for chaining.
-     *
-     *  @throws {Error} - If a filter with the given name already exists.
-     */
-    docma.addFilter = function (name, fn) {
-        if (docma.filterExists(name)) {
-            throw new Error('Filter "' + name + '" already exists.');
-        }
-        dust.filters[name] = fn;
-        return docma;
-    };
-
-    /**
-     *  Removes an existing Dust filter.
-     *  @chainable
-     *
-     *  @param {String} name - Name of the filter to be removed.
-     *
-     *  @returns {docma} - `docma` for chaining.
-     */
-    docma.removeFilter = function (name) {
-        delete dust.filters[name];
-        return docma;
-    };
-
-    /**
-     *  Checks whether a Dust filter with the given name already exists.
-     *
-     *  @param {String} name - Name of the filter to be checked.
-     *
-     *  @returns {Boolean}
-     */
-    docma.filterExists = function (name) {
-        return typeof dust.filters[name] === 'function';
-    };
-
-    // --------------------------------
-    // EVENTS
-    // --------------------------------
-
-    /**
-     *  @private
-     */
-    var _emitter = new EventEmitter();
-
-    function _trigger(eventName, args) {
-        _debug.info('Event:', eventName, args ? args[0] : '');
-        _emitter.trigger(eventName, args);
-    }
-
-    /**
-     *  Docma SPA events enumeration.
-     *  @enum {String}
-     */
-    docma.Event = {
-        /**
-         *  Emitted when Docma is ready and the initial content is rendered.
-         *  @type {String}
-         */
-        Ready: 'ready',
-        /**
-         *  Emitted when page content (a Dust partial) is rendered.
-         *  @type {String}
-         */
-        Render: 'render',
-        /**
-         *  Emitted when SPA route is changed.
-         *  @type {String}
-         */
-        Route: 'route'
-    };
-
-    /**
-     *  Adds a listener function to the specified event.
-     *  Note that the listener will not be added if it is a duplicate.
-     *  If the listener returns true then it will be removed after it is called.
-     *  @alias docma.addListener
-     *  @chainable
-     *
-     *  @param {String} eventName
-     *         Name of the event to attach the listener to.
-     *         See {@link #docma.Event|`docma.Event`} enumeration.
-     *  @param {Function} listener
-     *         Function to be called when the event is emitted. If the function
-     *         returns true then it will be removed after calling.
-     *
-     *  @returns {docma} - `docma` for chaining.
-     *
-     *  @example
-     *  docma.on('render', function (currentRoute) {
-     *  	if (!currentRoute) {
-     *  		console.log('Not found!');
-     *  		return;
-     *  	}
-     *  	if (currentRoute.type === docma.Route.Type.API) {
-     *  		console.log('This is an API route.')
-     *  	}
-     *  });
-     */
-    docma.on = function (eventName, listener) { // eslint-disable-line
-        _emitter.on.apply(_emitter, arguments);
-        return docma;
-    };
-
-    /**
-     *  Adds a listener that will be automatically removed after its first
-     *  execution.
-     *  @alias docma.addOnceListener
-     *  @chainable
-     *
-     *  @param {String} eventName
-     *         Name of the event to attach the listener to.
-     *         See {@link #docma.Event|`docma.Event`} enumeration.
-     *  @param {Function} listener
-     *         Function to be called when the event is emitted.
-     *
-     *  @returns {docma} - `docma` for chaining.
-     *
-     *  @example
-     *  docma.once('ready', function () {
-     *  	console.log('Docma is ready!');
-     *  });
-     */
-    docma.once = function () {
-        _emitter.once.apply(_emitter, arguments);
-        return docma;
-    };
-
-    /**
-     *  Removes the given listener from the specified event.
-     *  @alias docma.removeListener
-     *  @chainable
-     *
-     *  @param {String} eventName
-     *         Name of the event to remove the listener from.
-     *         See {@link #docma.Event|`docma.Event`} enumeration.
-     *  @param {Function} listener
-     *         Function to be removed from the event.
-     *
-     *  @returns {docma} - `docma` for chaining.
-     */
-    docma.off = function () {
-        _emitter.off.apply(_emitter, arguments);
-        return docma;
-    };
-
-    /**
-     *  Alias for `docma.on`
-     *  @private
-     */
-    docma.addListener = docma.on;
-    /**
-     *  Alias for `docma.once`
-     *  @private
-     */
-    docma.addListenerOnce = docma.once;
-    /**
-     *  Alias for `docma.off`
-     *  @private
-     */
-    docma.removeListener = docma.off;
-
-    // --------------------------------
-    // DOCMA STATE
-    // --------------------------------
 
     /**
      *  Gets the route information for the current rendered content being
      *  displayed.
      *
-     *  @name docma.currentRoute
-     *  @type {Route}
+     *  @name DocmaWeb#currentRoute
+     *  @type {DocmaWeb.Route}
      *  @readonly
      *
      *  @property {String} type
@@ -4690,10 +5422,10 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
      *  @property {String} path
      *            Path of the current route.
      */
-    Object.defineProperty(docma, 'currentRoute', {
+    Object.defineProperty(this, 'currentRoute', {
         configurable: false,
         get: function () {
-            return docma._.currentRoute;
+            return this._.currentRoute || null;
         }
     });
 
@@ -4701,31 +5433,29 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
      *	JSDoc documentation data for the current API route.
      *	If current route is not an API route, this will be `null`.
      *
-     *  See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
+     *  <blockquote>See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
      *  details on how Javascript files can be grouped (and named) to form
-     *  separate API documentations and SPA routes.
+     *  separate API documentations and SPA routes.</blockquote>
      *
-     *  @name docma.documentation
+     *  @name DocmaWeb#documentation
      *  @type {Array}
      *
-     *  @example
-     *  // output current API documentation data
+     *  @example <caption>Output current API documentation data</caption>
      *  if (docma.currentRoute.type === 'api') {
      *  	console.log(docma.documentation);
      *  }
      *
-     *  @example
-     *  <!-- Usage in (Dust) partial -->
+     *  @example <caption>Usage in (Dust) partial</caption>
      *  {#documentation}
      *      <h4>{longname}</h4>
      *      <p>{description}</p>
      *      <hr />
      *  {/documentation}
      */
-    Object.defineProperty(docma, 'documentation', {
+    Object.defineProperty(this, 'documentation', {
         configurable: false,
         get: function () {
-            return docma._.documentation;
+            return this._.documentation || [];
         }
     });
 
@@ -4734,388 +5464,963 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
      *	building menus, etc... If current route is not an API route, this will
      *	be `null`.
      *
-     *  See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
+     *  <blockquote>See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
      *  details on how Javascript files can be grouped (and named) to form
-     *  separate API documentations and SPA routes.
+     *  separate API documentations and SPA routes.</blockquote>
      *
-     *  @name docma.symbols
+     *  @name DocmaWeb#symbols
      *  @type {Array}
-
-     *  @example
-     *  <!-- Usage in (Dust) partial -->
+     *
+     *  @example <caption>Usage in (Dust) partial</caption>
      *  <ul class="menu">
      *      {#symbols}
      *          <li><a href="#{.}">{.}</a></li>
      *      {/symbols}
      *  </ul>
      */
-    Object.defineProperty(docma, 'symbols', {
+    Object.defineProperty(this, 'symbols', {
         configurable: false,
         get: function () {
-            return docma._.symbols;
+            return this._.symbols || [];
         }
     });
+}
 
-    // --------------------------------
-    // CLASS: Docma.Route
-    // --------------------------------
+// --------------------------------
+// EVENTS
+// --------------------------------
 
+/** @private */
+DocmaWeb.prototype._trigger = function (eventName, args) {
+    this.info('Event:', eventName, args ? args[0] : '');
+    this._.emitter.trigger(eventName, args);
+};
+
+/**
+ *  Fired when Docma is ready and the initial content is rendered.
+ *  This is only fired once.
+ *
+ *  @event DocmaWeb~event:ready
+ *
+ *  @example
+ *  docma.once('ready', function () {
+ *      // do stuff...
+ *  });
+ */
+
+/**
+ *  Fired when page content (a Dust partial) is rendered. The emitted obeject is
+ *  `currentRoute`. If the route does not exist (404), `currentRoute` will be
+ *  `null`. This is fired after the `route` event.
+ *
+ *  @event DocmaWeb~event:render
+ *  @type {DocmaWeb.Route}
+ *
+ *  @example
+ *  docma.on('render', function (currentRoute) {
+ *      if (currentRoute && currentRoute.type === docma.Route.Type.API) {
+ *          // do stuff...
+ *      }
+ *  });
+ */
+
+/**
+ *  Fired when SPA route is changed. The emitted obeject is `currentRoute`. If
+ *  the route does not exist (404), `currentRoute` will be `null`. This is fired
+ *  before the `render` event.
+ *
+ *  @event DocmaWeb~event:route
+ *  @type {DocmaWeb.Route}
+ *
+ *  @example
+ *  docma.on('route', function (currentRoute) {
+ *      if (currentRoute && currentRoute.type === docma.Route.Type.API) {
+ *          // do stuff...
+ *      }
+ *  });
+ */
+
+/**
+ *  Fired either when the route is changed or navigated to a bookmark
+ *  (i.e. on hash-change). If the route does not exist (404), `currentRoute`
+ *  will be `null`.
+ *
+ *  @event DocmaWeb~event:navigate
+ *  @type {DocmaWeb.Route}
+ *
+ *  @example
+ *  docma.on('navigate', function (currentRoute) {
+ *      if (currentRoute) {
+ *          // do stuff...
+ *      }
+ *  });
+ */
+
+/**
+ *  Docma SPA events enumeration.
+ *  @enum {String}
+ */
+DocmaWeb.Event = {
     /**
-     *  Creates SPA route information object for the given route name and type.
-     *  @class
-     *  @memberof docma
-     *
-     *  @param {String} name
-     *         Name of the route.
-     *  @param {String} type
-     *         Type of the SPA route. See {@link #docma.Route.Type|`Route.Type`}
-     *         enumeration for possible values.
+     *  Emitted when Docma is ready and the initial content is rendered.
+     *  @type {String}
      */
-    function Route(name, type) {
-        if (!type || _arrRouteTypes.indexOf(type) < 0) return; // 404
-
-        if (!name) {
-            if (type !== Route.Type.API) return; // 404
-            name = UNNAMED_API;
-        } else {
-            if (!docma.app.routing.caseSensitive) name = name.toLowerCase();
-        }
-
-        // `docma.routes` array is created @ build-time. If no route is found;
-        // this will create a `Route` instance but it will be equivalent to 404
-        // route. No properties such as `id`, `name`, `type` and `path`.
-
-        // search in existing routes.
-        var info = utils._find(docma.routes, {
-            type: type,
-            name: name
-        });
-        // if found, assign properties `id`, `name`, `type` and `path`.
-        if (info) utils._assign(this, info);
-    }
-
+    Ready: 'ready',
     /**
-     *  Docma SPA route types enumeration.
-     *  @memberof docma
-     *  @enum {String}
-     *  @readonly
-     *
-     *  @example
-     *  // docma.app.routing.method = "query"
-     *  type     name              path
-     *  -------  ----------------  --------------------------
-     *  api      _def_             /?api
-     *  api      docma-web         /?api=docma-web
-     *  content  templates         /?content=templates
-     *  content  guide             /?content=guide
-     *
-     *  @example
-     *  // docma.app.routing.method = "path"
-     *  type     name              path
-     *  -------  ----------------  --------------------------
-     *  api      _def_             /api
-     *  api      docma-web         /api/docma-web
-     *  content  templates         /templates
-     *  content  guide             /guide
-     *
+     *  Emitted when page content (a Dust partial) is rendered.
+     *  @type {String}
      */
-    Route.Type = {
-        /**
-         *  Indicates that the route is for API documentation content.
-         *  @type {String}
-         */
-        API: 'api',
-        /**
-         *  Indicates that the route is for other content, such as HTML files
-         *  generated from markdown.
-         *  @type {String}
-         */
-        CONTENT: 'content'
-    };
-    _arrRouteTypes = utils._values(Route.Type);
-
+    Render: 'render',
     /**
-     *  Checks whether the route actually exists.
-     *  @name docma.Route#exists
-     *  @function
-     *  @instance
-     *
-     *  @returns {Boolean}
+     *  Emitted when SPA route is changed.
+     *  @type {String}
      */
-    Route.prototype.exists = function () {
-        return Boolean(this.id);
-    };
-
+    Route: 'route',
     /**
-     *  Checks whether the route is equal to the given route.
-     *  @name docma.Route#isEqualTo
-     *  @function
-     *  @instance
-     *
-     *  @param {Route} routeInfo - Route to be checked against.
-     *  @returns {Boolean}
+     *  Emitted either when the route is changed or navigated to a
+     *  bookmark (i.e. hashchange).
+     *  @type {String}
      */
-    Route.prototype.isEqualTo = function (routeInfo) {
-        if (!routeInfo || !routeInfo.exists() || !this.exists()) return false;
-        return routeInfo.path === this.path;
-    };
+    Navigate: 'navigate'
+};
 
-    /**
-     *  Checks whether the route is currently being viewed.
-     *  @name docma.Route#isCurrent
-     *  @function
-     *  @instance
-     *
-     *  @param {Object} routeInfo - Object to be checked.
-     *  @returns {Boolean}
-     */
-    Route.prototype.isCurrent = function () {
-        return this.isEqualTo(docma.currentRoute);
-    };
+/**
+ *  Adds a listener function to the specified event.
+ *  Note that the listener will not be added if it is a duplicate.
+ *  If the listener returns true then it will be removed after it is called.
+ *  @name DocmaWeb#on
+ *  @function
+ *  @alias DocmaWeb#addListener
+ *  @chainable
+ *
+ *  @param {String} eventName
+ *         Name of the event to attach the listener to.
+ *         See {@link #DocmaWeb.Event|`DocmaWeb.Event`} enumeration.
+ *  @param {Function} listener
+ *         Function to be called when the event is emitted. If the function
+ *         returns true then it will be removed after calling.
+ *
+ *  @returns {DocmaWeb} - `DocmaWeb` instance for chaining.
+ *
+ *  @example
+ *  docma.on('render', function (currentRoute) {
+ *  	if (!currentRoute) {
+ *  		console.log('Not found!');
+ *  		return;
+ *  	}
+ *  	if (currentRoute.type === docma.Route.Type.API) {
+ *  		console.log('This is an API route.')
+ *  	}
+ *  });
+ */
+DocmaWeb.prototype.on = function (eventName, listener) { // eslint-disable-line
+    this._.emitter.on.apply(this._.emitter, arguments);
+    return docma;
+};
 
-    /**
-     *  Applies the route to the application.
-     *  @name docma.Route#apply
-     *  @function
-     *  @instance
-     *
-     *  @returns {Route} - The route instance for chaining.
-     */
-    Route.prototype.apply = function () {
-        if (this.type === Route.Type.API) {
-            docma._.documentation = docma.apis[this.name].documentation;
-            docma._.symbols = docma.apis[this.name].symbols;
-        } else {
-            // reset documentation & symbols since this is not an API route
-            docma._.documentation = null;
-            docma._.symbols = null;
-        }
-        // _debug.log('Route Info:', this.toString());
-        _trigger(docma.Event.Route, [this]);
-        docma.render(this);
-        return this;
-    };
+/**
+ *  Adds a listener that will be automatically removed after its first
+ *  execution.
+ *  @name DocmaWeb#once
+ *  @function
+ *  @alias DocmaWeb#addOnceListener
+ *  @chainable
+ *
+ *  @param {String} eventName
+ *         Name of the event to attach the listener to.
+ *         See {@link #DocmaWeb.Event|`DocmaWeb.Event`} enumeration.
+ *  @param {Function} listener
+ *         Function to be called when the event is emitted.
+ *
+ *  @returns {DocmaWeb} - `DocmaWeb` instance for chaining.
+ *
+ *  @example
+ *  docma.once('ready', function () {
+ *  	console.log('Docma is ready!');
+ *  });
+ */
+DocmaWeb.prototype.once = function () {
+    this._.emitter.once.apply(this._.emitter, arguments);
+    return this;
+};
 
-    /**
-     *  Gets the string representation of the route.
-     *  @name docma.Route#toString
-     *  @function
-     *  @instance
-     *
-     *  @returns {String}
-     */
-    Route.prototype.toString = function () {
-        return JSON.stringify(this);
-    };
+/**
+ *  Removes the given listener from the specified event.
+ *  @name DocmaWeb#off
+ *  @function
+ *  @alias DocmaWeb#removeListener
+ *  @chainable
+ *
+ *  @param {String} eventName
+ *         Name of the event to remove the listener from.
+ *         See {@link #DocmaWeb.Event|`DocmaWeb.Event`} enumeration.
+ *  @param {Function} listener
+ *         Function to be removed from the event.
+ *
+ *  @returns {DocmaWeb} - `DocmaWeb` instance for chaining.
+ */
+DocmaWeb.prototype.off = function () {
+    this._.emitter.off.apply(this._.emitter, arguments);
+    return this;
+};
 
-    /**
-     *  Creates a new Route instance. This is equivalent to `new docma.Route()`.
-     *  @name docma.Route.create
-     *  @function
-     *  @static
-     *
-     *  @param {String} name
-     *         Name of the route.
-     *  @param {String} type
-     *         Type of the SPA route. See {@link #docma.Route.Type|`Route.Type`}
-     *         enumeration for possible values.
-     *
-     *  @returns {Route} - Route instance.
-     */
-    Route.create = function (name, type) {
-        return new Route(name, type);
-    };
+/**
+ *  Alias for `DocmaWeb#on`
+ *  @private
+ */
+DocmaWeb.prototype.addListener = DocmaWeb.prototype.on;
+/**
+ *  Alias for `DocmaWeb#once`
+ *  @private
+ */
+DocmaWeb.prototype.addListenerOnce = DocmaWeb.prototype.once;
+/**
+ *  Alias for `DocmaWeb#off`
+ *  @private
+ */
+DocmaWeb.prototype.removeListener = DocmaWeb.prototype.off;
 
-    /**
-     *  Get route information object from the given route ID.
-     *  @name docma.Route.fromID
-     *  @function
-     *  @static
-     *  @private
-     *
-     *  @param {String} id
-     *         ID of the route (in `type:name` format).
-     *  @param {Boolean} [force=false]
-     *         Whether to return the first route in available routes, if there
-     *         is no match.
-     *
-     *  @returns {Route} - Route instance.
-     */
-    Route.fromID = function (id) {
-        if (typeof id !== 'string') {
-            _debug.warn('Route ID is not a string: ' + id);
-            return new Route(null);
-        }
-        var s = id.split(':');
-        return new Route(s[1], s[0]); // name, type
-    };
+// --------------------------------
+// DEBUG / LOGS
+// --------------------------------
 
-    /**
-     *  Get route information object from the given query-string.
-     *  @name docma.Route.fromQuery
-     *  @function
-     *  @static
-     *  @private
-     *
-     *  @param {String} querystring - Query-string.
-     *
-     *  @returns {Route} - Route instance.
-     */
-    Route.fromQuery = function (querystring) {
-        if (!querystring) return new Route(null);
-        // get the first key=value pair
-        var query = querystring.split('&')[0].split('='),
-            routeType = query[0].toLowerCase(), // "api" or "content"
-            routeName = query[1];
+/**
+ *  Outputs a general log to the browser console. (Unlike `console.log()`) this
+ *  method respects `debug` option of Docma build configuration.
+ *  @param {...*} [args=""] - Arguments to be logged.
+ */
+DocmaWeb.prototype.log = function () {
+    if (!docma._.logsEnabled) return;
+    console.log.apply(console, arguments);
+};
 
-        // if (!docma.app.routing.caseSensitive) routeName = (routeName || '').toLowerCase();
-        // routeName = routeName || UNNAMED_API;
-        //
-        // // return if invalid route type
-        // if (_arrRouteTypes.indexOf(routeType) < 0) return new Route(null);
-        //
-        // if (!routeName) {
-        //     if (routeType === Route.Type.API) routeName = UNNAMED_API;
-        // }
+/**
+ *  Outputs an informational log to the browser console. (Unlike
+ *  `console.info()`) this method respects `debug` option of Docma build
+ *  configuration.
+ *  @param {...*} [args=""] - Arguments to be logged.
+ */
+DocmaWeb.prototype.info = function () {
+    if (!docma._.logsEnabled) return;
+    console.info.apply(console, arguments);
+};
 
-        return new Route(routeName, routeType);
-    };
+/**
+ *  Outputs a warning log to the browser console. (Unlike `console.warn()`) this
+ *  method respects `debug` option of Docma build configuration.
+ *  @param {...*} [args=""] - Arguments to be logged.
+ */
+DocmaWeb.prototype.warn = function () {
+    if (!docma._.logsEnabled) return;
+    console.warn.apply(console, arguments);
+};
 
-    /**
-     *  @ignore
-     */
-    Object.defineProperty(docma, 'Route', {
-        configurable: false,
-        get: function () {
-            return Route;
-        }
-    });
+/**
+ *  Outputs an error log to the browser console. (Unlike `console.error()`) this
+ *  method respects `debug` option of Docma build configuration.
+ *  @param {...*} [args=""] - Arguments to be logged.
+ */
+DocmaWeb.prototype.error = function () {
+    if (!docma._.logsEnabled) return;
+    console.error.apply(console, arguments);
+};
 
-    // --------------------------------
-    // RENDER
-    // --------------------------------
+// --------------------------------
+// DOM
+// --------------------------------
 
-    /**
-     *  Renders the given Dust template into the docma main element.
-     *  @private
-     *
-     *  @param {String} dustTemplateName
-     *         Name of the Dust template.
-     *  @param {Function} [callback]
-     *         Function to be executed when the rendering is complete.
-     */
-    function _render(dustTemplateName, callback) {
-        // render docma main template
-        dust.render(dustTemplateName, docma, function (err, compiledHTML) {
-            if (err) throw err;
-            dom.loadCompiledContent(compiledHTML);
-            if (typeof callback === 'function') callback();
-        });
-    }
-
-    /**
-     *  Triggers "render" event and checks if now is the time to also trigger
-     *  "ready" event.
-     *  @private
-     */
-    function _triggerAfterRender() {
-        _trigger(docma.Event.Render, [docma.currentRoute]);
-        if (_initialLoad) {
-            _trigger(docma.Event.Ready);
-            _initialLoad = false;
-        }
-    }
-
-    /**
-     *  Renders docma-404 partial. Used for not-found routes.
-     *  @private
-     *
-     *  @param {Function} statusCallback -
-     */
-    function _render404(routeInfo, statusCallback) {
-        docma._.currentRoute = Route.create(null);
-        _render(docma._.partials.notFound, function () {
-            _trigger(docma.Event.Render, [null]);
-            dom.scrollTo();
-            if (typeof statusCallback === 'function') return statusCallback(404);
-            // no callback, throw...
-            throw new Error('Page or content not found for route: ' + JSON.stringify(routeInfo));
+/**
+ *  Gets Docma main DOM element which the Dust templates will be rendered
+ *  into.
+ *
+ *  @returns {HTMLElement} - Docma main DOM element.
+ */
+DocmaWeb.prototype.getDocmaElem = function () {
+    var docmaElem = document.getElementById(this._.elementID);
+    if (!docmaElem) {
+        docmaElem = Utils.DOM.createChild(document.body, 'div', {
+            id: this._.elementID
         });
     }
+    return docmaElem;
+};
 
-    /**
-     *  Asynchronously fetches (text) content from the given URL via an
-     *  `XmlHttpRequest`. Note that the URL has to be in the same-origin, for
-     *  this to work.
-     *
-     *  @param {String} url
-     *         URL to be fetched.
-     *  @param {Function} callback
-     *         Function to be executed when the content is fetched; with the
-     *         following signature: `function (status, responseText) { .. }`
-     */
-    docma.fetch = function (url, callback) {
-        var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4) {
-                var text = xhr.status === 200 ? xhr.responseText : '';
-                _debug.log('XHR GET:', xhr.status, url);
-                return callback(xhr.status, text);
+/**
+ *  Gets Docma content DOM element that the HTML content will be loaded
+ *  into. This should be called for `docma-content` partial.
+ *
+ *  @returns {HTMLElement} - Docma content DOM element.
+ */
+DocmaWeb.prototype.getContentElem = function () {
+    // docma-content template (should) have a
+    // <div id="docma-content"></div> element whithin.
+    var dContent = document.getElementById(this._.contentElementID);
+    if (!dContent) {
+        // this is fatal, so we always throw if invalid content partial
+        // TODO: this should be checked during build process
+        throw new Error('Partial ' + this._.partials.content + ' should have an element with id="' + this._.contentElementID + '".');
+    }
+    return dContent;
+};
+
+/**
+ *  Loads the given HTML content into `docma-content` element. This is a
+ *  low-level method. Typically you would not need to use this.
+ *
+ *  @param {String} html - Content to be loaded.
+ */
+DocmaWeb.prototype.loadContent = function (html) {
+    var dContent = this.getContentElem();
+    dContent.innerHTML = html;
+
+    // If this is a parsed HTML file that is loaded as content; it might
+    // include some styles within the body. We'll move them to head. But
+    // first, remove if there are any previously moved styles in the head.
+    Utils.DOM._removePrevBodyStyles();
+    // now move the styles within the current rendered body.
+    Utils.DOM._moveBodyStylesToHead();
+
+    // this._fixAnchors();
+    Utils.DOM.scrollTo(); // top
+};
+
+/**
+ *  Loads dust-compiled HTML content into `docma-main` element.
+ *  @private
+ *
+ *  @param {String} compiledHTML - Dust-compiled HTML content.
+ */
+DocmaWeb.prototype._loadCompiledContent = function (compiledHTML) {
+    // load compiled content into <div id="docma-main"></div>
+    var docmaElem = this.getDocmaElem();
+    docmaElem.innerHTML = compiledHTML;
+    // this._fixAnchors();
+};
+
+/**
+ *  Fixes the base+hash issue. When base tag is set in the head of an HTML,
+ *  bookmark anchors will navigate to the base URL with a hash; even with
+ *  sub paths. This will fix that behaviour.
+ *  @private
+ *
+ *  @returns {void}
+ */
+DocmaWeb.prototype._fixAnchors = function (cb) {
+    if (this.app.base) {
+        setTimeout(function () {
+            var i, el,
+                nodes = document.querySelectorAll('a[href^="#"]');
+            for (i = 0; i < nodes.length; i++) {
+                el = nodes[i];
+                var href = el.getAttribute('href');
+                if (href.slice(0, 1) === '#' && href.length > 1) {
+                    href = window.location.pathname + (window.location.search || '') + href;
+                    el.setAttribute('href', href);
+                }
             }
-        };
-        xhr.open('GET', url, true); // async
-        xhr.send();
-    };
+            if (typeof cb === 'function') cb();
+        }, 50);
+    }
+};
 
-    /**
-     *  Renders content into docma-main element, by the given route information.
-     *
-     *  If the content is empty or `"api"`, we'll render the `docma-api`
-     *  Dust template. Otherwise, (e.g. `"readme"`) we'll render `docma-content`
-     *  Dust template, then  fetch `content/readme.html` and load it in the
-     *  `docma-main` element.
-     *
-     *  Note that rendering and the callback will be cancelled if the given
-     *  content is the latest content rendered.
-     *
-     *  @param {Route} routeInfo
-     *         Route information of the page to be rendered.
-     *  @param {Function} [callback]
-     *         Function to be executed when the rendering is complete.
-     *         `function (httpStatus:Number) { .. }`
-     *
-     *  @emits docma.Event.Render
-     */
-    docma.render = function (routeInfo, callback) {
-        // if no route info, render not-found partial (docma-404)
-        if (!routeInfo || !routeInfo.exists()) return _render404(routeInfo, callback);
-        // return if same route
-        if (routeInfo.isEqualTo(docma.currentRoute)) return;
-        // set current route
-        docma._.currentRoute = routeInfo;
+// --------------------------------
+// DUST FILTERS
+// --------------------------------
 
-        var isCbFn = typeof callback === 'function';
+/**
+ *  Adds a new Dust filter.
+ *  @chainable
+ *  @see {@link ?content=docma-filters|Existing Docma (Dust) filters}
+ *  @see {@link http://www.dustjs.com/docs/filter-api|Dust Filter API}
+ *
+ *  @param {String} name
+ *         Name of the filter to be added.
+ *  @param {Function} fn
+ *         Filter function.
+ *
+ *  @returns {DocmaWeb} - `DocmaWeb` instance for chaining.
+ *
+ *  @throws {Error} - If a filter with the given name already exists.
+ */
+DocmaWeb.prototype.addFilter = function (name, fn) {
+    if (this.filterExists(name)) {
+        throw new Error('Filter "' + name + '" already exists.');
+    }
+    dust.filters[name] = fn;
+    return this;
+};
 
-        if (routeInfo.type === Route.Type.API) {
-            _render(docma._.partials.api, function () {
-                _triggerAfterRender();
-                if (isCbFn) callback(200);
-                dom.fixAnchors();
-                dom.scrollTo();
-            });
-        } else { // if (routeInfo.type === Route.Type.CONTENT) {
-            docma.fetch(routeInfo.contentPath, function (status, html) {
-                if (status === 404) return _render404(routeInfo, callback);
-                // rendering docma-content Dust template
-                _render(docma._.partials.content, function () {
-                    dom.loadContent(html);
-                    _triggerAfterRender();
-                    if (isCbFn) callback(status);
-                    dom.fixAnchors();
-                });
-            });
+/**
+ *  Removes an existing Dust filter.
+ *  @chainable
+ *
+ *  @param {String} name - Name of the filter to be removed.
+ *
+ *  @returns {DocmaWeb} - `DocmaWeb` instance for chaining.
+ */
+DocmaWeb.prototype.removeFilter = function (name) {
+    delete dust.filters[name];
+    return this;
+};
+
+/**
+ *  Checks whether a Dust filter with the given name already exists.
+ *
+ *  @param {String} name - Name of the filter to be checked.
+ *
+ *  @returns {Boolean}
+ */
+DocmaWeb.prototype.filterExists = function (name) {
+    return typeof dust.filters[name] === 'function';
+};
+
+// --------------------------------
+// ROUTES
+// --------------------------------
+
+/**
+ *  Creates a SPA route information object for the given route name and type.
+ *
+ *  @param {String} name
+ *         Name of the route.
+ *  @param {String} type
+ *         Type of the SPA route. See {@link #DocmaWeb.Route.Type|`DocmaWeb.Route.Type`}
+ *         enumeration for possible values.
+ *
+ *  @returns {DocmaWeb.Route} - Route instance.
+ */
+DocmaWeb.prototype.createRoute = function (name, type) {
+    return new DocmaWeb.Route(this, name, type);
+};
+
+/**
+ *  Get route information object from the given route ID.
+ *  @private
+ *
+ *  @param {DocmaWeb} docma
+ *         `DocmaWeb` instance.
+ *  @param {String} id
+ *         ID of the route (in `type:name` format).
+ *  @param {Boolean} [force=false]
+ *         Whether to return the first route in available routes, if there
+ *         is no match.
+ *
+ *  @returns {DocmaWeb.Route} - Route instance.
+ */
+DocmaWeb.prototype.createRouteFromID = function (id) {
+    if (typeof id !== 'string') {
+        this.warn('Route ID is not a string: ' + id);
+        return new DocmaWeb.Route(this, null);
+    }
+    var s = id.split(':');
+    return new DocmaWeb.Route(this, s[1], s[0]); // name, type
+};
+
+/**
+ *  Get route information object from the given query-string.
+ *  @private
+ *
+ *  @param {String} querystring - Query-string.
+ *
+ *  @returns {DocmaWeb.Route} - Route instance.
+ */
+DocmaWeb.prototype.createRouteFromQuery = function (querystring) {
+    if (!querystring) return new DocmaWeb.Route(null);
+    // get the first key=value pair
+    var query = querystring.split('&')[0].split('='),
+        routeType = query[0].toLowerCase(), // "api" or "content"
+        routeName = query[1];
+
+    // if (!docma.app.routing.caseSensitive) routeName = (routeName || '').toLowerCase();
+    // routeName = routeName || docma._.defaultApiName;
+    //
+    // // return if invalid route type
+    // if (_arrRouteTypes.indexOf(routeType) < 0) return new Route(null);
+    //
+    // if (!routeName) {
+    //     if (routeType === Route.Type.API) routeName = docma._.defaultApiName;
+    // }
+
+    return new DocmaWeb.Route(this, routeName, routeType);
+};
+
+// --------------------------------
+// DUST / RENDER
+// --------------------------------
+
+/**
+ *  Renders the given Dust template into the docma main element.
+ *  @private
+ *
+ *  @param {String} dustTemplateName
+ *         Name of the Dust template.
+ *  @param {Function} [callback]
+ *         Function to be executed when the rendering is complete.
+ */
+DocmaWeb.prototype._render = function (dustTemplateName, callback) {
+    var self = this;
+    // render docma main template
+    dust.render(dustTemplateName, this, function (err, compiledHTML) {
+        if (err) throw err;
+        self._loadCompiledContent(compiledHTML);
+        if (typeof callback === 'function') callback();
+    });
+};
+
+/**
+ *  Triggers "render" event and checks if now is the time to also trigger
+ *  "ready" event.
+ *  @private
+ */
+DocmaWeb.prototype._triggerAfterRender = function () {
+    this._trigger(DocmaWeb.Event.Render, [docma.currentRoute]);
+    if (this._.initialLoad) {
+        this._trigger(DocmaWeb.Event.Ready);
+        this._.initialLoad = false;
+    }
+};
+
+/**
+ *  Renders docma-404 partial. Used for not-found routes.
+ *  @private
+ *
+ *  @param {Function} statusCallback -
+ */
+DocmaWeb.prototype._render404 = function (routeInfo, statusCallback) {
+    this._.currentRoute = this.createRoute(null);
+    var self = this;
+    this._render(this._.partials.notFound, function () {
+        self._trigger(DocmaWeb.Event.Render, [null]);
+        Utils.DOM.scrollTo();
+        if (typeof statusCallback === 'function') return statusCallback(404);
+        // no callback, throw...
+        throw new Error('Page or content not found for route: ' + JSON.stringify(routeInfo));
+    });
+};
+
+/**
+ *  Asynchronously fetches (text) content from the given URL via an
+ *  `XmlHttpRequest`. Note that the URL has to be in the same-origin, for
+ *  this to work.
+ *
+ *  @param {String} url
+ *         URL to be fetched.
+ *  @param {Function} callback
+ *         Function to be executed when the content is fetched; with the
+ *         following signature: `function (status, responseText) { .. }`
+ */
+DocmaWeb.prototype.fetch = function (url, callback) {
+    var xhr = new XMLHttpRequest();
+    var self = this;
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+            var text = xhr.status === 200 ? xhr.responseText : '';
+            self.log('XHR GET:', xhr.status, url);
+            return callback(xhr.status, text);
         }
     };
+    xhr.open('GET', url, true); // async
+    xhr.send();
+};
+
+/**
+ *  Renders content into docma-main element, by the given route information.
+ *
+ *  If the content is empty or `"api"`, we'll render the `docma-api`
+ *  Dust template. Otherwise, (e.g. `"readme"`) we'll render `docma-content`
+ *  Dust template, then  fetch `content/readme.html` and load it in the
+ *  `docma-main` element.
+ *
+ *  <blockquote>Note that rendering and the callback will be cancelled if the given
+ *  content is the latest content rendered.</blockquote>
+ *
+ *  @param {DocmaWeb.Route} routeInfo
+ *         Route information of the page to be rendered.
+ *  @param {Function} [callback]
+ *         Function to be executed when the rendering is complete.
+ *         `function (httpStatus:Number) { .. }`
+ *
+ *  @emits DocmaWeb~event:render
+ */
+DocmaWeb.prototype.render = function (routeInfo, callback) {
+    // if no route info, render not-found partial (docma-404)
+    if (!routeInfo || !routeInfo.exists()) return this._render404(routeInfo, callback);
+    // return if same route
+    if (routeInfo.isEqualTo(this.currentRoute)) return;
+    // set current route
+    this._.currentRoute = routeInfo;
+
+    var isCbFn = typeof callback === 'function';
+    var self = this;
+
+    if (routeInfo.type === DocmaWeb.Route.Type.API) {
+        this._render(this._.partials.api, function () {
+            self._triggerAfterRender();
+            if (isCbFn) callback(200);
+            self._fixAnchors(function () {
+                Utils.DOM.scrollTo();
+            });
+        });
+    } else { // if (routeInfo.type === Route.Type.CONTENT) {
+        docma.fetch(routeInfo.contentPath, function (status, html) {
+            if (status === 404) return self._render404(routeInfo, callback);
+            // rendering docma-content Dust template
+            self._render(self._.partials.content, function () {
+                self.loadContent(html);
+                self._triggerAfterRender();
+                if (isCbFn) callback(status);
+                self._fixAnchors();
+            });
+        });
+    }
+};
+
+// --------------------------------
+// UTILS
+// --------------------------------
+
+/**
+ *  Utilities for inspecting JSDoc documentation and symbols; and parsing
+ *  documentation data into proper HTML.
+ *  See {@link ?api=docma-web-utils|`DocmaWeb.Utils` documentation}.
+ *  @type {Object}
+ *  @namespace
+ */
+DocmaWeb.Utils = Utils;
+
+
+/* global DocmaWeb, Utils */
+/* eslint no-nested-ternary:0, max-depth:0, no-var:0, prefer-template:0, prefer-arrow-callback:0, prefer-spread:0, object-shorthand:0 */
+
+// Note: This is for use in the browser. ES2015 rules don't apply here (yet).
+
+// --------------------------------
+// CLASS: DocmaWeb.Route
+// https://github.com/onury/docma
+// --------------------------------
+
+/** @private */
+var _arrRouteTypes;
+
+/**
+ *  @classdesc Creates SPA route information object for the given route name
+ *  and type. You cannot directly construct an instance of this class via
+ *  `new` operator. Use {@link #DocmaWeb#createRoute|`DocmaWeb#createRoute`}
+ *  method instead.
+ *  @class
+ *  @hideconstructor
+ *
+ *  @param {DocmaWeb} docma `DocmaWeb` instance.
+ *  @param {String} name Name of the route.
+ *  @param {String} type Type of the SPA route. See
+ *         {@link #DocmaWeb.Route.Type|`DocmaWeb.Route.Type`} enumeration
+ *         for possible values.
+ */
+DocmaWeb.Route = function (docma, name, type) {
+    this._docma = docma;
+    if (!type || _arrRouteTypes.indexOf(type) < 0) return; // 404
+
+    if (!name) {
+        if (type !== DocmaWeb.Route.Type.API) return; // 404
+        name = docma._.defaultApiName;
+    } else {
+        if (!docma.app.routing.caseSensitive) name = name.toLowerCase();
+    }
+
+    // `docma.routes` array is created @ build-time. If no route is found;
+    // this will create a `Route` instance but it will be equivalent to 404
+    // route. No properties such as `id`, `name`, `type` and `path`.
+
+    // search in existing routes.
+    var info = Utils._find(docma.routes, {
+        type: type,
+        name: name
+    });
+    // if found, assign properties `id`, `name`, `type` and `path`.
+    if (info) Utils._assign(this, info);
+};
+
+/**
+ *  Enumerates the Docma SPA route types.
+ *  @name DocmaWeb.Route.Type
+ *  @enum {String}
+ *  @static
+ *  @readonly
+ *
+ *  @example <caption>When `docma.app.routing.method` is `"query"`</caption>
+ *  type     name              path
+ *  -------  ----------------  --------------------------
+ *  api      _def_             /?api
+ *  api      docma-web         /?api=docma-web
+ *  content  templates         /?content=templates
+ *  content  guide             /?content=guide
+ *
+ *  @example <caption>When `docma.app.routing.method` is `"path"`</caption>
+ *  type     name              path
+ *  -------  ----------------  --------------------------
+ *  api      _def_             /api
+ *  api      docma-web         /api/docma-web
+ *  content  templates         /templates
+ *  content  guide             /guide
+ *
+ */
+DocmaWeb.Route.Type = {
+    /**
+     *  Indicates that the route is for API documentation content, generated
+     *  from one or more Javascript files.
+     *  @type {String}
+     */
+    API: 'api',
+    /**
+     *  Indicates that the route is for other content, such as parsed HTML
+     *  files or HTML files generated from markdown.
+     *  @type {String}
+     */
+    CONTENT: 'content'
+};
+_arrRouteTypes = Utils._values(DocmaWeb.Route.Type);
+
+/**
+ *  Enumerates the source types that a SPA route is generated from.
+ *  @name DocmaWeb.Route.SourceType
+ *  @enum {String}
+ *  @static
+ *  @readonly
+ */
+DocmaWeb.Route.SourceType = {
+    /**
+     *  Indicates that the documentation route is generated from Javascript
+     *  source.
+     *  @type {String}
+     */
+    JS: 'js',
+    /**
+     *  Indicates that the documentation route is generated from markdown
+     *  source.
+     *  @type {String}
+     */
+    MD: 'md',
+    /**
+     *  Indicates that the documentation route is generated from HTML
+     *  source.
+     *  @type {String}
+     */
+    HTML: 'html'
+};
+
+/**
+ *  Gets the ID of the route. A route ID consists of the route type and the
+ *  name; delimited via a colon. e.g. `api:docma-web`.
+ *  @name DocmaWeb.Route#id
+ *  @type {String}
+ *  @instance
+ */
+
+/**
+ *  Gets the path of the generated content (HTML) file.
+ *  If this is an API route, `contentPath` is `null`.
+ *  @name DocmaWeb.Route#contentPath
+ *  @type {String}
+ *  @instance
+ */
+
+/**
+ *  Gets the URL path of the SPA route. For example, if SPA route method is
+ *  `query`, the URL path for a route named `guide` will be `/?content=guide`.
+ *  @name DocmaWeb.Route#path
+ *  @type {String}
+ *  @instance
+ */
+
+/**
+ *  Gets the type of the generated SPA route. See
+ *  {@link ?api=docma-web#DocmaWeb.Route.Type|`DocmaWeb.Route.Type`} enumeration
+ *  for possible values.
+ *  @name DocmaWeb.Route#type
+ *  @type {String}
+ *  @instance
+ */
+
+/**
+ *  Gets the type of the source which this route is generated from. See
+ *  {@link ?api=docma-web#DocmaWeb.Route.SourceType|`DocmaWeb.Route.SourceType`} enumeration
+ *  for possible values.
+ *  @name DocmaWeb.Route#sourceType
+ *  @type {String}
+ *  @instance
+ */
+
+/**
+ *  Gets the name of the SPA route, which is either set by the user when
+ *  building the documentation; or auto-generated from the source file name.
+ *  @name DocmaWeb.Route#name
+ *  @type {String}
+ *  @instance
+ */
+
+/**
+ *  Checks whether the route actually exists.
+ *
+ *  @returns {Boolean}
+ */
+DocmaWeb.Route.prototype.exists = function () {
+    return Boolean(this.id);
+};
+
+/**
+ *  Checks whether the route is equal to the given route.
+ *
+ *  @param {DocmaWeb.Route} routeInfo - Route to be checked against.
+ *  @returns {Boolean}
+ */
+DocmaWeb.Route.prototype.isEqualTo = function (routeInfo) {
+    if (!routeInfo || !routeInfo.exists() || !this.exists()) return false;
+    return routeInfo.path === this.path;
+};
+
+/**
+ *  Checks whether the route is currently being viewed.
+ *
+ *  @param {DocmaWeb.Route} routeInfo - Object to be checked.
+ *  @returns {Boolean}
+ */
+DocmaWeb.Route.prototype.isCurrent = function () {
+    return this.isEqualTo(this._docma.currentRoute);
+};
+
+/**
+ *  Applies the route to the application.
+ *
+ *  @emits DocmaWeb~event:route
+ *
+ *  @returns {DocmaWeb.Route} - The route instance for chaining.
+ */
+DocmaWeb.Route.prototype.apply = function () {
+    if (this.type === DocmaWeb.Route.Type.API) {
+        this._docma._.documentation = this._docma.apis[this.name].documentation;
+        this._docma._.symbols = this._docma.apis[this.name].symbols;
+    } else {
+        // reset documentation & symbols since this is not an API route
+        this._docma._.documentation = null;
+        this._docma._.symbols = null;
+    }
+    // this._docma.log('Route Info:', this.toString());
+    this._docma._trigger(DocmaWeb.Event.Route, [this.exists() ? this : null]);
+    this._docma.render(this);
+    return this;
+};
+
+/**
+ *  Gets the string representation of the route.
+ *
+ *  @returns {String}
+ */
+DocmaWeb.Route.prototype.toString = function () {
+    return JSON.stringify(this);
+};
+
+
+/* global DocmaWeb, dust */
+/* eslint max-depth:0, no-var:0, prefer-template:0, prefer-arrow-callback:0 */
+
+// Note: This is for use in the browser. ES2015 rules don't apply here (yet).
+
+// --------------------------------
+// DocmaWeb (Dust) filters
+// https://github.com/onury/docma
+// --------------------------------
+
+dust.filters = dust.filters || {};
+
+dust.filters.$pt = function (str) {
+    return DocmaWeb.Utils.parseTicks(str);
+};
+
+dust.filters.$pnl = function (str) {
+    return DocmaWeb.Utils.parseNewLines(str, { keepIfSingle: true });
+};
+
+dust.filters.$pl = function (str) {
+    return DocmaWeb.Utils.parseLinks(str);
+};
+
+dust.filters.$tl = function (str) {
+    return DocmaWeb.Utils.trimLeft(str);
+};
+
+dust.filters.$tnl = function (str) {
+    return DocmaWeb.Utils.trimNewLines(str);
+};
+
+dust.filters.$p = function (str) {
+    return DocmaWeb.Utils.parse(str, { keepIfSingle: true });
+};
+
+dust.filters.$nt = function (str) {
+    return DocmaWeb.Utils.normalizeTabs(str);
+};
+
+dust.filters.$desc = function (symbol) {
+    return DocmaWeb.Utils.parse(symbol.classdesc || symbol.description || '');
+};
+
+dust.filters.$def = function (param) {
+    return param.optional ? String(param.defaultvalue) : '';
+};
+
+var reJSValues = (/true|false|null|undefined|Infinity|NaN|\d+|Number\.\w+|Math\.(PI|E|LN(2|10)|LOG(2|10)E|SQRT(1_)?2)|\[.*?]|\{.*?}|new [a-zA-Z]+.*|\/.+\/[gmiu]*|Date\.(now\(\)|UTC\(.*)|window|document/);
+dust.filters.$val = function (symbol) {
+    var val = DocmaWeb.Utils.notate(symbol, 'meta.code.value');
+    if (val === undefined) return '';
+    if (typeof val !== 'string') return val;
+    var types = DocmaWeb.Utils.notate(symbol, 'type.names') || [];
+    // first char is NOT a single or double quote or tick
+    if (!(/['"`]/).test(val.slice(0, 1))
+            // types include "String"
+            && types.indexOf('String') >= 0
+            // only "String" type or value is NOT a JS non-string value/keyword
+            && (types.length === 1 || reJSValues.indexOf(val) === -1)) {
+        return '"' + val + '"';
+    }
+    return val;
+};
+
+dust.filters.$id = function (symbol) {
+    var id;
+    if (typeof symbol === 'string') {
+        id = symbol;
+    } else {
+        var nw = DocmaWeb.Utils.isConstructor(symbol) ? 'new-' : '';
+        id = nw + symbol.$longname; // DocmaWeb.Utils.getFullName(symbol);
+    }
+    return id.replace(/ /g, '-');
+};
+
+
+DocmaWeb.version = "2.1.0";
+return DocmaWeb;
+})();
+var docma = Object.freeze(new DocmaWeb({"version":"2.1.0","routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","contentPath":null,"sourceType":"js"},{"id":"api:lavalink","type":"api","name":"lavalink","path":"/?api=lavalink","contentPath":null,"sourceType":"js"},{"id":"content:readme","type":"content","name":"readme","path":"/?content=readme","contentPath":"content/readme.html","sourceType":"md"}],"apis":{"_def_":{"documentation":[],"symbols":[]},"lavalink":{"documentation":[{"comment":"/**\n * Lavalink Websocket\n * @extends {EventEmitter}\n */","meta":{"range":[135,5909],"filename":"LavalinkNode.js","lineno":8,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000016","name":"LavalinkNode","type":"ClassDeclaration","paramnames":["manager","options"]}},"classdesc":"Lavalink Websocket","augments":["EventEmitter"],"name":"LavalinkNode","longname":"LavalinkNode","kind":"class","scope":"global","description":"LavaLink options","params":[{"type":{"names":["PlayerManager"]},"description":"The PlayerManager that created the Node","name":"manager"},{"type":{"names":["LavalinkNodeOptions"]},"description":"LavaLink options","name":"options"}],"$longname":"LavalinkNode","$kind":"class","$docmaLink":"?api=lavalink#LavalinkNode","$members":[{"comment":"/**\n     * Connects to the WebSocket server\n     */","meta":{"range":[2647,3119],"filename":"LavalinkNode.js","lineno":98,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000157","name":"LavalinkNode#connect","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Connects to the WebSocket server","name":"connect","longname":"LavalinkNode#connect","kind":"function","memberof":"LavalinkNode","scope":"instance","params":[],"$longname":"LavalinkNode#connect","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#connect"},{"comment":"/**\n     * Destroys the WebSocket\n     * @returns {boolean}\n     */","meta":{"range":[3849,3987],"filename":"LavalinkNode.js","lineno":148,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000311","name":"LavalinkNode#destroy","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Destroys the WebSocket","returns":[{"type":{"names":["boolean"]}}],"name":"destroy","longname":"LavalinkNode#destroy","kind":"function","memberof":"LavalinkNode","scope":"instance","params":[],"$longname":"LavalinkNode#destroy","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#destroy"},{"comment":"/**\n\t\t * Emmited when the node disconnects from the WebSocket and won't attempt to reconnect\n\t\t * @event LavalinkNode#disconnect\n\t\t * @param {string} reason The reason for the disconnect\n\t\t */","meta":{"filename":"LavalinkNode.js","lineno":182,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node disconnects from the WebSocket and won't attempt to reconnect","kind":"event","name":"disconnect","params":[{"type":{"names":["string"]},"description":"The reason for the disconnect","name":"reason"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:disconnect","scope":"instance","$longname":"LavalinkNode#event:disconnect","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:disconnect"},{"comment":"/**\n         * Emitted whenever the Node's WebSocket encounters a connection error.\n         * @event LavalinkNode#error\n         * @param {Error} error The encountered error\n         */","meta":{"filename":"LavalinkNode.js","lineno":217,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted whenever the Node's WebSocket encounters a connection error.","kind":"event","name":"error","params":[{"type":{"names":["Error"]},"description":"The encountered error","name":"error"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:error","scope":"instance","$longname":"LavalinkNode#event:error","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:error"},{"comment":"/**\n\t\t     * Emmited when a message is received and parsed\n\t\t     * @event LavalinkNode#message\n\t\t     * @param {Object} data The raw message data\n\t\t     */","meta":{"filename":"LavalinkNode.js","lineno":200,"columnno":12,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when a message is received and parsed","kind":"event","name":"message","params":[{"type":{"names":["Object"]},"description":"The raw message data","name":"data"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:message","scope":"instance","$longname":"LavalinkNode#event:message","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:message"},{"comment":"/**\n\t\t * Emmited when the node gets ready\n\t\t * @event LavalinkNode#ready\n\t\t */","meta":{"filename":"LavalinkNode.js","lineno":119,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node gets ready","kind":"event","name":"ready","memberof":"LavalinkNode","longname":"LavalinkNode#event:ready","scope":"instance","$longname":"LavalinkNode#event:ready","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:ready"},{"comment":"/**\n\t\t\t * Emmited when the node is attempting a reconnect\n\t\t\t * @event LavalinkNode#reconnecting\n\t\t\t */","meta":{"filename":"LavalinkNode.js","lineno":162,"columnno":12,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node is attempting a reconnect","kind":"event","name":"reconnecting","memberof":"LavalinkNode","longname":"LavalinkNode#event:reconnecting","scope":"instance","$longname":"LavalinkNode#event:reconnecting","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:reconnecting"},{"comment":"/**\n         * If the lavalink websocket is ready or not\n         * @type {boolean}\n         */","meta":{"range":[1978,1996],"filename":"LavalinkNode.js","lineno":67,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000115","name":"this.ready","type":"Literal","value":false,"paramnames":[]}},"description":"If the lavalink websocket is ready or not","type":{"names":["boolean"]},"name":"ready","longname":"LavalinkNode#ready","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#ready","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#ready"},{"comment":"/**\n         * Roconnection interval\n         * @type {?NodeJS.Timer}\n         */","meta":{"range":[2199,2220],"filename":"LavalinkNode.js","lineno":77,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000127","name":"this.reconnect","type":"Literal","value":null,"paramnames":[]}},"description":"Roconnection interval","type":{"names":["NodeJS.Timer"]},"nullable":true,"name":"reconnect","longname":"LavalinkNode#reconnect","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#reconnect","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#reconnect"},{"comment":"/**\n         * The interval to use for auto Reconnecting\n         * @type {number}\n         */","meta":{"range":[2333,2391],"filename":"LavalinkNode.js","lineno":82,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000133","name":"this.reconnectInterval","type":"LogicalExpression","value":"","paramnames":[]}},"description":"The interval to use for auto Reconnecting","type":{"names":["number"]},"name":"reconnectInterval","longname":"LavalinkNode#reconnectInterval","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#reconnectInterval","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#reconnectInterval"},{"comment":"/**\n         * Region\n         * @type {?string}\n         */","meta":{"range":[1618,1654],"filename":"LavalinkNode.js","lineno":56,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000091","name":"this.region","type":"LogicalExpression","value":"","paramnames":[]}},"description":"Region","type":{"names":["string"]},"nullable":true,"name":"region","longname":"LavalinkNode#region","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#region","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#region"},{"comment":"/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {boolean}\n     */","meta":{"range":[3485,3771],"filename":"LavalinkNode.js","lineno":131,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000266","name":"LavalinkNode#send","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Sends data to the Lavalink Node","params":[{"type":{"names":["Object"]},"description":"Object to send","name":"data"}],"returns":[{"type":{"names":["boolean"]}}],"name":"send","longname":"LavalinkNode#send","kind":"function","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#send","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#send"},{"comment":"/**\n         * Player stats\n         * @type {Object}\n         */","meta":{"range":[2475,2553],"filename":"LavalinkNode.js","lineno":87,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000143","name":"this.stats","type":"ObjectExpression","value":"{\"players\":0,\"playingPlayers\":0}","paramnames":[]}},"description":"Player stats","type":{"names":["Object"]},"name":"stats","longname":"LavalinkNode#stats","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#stats","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#stats"},{"comment":"/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */","meta":{"range":[2085,2099],"filename":"LavalinkNode.js","lineno":72,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000121","name":"this.ws","type":"Literal","value":null,"paramnames":[]}},"description":"The WebSocket","type":{"names":["WebSocket"]},"nullable":true,"name":"ws","longname":"LavalinkNode#ws","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#ws","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#ws"}],"$constructor":{"comment":"/**\n     * LavaLink options\n     * @param {PlayerManager} manager The PlayerManager that created the Node\n     * @param {LavalinkNodeOptions} options LavaLink options\n     */","meta":{"range":[758,2585],"filename":"LavalinkNode.js","lineno":25,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000020","name":"LavalinkNode","type":"MethodDefinition","paramnames":["manager","options"]},"vars":{"":null}},"description":"LavaLink options","params":[{"type":{"names":["PlayerManager"]},"description":"The PlayerManager that created the Node","name":"manager"},{"type":{"names":["LavalinkNodeOptions"]},"description":"LavaLink options","name":"options"}],"name":"LavalinkNode","longname":"LavalinkNode","kind":"class","scope":"global","undocumented":true,"$longname":"LavalinkNode","$kind":"constructor","$docmaLink":"?api=lavalink#LavalinkNode"}},{"comment":"/**\n\t\t         * Emmited when the player encounters an error\n\t\t         * @event LavaPlayer#error\n\t\t         * @prop {object} message The raw message\n\t\t         */","meta":{"filename":"Player.js","lineno":238,"columnno":16,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the player encounters an error","kind":"event","name":"error","properties":[{"type":{"names":["object"]},"description":"The raw message","name":"message"}],"memberof":"LavaPlayer","longname":"LavaPlayer#event:error","scope":"instance","$longname":"LavaPlayer#event:error","$kind":"event","$docmaLink":"?api=lavalink#LavaPlayer#event:error"},{"kind":"package","name":"discord.js-lavalink","longname":"package:discord.js-lavalink","author":"Jacz","bugs":{"url":"https://github.com/MrJacz/discord.js-lavalink/issues"},"dependencies":{"ws":"^5.1.1"},"description":"A discord.js lavalink client","devDependencies":{"@types/node":"^9.6.2","@types/ws":"^4.0.2","discord.js":"^11.3.2","docma":"^2.1.0","eslint":"^4.19.1","eslint-plugin-node":"^6.0.1","eslint-plugin-promise":"^3.7.0","tslint":"^5.9.1","typescript":"^2.8.1"},"files":["/home/travis/build/MrJacz/discord.js-lavalink/src/lib/LavalinkNode.js","/home/travis/build/MrJacz/discord.js-lavalink/src/lib/Player.js","/home/travis/build/MrJacz/discord.js-lavalink/src/lib/PlayerManager.js","/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures/PlayerStore.js","/home/travis/build/MrJacz/discord.js-lavalink/src/lib/util/util.js"],"homepage":"https://github.com/MrJacz/discord.js-lavalink#readme","keywords":["Discord","Discord","Bot","Discord","Music","Discord.js","Discord.js","music","music","discord","api","lava","lavalink","lavalink.js","discord.js","lavalink"],"licenses":[{"type":"MIT"}],"main":"src/index.js","repository":{"type":"git","url":"git+https://github.com/MrJacz/discord.js-lavalink.git"},"version":"2.0.2","$longname":"package:discord.js-lavalink","$kind":"package","$docmaLink":"?api=lavalink#package:discord.js-lavalink"},{"comment":"/**\n * LavaLink Player\n * @extends {EventEmitter}\n */","meta":{"range":[99,7186],"filename":"Player.js","lineno":7,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000479","name":"Player","type":"ClassDeclaration","paramnames":["options"]}},"classdesc":"LavaLink Player","augments":["EventEmitter"],"name":"Player","longname":"Player","kind":"class","scope":"global","description":"LavaLink Player Options","params":[{"type":{"names":["PlayerOptions"]},"description":"Player Options","name":"options"}],"$longname":"Player","$kind":"class","$docmaLink":"?api=lavalink#Player","$members":[{"comment":"/**\n         * The current channel id\n         * @type {string}\n         */","meta":{"range":[1336,1366],"filename":"Player.js","lineno":54,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000532","name":"this.channel","type":"MemberExpression","value":"options.channel","paramnames":[]}},"description":"The current channel id","type":{"names":["string"]},"name":"channel","longname":"Player#channel","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#channel","$kind":"property","$docmaLink":"?api=lavalink#Player#channel"},{"comment":"/**\n         * Discord.js Client\n         * @type {external:Client}\n         */","meta":{"range":[927,955],"filename":"Player.js","lineno":39,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000508","name":"this.client","type":"MemberExpression","value":"options.client","paramnames":[]}},"description":"Discord.js Client","type":{"names":["external:Client"]},"name":"client","longname":"Player#client","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#client","$kind":"property","$docmaLink":"?api=lavalink#Player#client"},{"comment":"/**\n     * Sends a packet to Lavalink for voiceUpdate\n     * @param {Object} data voiceUpdate event data\n     * @returns {Player}\n     */","meta":{"range":[2145,2352],"filename":"Player.js","lineno":87,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000571","name":"Player#connect","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Sends a packet to Lavalink for voiceUpdate","params":[{"type":{"names":["Object"]},"description":"voiceUpdate event data","name":"data"}],"returns":[{"type":{"names":["Player"]}}],"name":"connect","longname":"Player#connect","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#connect","$kind":"method","$docmaLink":"?api=lavalink#Player#connect"},{"comment":"/**\n     * Destroys the Player\n     * @returns {Player}\n     */","meta":{"range":[4778,4909],"filename":"Player.js","lineno":202,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000825","name":"Player#destroy","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Destroys the Player","returns":[{"type":{"names":["Player"]}}],"name":"destroy","longname":"Player#destroy","kind":"function","memberof":"Player","scope":"instance","params":[],"$longname":"Player#destroy","$kind":"method","$docmaLink":"?api=lavalink#Player#destroy"},{"comment":"/**\n     * Disconnects the player\n     * @param {string} msg Disconnect reason\n     * @returns {Player}\n     */","meta":{"range":[2474,2766],"filename":"Player.js","lineno":102,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000600","name":"Player#disconnect","type":"MethodDefinition","paramnames":["msg"]},"vars":{"":null}},"description":"Disconnects the player","params":[{"type":{"names":["string"]},"description":"Disconnect reason","name":"msg"}],"returns":[{"type":{"names":["Player"]}}],"name":"disconnect","longname":"Player#disconnect","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#disconnect","$kind":"method","$docmaLink":"?api=lavalink#Player#disconnect"},{"comment":"/**\n                 * Emitted whenever the Player gets Stuck or ends\n                 * @event Player#end\n                 * @param {string} message Data containg reason\n                 */","meta":{"filename":"Player.js","lineno":248,"columnno":16,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted whenever the Player gets Stuck or ends","kind":"event","name":"end","params":[{"type":{"names":["string"]},"description":"Data containg reason","name":"message"}],"memberof":"Player","longname":"Player#event:end","scope":"instance","$longname":"Player#event:end","$kind":"event","$docmaLink":"?api=lavalink#Player#event:end"},{"comment":"/**\n         * Player id (Guild ID)\n         * @type {string}\n         */","meta":{"range":[809,829],"filename":"Player.js","lineno":34,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000500","name":"this.id","type":"MemberExpression","value":"options.id","paramnames":[]}},"description":"Player id (Guild ID)","type":{"names":["string"]},"name":"id","longname":"Player#id","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#id","$kind":"property","$docmaLink":"?api=lavalink#Player#id"},{"comment":"/**\n         * The PlayerManager that initilized the player\n         * @type {PlayerManager}\n         */","meta":{"range":[1078,1108],"filename":"Player.js","lineno":44,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000516","name":"this.manager","type":"MemberExpression","value":"options.manager","paramnames":[]}},"description":"The PlayerManager that initilized the player","type":{"names":["PlayerManager"]},"name":"manager","longname":"Player#manager","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#manager","$kind":"property","$docmaLink":"?api=lavalink#Player#manager"},{"comment":"/**\n         * The current node for this Player\n         * @type {LavalinkNode}\n         */","meta":{"range":[1218,1242],"filename":"Player.js","lineno":49,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000524","name":"this.node","type":"MemberExpression","value":"options.node","paramnames":[]}},"description":"The current node for this Player","type":{"names":["LavalinkNode"]},"name":"node","longname":"Player#node","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#node","$kind":"property","$docmaLink":"?api=lavalink#Player#node"},{"comment":"/**\n         * Player options\n         * @type {Object}\n         */","meta":{"range":[695,717],"filename":"Player.js","lineno":29,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000494","name":"this.options","type":"Identifier","value":"options","paramnames":[]}},"description":"Player options","type":{"names":["Object"]},"name":"options","longname":"Player#options","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#options","$kind":"property","$docmaLink":"?api=lavalink#Player#options"},{"comment":"/**\n     * Pauses or Resumes the player\n     * @param {boolean} [pause=true] Whether to resume or pause the player\n     * @returns {Player}\n     */","meta":{"range":[3772,4040],"filename":"Player.js","lineno":154,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000713","name":"Player#pause","type":"MethodDefinition","paramnames":["pause"]},"vars":{"":null}},"description":"Pauses or Resumes the player","params":[{"type":{"names":["boolean"]},"optional":true,"defaultvalue":true,"description":"Whether to resume or pause the player","name":"pause"}],"returns":[{"type":{"names":["Player"]}}],"name":"pause","longname":"Player#pause","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#pause","$kind":"method","$docmaLink":"?api=lavalink#Player#pause"},{"comment":"/**\n         * Whether the Player is paused or not.\n         * @type {boolean}\n         */","meta":{"range":[1583,1602],"filename":"Player.js","lineno":64,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000546","name":"this.paused","type":"Literal","value":false,"paramnames":[]}},"description":"Whether the Player is paused or not.","type":{"names":["boolean"]},"name":"paused","longname":"Player#paused","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#paused","$kind":"property","$docmaLink":"?api=lavalink#Player#paused"},{"comment":"/**\n     * Plays a song\n     * @param {string} track A Base64 string from LavaLink API\n     * @param {Object} [options] Other options\n     * @param {number} [options.startTime] Start time\n     * @param {number} [options.endTime] End time\n     * @returns {Player}\n     */","meta":{"range":[3047,3361],"filename":"Player.js","lineno":122,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000625","name":"Player#play","type":"MethodDefinition","paramnames":["track","options"]},"vars":{"":null}},"description":"Plays a song","params":[{"type":{"names":["string"]},"description":"A Base64 string from LavaLink API","name":"track"},{"type":{"names":["Object"]},"optional":true,"description":"Other options","name":"options"},{"type":{"names":["number"]},"optional":true,"description":"Start time","name":"options.startTime"},{"type":{"names":["number"]},"optional":true,"description":"End time","name":"options.endTime"}],"returns":[{"type":{"names":["Player"]}}],"name":"play","longname":"Player#play","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#play","$kind":"method","$docmaLink":"?api=lavalink#Player#play"},{"comment":"/**\n         * Playing boolean\n         * @type {boolean}\n         */","meta":{"range":[1454,1474],"filename":"Player.js","lineno":59,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000540","name":"this.playing","type":"Literal","value":false,"paramnames":[]}},"description":"Playing boolean","type":{"names":["boolean"]},"name":"playing","longname":"Player#playing","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#playing","$kind":"property","$docmaLink":"?api=lavalink#Player#playing"},{"comment":"/**\n     * Seeks to a specified position\n     * @param {number} position The position to seek to\n     * @returns {Player}\n     */","meta":{"range":[4549,4704],"filename":"Player.js","lineno":189,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000802","name":"Player#seek","type":"MethodDefinition","paramnames":["position"]},"vars":{"":null}},"description":"Seeks to a specified position","params":[{"type":{"names":["number"]},"description":"The position to seek to","name":"position"}],"returns":[{"type":{"names":["Player"]}}],"name":"seek","longname":"Player#seek","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#seek","$kind":"method","$docmaLink":"?api=lavalink#Player#seek"},{"comment":"/**\n         * LavaLink Player state\n         * @type {Object}\n         */","meta":{"range":[1695,1723],"filename":"Player.js","lineno":69,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000552","name":"this.state","type":"ObjectExpression","value":"{\"volume\":100}","paramnames":[]}},"description":"LavaLink Player state","type":{"names":["Object"]},"name":"state","longname":"Player#state","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#state","$kind":"property","$docmaLink":"?api=lavalink#Player#state"},{"comment":"/**\n     * stops the Player\n     * @returns {Player}\n     */","meta":{"range":[3432,3614],"filename":"Player.js","lineno":139,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000681","name":"Player#stop","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"stops the Player","returns":[{"type":{"names":["Player"]}}],"name":"stop","longname":"Player#stop","kind":"function","memberof":"Player","scope":"instance","params":[],"$longname":"Player#stop","$kind":"method","$docmaLink":"?api=lavalink#Player#stop"},{"comment":"/**\n     * Switch player channel\n     * @param {string} channel Channel id\n     * @param {boolean} [reactive=false] Whether to switch channel\n     * @return {boolean}\n     */","meta":{"range":[5094,5301],"filename":"Player.js","lineno":216,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000845","name":"Player#switchChannel","type":"MethodDefinition","paramnames":["channel","reactive"]},"vars":{"":null}},"description":"Switch player channel","params":[{"type":{"names":["string"]},"description":"Channel id","name":"channel"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Whether to switch channel","name":"reactive"}],"returns":[{"type":{"names":["boolean"]}}],"name":"switchChannel","longname":"Player#switchChannel","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#switchChannel","$kind":"method","$docmaLink":"?api=lavalink#Player#switchChannel"},{"comment":"/**\n         * The timestamp the Player started playing\n         * @type {number}\n         */","meta":{"range":[1969,1990],"filename":"Player.js","lineno":79,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000566","name":"this.timestamp","type":"Literal","value":null,"paramnames":[]}},"description":"The timestamp the Player started playing","type":{"names":["number"]},"name":"timestamp","longname":"Player#timestamp","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#timestamp","$kind":"property","$docmaLink":"?api=lavalink#Player#timestamp"},{"comment":"/**\n         * The current track that the Player is playing\n         * @type {?string}\n         */","meta":{"range":[1840,1857],"filename":"Player.js","lineno":74,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000560","name":"this.track","type":"Literal","value":null,"paramnames":[]}},"description":"The current track that the Player is playing","type":{"names":["string"]},"nullable":true,"name":"track","longname":"Player#track","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#track","$kind":"property","$docmaLink":"?api=lavalink#Player#track"},{"comment":"/**\n     * Sets the volume for the player\n     * @param {number} volume Volume\n     * @returns {Player}\n     */","meta":{"range":[4218,4409],"filename":"Player.js","lineno":174,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000771","name":"Player#volume","type":"MethodDefinition","paramnames":["volume"]},"vars":{"":null}},"description":"Sets the volume for the player","params":[{"type":{"names":["number"]},"description":"Volume","name":"volume"}],"returns":[{"type":{"names":["Player"]}}],"name":"volume","longname":"Player#volume","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#volume","$kind":"method","$docmaLink":"?api=lavalink#Player#volume"}],"$constructor":{"comment":"/**\n     * LavaLink Player Options\n     * @param {PlayerOptions} options Player Options\n     */","meta":{"range":[565,1997],"filename":"Player.js","lineno":22,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000483","name":"Player","type":"MethodDefinition","paramnames":["options"]},"vars":{"":null}},"description":"LavaLink Player Options","params":[{"type":{"names":["PlayerOptions"]},"description":"Player Options","name":"options"}],"name":"Player","longname":"Player","kind":"class","scope":"global","undocumented":true,"$longname":"Player","$kind":"constructor","$docmaLink":"?api=lavalink#Player"}},{"comment":"/**\n         * Emitted when the Player disconnects\n         * @event PLayer#disconnect\n         * @param {string} msg Disconnection reason\n         */","meta":{"filename":"Player.js","lineno":105,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted when the Player disconnects","kind":"event","name":"disconnect","params":[{"type":{"names":["string"]},"description":"Disconnection reason","name":"msg"}],"memberof":"PLayer","longname":"PLayer#event:disconnect","scope":"instance","$longname":"PLayer#event:disconnect","$kind":"event","$docmaLink":"?api=lavalink#PLayer#event:disconnect"},{"comment":"/**\n * Player Manager class\n * @extends {PlayerStore}\n */","meta":{"range":[249,6309],"filename":"PlayerManager.js","lineno":10,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001049","name":"PlayerManager","type":"ClassDeclaration","paramnames":["client","nodes","options"]}},"classdesc":"Player Manager class","augments":["PlayerStore"],"name":"PlayerManager","longname":"PlayerManager","kind":"class","scope":"global","description":"Constructs the PlayerManager","params":[{"type":{"names":["external:Client"]},"description":"Discord.js Client","name":"client"},{"type":{"names":["Array.<Object>"]},"description":"Array of Lavalink Nodes","name":"nodes"},{"type":{"names":["PlayerManagerOptions"]},"description":"PlayerManager Options","name":"options"}],"$longname":"PlayerManager","$kind":"class","$docmaLink":"?api=lavalink#PlayerManager","$members":[{"comment":"/**\n         * Discord.js Client for the Player Manager\n         * @type {external:Client}\n         */","meta":{"range":[1025,1045],"filename":"PlayerManager.js","lineno":33,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001080","name":"this.client","type":"Identifier","value":"client","paramnames":[]}},"description":"Discord.js Client for the Player Manager","type":{"names":["external:Client"]},"name":"client","longname":"PlayerManager#client","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#client","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#client"},{"comment":"/**\n     * A function to create LavaLink nodes and set them to PlayerManager#nodes\n     * @param {Object} options Node options\n     */","meta":{"range":[1958,2209],"filename":"PlayerManager.js","lineno":66,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001163","name":"PlayerManager#createNode","type":"MethodDefinition","paramnames":["options"]},"vars":{"":null}},"description":"A function to create LavaLink nodes and set them to PlayerManager#nodes","params":[{"type":{"names":["Object"]},"description":"Node options","name":"options"}],"name":"createNode","longname":"PlayerManager#createNode","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#createNode","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#createNode"},{"comment":"/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object with guild, channel, host infomation\n     * @param {string} data.guild Guild id\n     * @param {string} data.channel Channel id\n     * @param {string} data.host host\n     * @param {Object} [options] Options\n     * @param {boolean} [options.selfmute=false] Selfmute\n     * @param {boolean} [options.selfdeaf=false] Selfdeaf\n     * @returns {Promise<Player>}\n     * @example\n     * // Join voice channel\n     * PlayerManager.join({\n     *  guild: \"412180910587379712\",\n     *  channel: \"412180910587379716\",\n     *  host: \"localhost\"\n     * });\n     */","meta":{"range":[3842,4441],"filename":"PlayerManager.js","lineno":129,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001322","name":"PlayerManager#join","type":"MethodDefinition","paramnames":["data",""]},"vars":{"":null}},"description":"Joins the voice channel and spawns a new player","params":[{"type":{"names":["Object"]},"description":"Object with guild, channel, host infomation","name":"data"},{"type":{"names":["string"]},"description":"Guild id","name":"data.guild"},{"type":{"names":["string"]},"description":"Channel id","name":"data.channel"},{"type":{"names":["string"]},"description":"host","name":"data.host"},{"type":{"names":["Object"]},"optional":true,"description":"Options","name":"options"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Selfmute","name":"options.selfmute"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Selfdeaf","name":"options.selfdeaf"}],"returns":[{"type":{"names":["Promise.<Player>"]}}],"examples":["// Join voice channel\nPlayerManager.join({\n guild: \"412180910587379712\",\n channel: \"412180910587379716\",\n host: \"localhost\"\n});"],"name":"join","longname":"PlayerManager#join","kind":"function","memberof":"PlayerManager","scope":"instance","async":true,"$longname":"PlayerManager#join","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#join"},{"comment":"/**\n     * Leaves voice channel and deletes Player\n     * @param {string} guild Guild id\n     * @returns {boolean}\n     * @example\n     * // Leave the current channel\n     * PlayerManager.leave(\"412180910587379712\");\n     */","meta":{"range":[4676,5160],"filename":"PlayerManager.js","lineno":157,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001411","name":"PlayerManager#leave","type":"MethodDefinition","paramnames":["guild"]},"vars":{"":null}},"description":"Leaves voice channel and deletes Player","params":[{"type":{"names":["string"]},"description":"Guild id","name":"guild"}],"returns":[{"type":{"names":["boolean"]}}],"examples":["// Leave the current channel\nPlayerManager.leave(\"412180910587379712\");"],"name":"leave","longname":"PlayerManager#leave","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#leave","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#leave"},{"comment":"/**\n         * Collection of LavaLink Nodes\n         * @type {Collection<string, LavalinkNode>}\n         */","meta":{"range":[1171,1200],"filename":"PlayerManager.js","lineno":38,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001086","name":"this.nodes","type":"NewExpression","value":"","paramnames":[]}},"description":"Collection of LavaLink Nodes","type":{"names":["Collection.<string, LavalinkNode>"]},"name":"nodes","longname":"PlayerManager#nodes","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#nodes","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#nodes"},{"comment":"/**\n         * PlayerManager Options\n         * @type {Object}\n         */","meta":{"range":[1570,1592],"filename":"PlayerManager.js","lineno":53,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001115","name":"this.options","type":"Identifier","value":"options","paramnames":[]}},"description":"PlayerManager Options","type":{"names":["Object"]},"name":"options","longname":"PlayerManager#options","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#options","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#options"},{"comment":"/**\n     * Removes a node by host\n     * @param {string} host Node host\n     * @returns {boolean}\n     */","meta":{"range":[2325,2500],"filename":"PlayerManager.js","lineno":80,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001215","name":"PlayerManager#removeNode","type":"MethodDefinition","paramnames":["host"]},"vars":{"":null}},"description":"Removes a node by host","params":[{"type":{"names":["string"]},"description":"Node host","name":"host"}],"returns":[{"type":{"names":["boolean"]}}],"name":"removeNode","longname":"PlayerManager#removeNode","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#removeNode","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#removeNode"},{"comment":"/**\n         * Total number of shards your bot is operating on\n         * @type {number}\n         */","meta":{"range":[1449,1477],"filename":"PlayerManager.js","lineno":48,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001107","name":"this.shards","type":"MemberExpression","value":"options.shards","paramnames":[]}},"description":"Total number of shards your bot is operating on","type":{"names":["number"]},"name":"shards","longname":"PlayerManager#shards","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#shards","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#shards"},{"comment":"/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @param {string} data.guild Player guild id\n     * @param {string} data.channel Player channel id\n     * @param {string} data.host Player host id\n     * @returns {Player}\n     */","meta":{"range":[5886,6306],"filename":"PlayerManager.js","lineno":200,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001533","name":"PlayerManager#spawnPlayer","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Creates or returns a player","params":[{"type":{"names":["Object"]},"description":"Data for the player","name":"data"},{"type":{"names":["string"]},"description":"Player guild id","name":"data.guild"},{"type":{"names":["string"]},"description":"Player channel id","name":"data.channel"},{"type":{"names":["string"]},"description":"Player host id","name":"data.host"}],"returns":[{"type":{"names":["Player"]}}],"name":"spawnPlayer","longname":"PlayerManager#spawnPlayer","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#spawnPlayer","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#spawnPlayer"},{"comment":"/**\n         * This client's id\n         * @type {string}\n         */","meta":{"range":[1288,1330],"filename":"PlayerManager.js","lineno":43,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001093","name":"this.user","type":"LogicalExpression","value":"","paramnames":[]}},"description":"This client's id","type":{"names":["string"]},"name":"user","longname":"PlayerManager#user","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#user","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#user"}],"$constructor":{"comment":"/**\n     * Constructs the PlayerManager\n     * @param {external:Client} client Discord.js Client\n     * @param {Object[]} nodes Array of Lavalink Nodes\n     * @param {PlayerManagerOptions} options PlayerManager Options\n     */","meta":{"range":[760,1813],"filename":"PlayerManager.js","lineno":25,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001053","name":"PlayerManager","type":"MethodDefinition","paramnames":["client","nodes","options"]},"vars":{"":null}},"description":"Constructs the PlayerManager","params":[{"type":{"names":["external:Client"]},"description":"Discord.js Client","name":"client"},{"type":{"names":["Array.<Object>"]},"description":"Array of Lavalink Nodes","name":"nodes"},{"type":{"names":["PlayerManagerOptions"]},"description":"PlayerManager Options","name":"options"}],"name":"PlayerManager","longname":"PlayerManager","kind":"class","scope":"global","undocumented":true,"$longname":"PlayerManager","$kind":"constructor","$docmaLink":"?api=lavalink#PlayerManager"}},{"comment":"/**\n     * PlayerStore player\n     * @param {Player} Player The Player for the store\n     */","meta":{"range":[293,509],"filename":"PlayerStore.js","lineno":14,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures","code":{"id":"astnode100001626","name":"PlayerStore","type":"MethodDefinition","paramnames":["Player"]},"vars":{"":null}},"description":"PlayerStore player","params":[{"type":{"names":["Player"]},"description":"The Player for the store","name":"Player"}],"name":"PlayerStore","longname":"PlayerStore","kind":"class","scope":"global","undocumented":true,"$longname":"PlayerStore","$kind":"constructor","$docmaLink":"?api=lavalink#PlayerStore"},{"comment":"/**\n     * check to see if something is a class???\n     * @param {Function} input Function to check. what else?\n     * @returns {boolean}\n     */","meta":{"range":[188,448],"filename":"util.js","lineno":11,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib/util","code":{"id":"astnode100001693","name":"Util.isClass","type":"MethodDefinition","paramnames":["input"]},"vars":{"":null}},"description":"check to see if something is a class???","params":[{"type":{"names":["function"]},"description":"Function to check. what else?","name":"input"}],"returns":[{"type":{"names":["boolean"]}}],"name":"isClass","longname":"Util.isClass","kind":"function","memberof":"Util","scope":"static","$longname":"Util.isClass","$kind":"method","$docmaLink":"?api=lavalink#Util.isClass"}],"symbols":["LavalinkNode","LavalinkNode#connect","LavalinkNode#destroy","LavalinkNode#event:disconnect","LavalinkNode#event:error","LavalinkNode#event:message","LavalinkNode#event:ready","LavalinkNode#event:reconnecting","LavalinkNode#ready","LavalinkNode#reconnect","LavalinkNode#reconnectInterval","LavalinkNode#region","LavalinkNode#send","LavalinkNode#stats","LavalinkNode#ws","LavaPlayer#event:error","package:discord.js-lavalink","Player","Player#channel","Player#client","Player#connect","Player#destroy","Player#disconnect","PLayer#event:disconnect","Player#event:end","Player#id","Player#manager","Player#node","Player#options","Player#pause","Player#paused","Player#play","Player#playing","Player#seek","Player#state","Player#stop","Player#switchChannel","Player#timestamp","Player#track","Player#volume","PlayerManager","PlayerManager#client","PlayerManager#createNode","PlayerManager#join","PlayerManager#leave","PlayerManager#nodes","PlayerManager#options","PlayerManager#removeNode","PlayerManager#shards","PlayerManager#spawnPlayer","PlayerManager#user","PlayerStore","Util.isClass"]}},"app":{"title":"discord.js-lavalink","base":"/discord.js-lavalink/","entrance":"content:readme","routing":{"method":"query","caseSensitive":true},"server":"github","meta":null},"template":{"name":"docma-template-zebra","description":"Zebra - Default template for Docma. https://github.com/onury/docma","version":"2.1.0","supportedDocmaVersion":">=2.0.0","author":"Onur Yıldırım","license":"MIT","mainHTML":"index.html","options":{"title":"discord.js-lavalink","logo":null,"sidebar":{"enabled":true,"outline":"tree","collapsed":false,"toolbar":true,"itemsFolded":false,"itemsOverflow":"crop","badges":true,"search":true,"animations":true},"symbols":{"autoLink":true,"params":"list","enums":"list","props":"list","meta":false},"contentView":{"bookmarks":false},"navbar":{"enabled":true,"fixed":true,"dark":false,"animations":true,"menu":[{"label":"Readme","href":"?content=readme"},{"label":"Documentation","href":"?api=lavalink","iconClass":"ico-book"},{"label":"GitHub","href":"https://github.com/MrJacz/discord.js-lavalink#readme","target":"_blank","iconClass":"ico-md ico-github"}]}}},"partials":{"api":"docma-api","content":"docma-content","notFound":"docma-404"},"elementID":"docma-main","contentElementID":"docma-content","defaultApiName":"_def_","logsEnabled":true}));
+
+/* global docma, DocmaWeb, page, sessionStorage */
+/* eslint no-nested-ternary:0, max-depth:0, no-var:0, prefer-template:0, prefer-arrow-callback:0, prefer-spread:0, object-shorthand:0 */
+
+// Note: This is for use in the browser. ES2015 rules don't apply here (yet).
+
+// --------------------------------
+// DocmaWeb - SPA
+// https://github.com/onury/docma
+// --------------------------------
+
+(function () {
+
+    'use strict';
+
+    /**
+     *  Flag for app routing method
+     *  @private
+     */
+    var PATH_ROUTING = docma.app.routing.method === 'path';
 
     // --------------------------------
     // ROUTING with (page.js)
@@ -5146,7 +6451,7 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
             var redirectPath = sessionStorage.getItem('redirectPath') || null;
             if (redirectPath) {
                 sessionStorage.removeItem('redirectPath');
-                _debug.info('Redirecting to:', redirectPath);
+                docma.info('Redirecting to:', redirectPath);
                 page.redirect(redirectPath);
                 return true;
             }
@@ -5180,8 +6485,8 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
     if (PATH_ROUTING) {
         page('(/)?api/:apiName?', function (context, next) {
             // console.log(context);
-            var apiName = context.params.apiName || UNNAMED_API,
-                routeInfo = Route.create(apiName, Route.Type.API);
+            var apiName = context.params.apiName || docma._.defaultApiName,
+                routeInfo = docma.createRoute(apiName, DocmaWeb.Route.Type.API);
             // route not found, send to next (not-found)
             if (!routeInfo || !routeInfo.exists()) return next();
             routeInfo.apply();
@@ -5190,7 +6495,7 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
         page('(/)?:content', function (context, next) {
             // console.log(context);
             var content = context.params.content,
-                routeInfo = Route.create(content, Route.Type.CONTENT);
+                routeInfo = docma.createRoute(content, DocmaWeb.Route.Type.CONTENT);
             // route not found, send to next (not-found)
             if (!routeInfo || !routeInfo.exists()) return next();
             routeInfo.apply();
@@ -5199,10 +6504,13 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
 
     page('(/)?', function (context, next) {
         if (_redirecting()) return;
-        // _debug.log(context);
+        // docma.log(context);
 
         // context.querystring has problems.
         // See our issue @ https://github.com/visionmedia/page.js/issues/377
+        // And this PR for a fix: https://github.com/visionmedia/page.js/pull/408
+        // This PR is still not merged as of Aug, 2017. Revise below once it's merged.
+
         // So first, we check if context.querystring has a value. if not, we'll
         // try window.location.search but, it needs a little delay to capture
         // the change.
@@ -5214,14 +6522,19 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
                 // only expecting paths, shouldn't have querystring
                 if (qs) return next(); // not found
                 // no query-string, just "/" root received
-                routeInfo = _appEntranceRI;
+                routeInfo = docma._.appEntranceRI;
             } else { // query routing
-                _debug.log('Query-string:', qs);
-                routeInfo = qs ? Route.fromQuery(qs) : _appEntranceRI;
+                docma.log('Query-string:', qs);
+                routeInfo = qs ? docma.createRouteFromQuery(qs) : docma._.appEntranceRI;
             }
 
+            var is404 = !routeInfo || !routeInfo.exists();
+
+            // on route-change or hashchange
+            docma._trigger(DocmaWeb.Event.Navigate, [is404 ? null : routeInfo]);
+
             // route not found, send to next (not-found)
-            if (!routeInfo || !routeInfo.exists()) return next();
+            if (is404) return next();
 
             // if this is already the current route, do nothing...
             if (routeInfo.isCurrent()) return;
@@ -5233,27 +6546,27 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
     });
 
     page('*', function (context) { // (context, next)
-        _debug.warn('Unknown Route:', context.path);
-        Route.create(null).apply();
+        docma.warn('Unknown Route:', context.path);
+        docma.createRoute(null).apply();
     });
 
     // --------------------------------
     // INITIALIZE
     // --------------------------------
 
-    _debug.info('Docma SPA Configuration:');
-    _debug.info('App Title:          ', docma.app.title);
-    _debug.info('Routing Method:     ', docma.app.routing.method);
-    _debug.info('App Server:         ', docma.app.server);
-    _debug.info('Base Path:          ', docma.app.base);
-    _debug.info('Entrance Route ID:  ', docma.app.entrance);
+    docma.info('Docma SPA Configuration:');
+    docma.info('App Title:          ', docma.app.title);
+    docma.info('Routing Method:     ', docma.app.routing.method);
+    docma.info('App Server:         ', docma.app.server);
+    docma.info('Base Path:          ', docma.app.base);
+    docma.info('Entrance Route ID:  ', docma.app.entrance);
 
     window.onload = function () { // (event)
 
         // mark initial page load
-        _initialLoad = true;
+        docma._.initialLoad = true;
         // convert entrance route ID to routeInfo for later use
-        _appEntranceRI = Route.fromID(docma.app.entrance);
+        docma._.appEntranceRI = docma.createRouteFromID(docma.app.entrance);
         // configure page.js
         page.start({
             click: true,
@@ -5263,124 +6576,7 @@ var docma = {"routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","
             decodeURLComponents: true
         });
 
-        _debug.info('Docma SPA loaded!');
+        docma.info('Docma SPA loaded!');
     };
 
 })();
-
-// --------------------------------
-// ADDITIONAL DOCUMENTATION
-// --------------------------------
-
-/**
- *  Provides configuration data of the generated SPA, which is originally set
- *  at build-time, by the user.
- *  See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
- *  details on how these settings take affect.
- *  @name docma.app
- *  @type {Object}
- *
- *  @property {String} title
- *            Document title for the main file of the generated app.
- *            (Value of the `&lt;title/>` tag.)
- *  @property {Array} meta
- *            Array of arbitrary objects set for main document meta (tags).
- *  @property {String} base
- *            Base path of the generated web app.
- *  @property {String} entrance
- *            Name of the initial content displayed, when the web app is first
- *            loaded.
- *  @property {String|Object} routing
- *            Routing settings for the generated SPA.
- *  @property {String} server
- *            Server/host type of the generated SPA.
- */
-
-/**
- *	Hash-map of JSDoc documentation outputs.
- *	Each key is the name of an API (formed by grouped Javascript files).
- *	e.g. `docma.apis["some-api"]`
- *
- *  Unnamed documentation data (consisting of ungrouped Javascript files) can be
- *  accessed via `docma.apis._def_`.
- *
- *	Each value is an `Object` with the following signature:
- *	`{ documentation:Array, symbols:Array }`. `documentation` is the actual
- *	JSDoc data, and `symbols` is a flat array of symbol names.
- *
- *  See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
- *  details on how Javascript files can be grouped (and named) to form separate
- *  API documentations and SPA routes.
- *
- *  @name docma.apis
- *  @type {Object}
- *
- *  @example
- *  // output ungrouped (unnamed) API documentation data
- *  console.log(docma.apis._def_.documentation);
- *  console.log(docma.apis._def_.symbols); // flat list of symbol names
- *  // output one of the grouped (named) API documentation data
- *  console.log(docma.apis['my-scondary-api'].documentation);
- *
- *  @example
- *  <!-- Usage in a Dust partial
- *  	Each API data is passed to the partial, according to the route.
- *  	So you'll always use `documentation` within the partials.
- *  -->
- *  {#documentation}
- *      <h4>{longname}</h4>
- *      <p>{description}</p>
- *      <hr />
- *  {/documentation}
- */
-
-/**
- *  Array of available SPA routes of the documentation.
- *  This is created at build-time and defined via the `src` param of the
- *  {@link ?api=docma#Docma~BuildConfiguration|build configuration}.
- *
- *  @name docma.routes
- *  @type {Array}
- *
- *  @see {@link #docma.Route|docma.Route}
- */
-
-/**
- *  Provides template specific configuration data.
- *  This is also useful within the Dust partials of the Docma template.
- *  @name docma.template
- *  @type {Object}
- *
- *  @property {Object} options - Docma template options. Defined at build-time,
- *  by the user.
- *  @property {String} name
- *            Name of the Docma template.
- *  @property {String} version
- *            Version of the Docma template.
- *  @property {String} author
- *            Author information for the Docma template.
- *  @property {String} license
- *            License information for the Docma template.
- *  @property {String} main
- *            Name of the main file of the template. i.e. `index.html`
- *
- *  @example
- *  <!-- Usage in a Dust partial -->
- *  <div>
- *      {?template.options.someOption}
- *      <span>Displayed if someOption is true.</span>
- *      {/template.options.someOption}
- *  </div>
- *  <div class="footer">{template.name} by {template.author}</div>
- */
-
- /**
-  *  Utilities for inspecting JSDoc documentation and symbols; and parsing
-  *  documentation data into proper HTML.
-  *  See {@link ?api=docma-web-utils|`docma.utils` documentation}.
-  *  @name docma.utils
-  *  @type {Object}
-  *  @namespace
-  */
-
-docma = Object.freeze(docma);
