@@ -41,7 +41,7 @@
     "@types/node": "^9.6.2",
     "@types/ws": "^4.0.2",
     "discord.js": "^11.3.2",
-    "docma": "^1.5.3",
+    "docma": "^2.1.0",
     "eslint": "^4.19.1",
     "eslint-plugin-node": "^6.0.1",
     "eslint-plugin-promise": "^3.7.0",
