@@ -6,14 +6,14 @@ new Docma().build({
         base: "/discord.js-lavalink",
         entrance: "content:readme",
         routing: "query",
-        server: Docma.ServerType.GITHUB
+        server: "github"
     },
     template: {
         path: "zebra",
         options: {
             title: {
                 label: "Discord.js LavaLink",
-                href: "/discord.js-lavalink?"
+                href: "/discord.js-lavalink"
             },
             sidebar: {
                 enabled: true,
@@ -74,7 +74,24 @@ new Docma().build({
         { lavalink: "./src/*/**/**/*.js" }
     ],
     dest: "./docs",
-    debug: 31,
-    jsdoc: { package: "./package.json" }
+    debug: 5,
+    jsdoc: {
+        encoding: "utf8",
+        recurse: false,
+        pedantic: false,
+        access: null,
+        package: "./package.json",
+        module: true,
+        undocumented: false,
+        undescribed: false,
+        ignored: false,
+        hierarchy: true,
+        sort: "alphabetic",
+        relativePath: null,
+        filter: null,
+        allowUnknownTags: true,
+        plugins: []
+    }
 })
+    .then(() => console.log("Documentation is built successfully."))
     .catch(console.error);
