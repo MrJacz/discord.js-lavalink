@@ -11,10 +11,7 @@ new Docma().build({
     template: {
         path: "zebra",
         options: {
-            title: {
-                label: "Discord.js LavaLink",
-                href: "/discord.js-lavalink"
-            },
+            title: "Discord.js LavaLink",
             sidebar: {
                 enabled: true,
                 outline: "tree",
