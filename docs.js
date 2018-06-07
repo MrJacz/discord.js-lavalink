@@ -1,14 +1,63 @@
 const Docma = require("docma");
-const Package = require("./package");
 
 Docma.create()
     .build({
         app: {
-            title: Package.name,
+            title: "Discord.js LavaLink",
             base: "/discord.js-lavalink",
             entrance: "content:readme",
             routing: "query",
             server: Docma.ServerType.GITHUB
+        },
+        template: {
+            path: "zebra",
+            options: {
+                title: {
+                    label: "Discord.js LavaLink",
+                    href: "/discord.js-lavalink?"
+                },
+                sidebar: {
+                    enabled: true,
+                    outline: "tree",
+                    collapsed: false,
+                    toolbar: true,
+                    itemsFolded: false,
+                    itemsOverflow: "crop",
+                    badges: true,
+                    search: true,
+                    animations: true
+                },
+                symbols: {
+                    autoLink: true,
+                    params: "list",
+                    enums: "list",
+                    props: "list",
+                    meta: false
+                },
+                navbar: {
+                    enabled: true,
+                    fixed: true,
+                    dark: false,
+                    animations: true,
+                    menu: [
+                        {
+                            label: "Readme",
+                            href: "?content=readme"
+                        },
+                        {
+                            label: "Documentation",
+                            href: "?api=lavalink",
+                            iconClass: "fas fa-book"
+                        },
+                        {
+                            iconClass: "fab fa-lg fa-github",
+                            label: "",
+                            href: "https://github.com/MrJacz/discord.js-lavalink",
+                            target: "_blank"
+                        }
+                    ]
+                }
+            }
         },
         markdown: {
             gfm: true,
@@ -23,32 +72,10 @@ Docma.create()
         },
         src: [
             { readme: "./README.md" },
-            { lavalink: "./src/*/**/*.js" }
+            { lavalink: "./src/**/*.js" }
         ],
         dest: "./docs",
         debug: true,
-        jsdoc: { package: "./package.json" },
-        template: {
-            options: {
-                title: Package.name,
-                navItems: [
-                    {
-                        label: "Readme",
-                        href: "?content=readme"
-                    },
-                    {
-                        label: "Documentation",
-                        href: "?api=lavalink",
-                        iconClass: "ico-book"
-                    },
-                    {
-                        label: "GitHub",
-                        href: Package.homepage,
-                        target: "_blank",
-                        iconClass: "ico-md ico-github"
-                    }
-                ]
-            }
-        }
+        jsdoc: { package: "./package.json" }
     })
     .catch(console.error);

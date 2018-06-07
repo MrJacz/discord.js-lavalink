@@ -79,7 +79,7 @@ class LavalinkNode extends EventEmitter {
          * The interval to use for auto Reconnecting
          * @type {number}
          */
-        this.reconnectInterval = options.reconnectInterval || 5000;
+        this.reconnectInterval = options.reconnectInterval || 15000;
         /**
          * Player stats
          * @type {Object}
@@ -158,7 +158,7 @@ class LavalinkNode extends EventEmitter {
      */
     _reconnect() {
         this.reconnect = setTimeout(() => {
-            this.removeAllListeners();
+            this.ws.removeAllListeners();
             /**
 			 * Emmited when the node is attempting a reconnect
 			 * @event LavalinkNode#reconnecting
