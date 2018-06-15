@@ -54,7 +54,7 @@ client.on("message", async message => {
         }, { selfdeaf: true });
         if (!player) throw "No player found...";
         player.play(song.track);
-        player.on("error", console.error);
+        player.once("error", console.error);
         player.once("end", data => {
             if (data.reason === "REPLACED") return;
             message.channel.send("Song has ended...");
