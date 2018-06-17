@@ -76,8 +76,8 @@ manager.join({
 }).then(player => {
     player.play(track); // Track is a base64 string we get from Lavalink REST API
 
-    player.on("error", error => console.error(error));
-    player.on("end", data => {
+    player.once("error", error => console.error(error));
+    player.once("end", data => {
         if (data.reason === "REPLACED") return; // Ignore REPLACED reason to prevent skip loops
         // Play next song
     });
