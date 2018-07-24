@@ -601,62 +601,6 @@
     "$docmaLink": "?api=lavalink#LavaPlayer#event:error"
   },
   {
-    "kind": "package",
-    "name": "discord.js-lavalink",
-    "longname": "package:discord.js-lavalink",
-    "author": "Jacz",
-    "bugs": {
-      "url": "https://github.com/MrJacz/discord.js-lavalink/issues"
-    },
-    "dependencies": {
-      "ws": "^6.0.0"
-    },
-    "description": "A discord.js lavalink client",
-    "devDependencies": {
-      "@types/node": "^10.3.1",
-      "@types/ws": "^5.1.1",
-      "discord.js": "^11.3.2",
-      "docma": "^2.1.0",
-      "eslint": "^5.1.0",
-      "eslint-plugin-node": "^7.0.1",
-      "eslint-plugin-promise": "^3.8.0",
-      "tslint": "^5.10.0",
-      "typescript": "^2.9.1"
-    },
-    "files": [
-      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/LavalinkNode.js",
-      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/Player.js",
-      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/PlayerManager.js",
-      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/structures/PlayerStore.js",
-      "/home/travis/build/MrJacz/discord.js-lavalink/src/lib/util/util.js"
-    ],
-    "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
-    "keywords": [
-      "bot",
-      "music",
-      "discord",
-      "api",
-      "lava",
-      "lavalink",
-      "lavalink.js",
-      "discord.js"
-    ],
-    "licenses": [
-      {
-        "type": "MIT"
-      }
-    ],
-    "main": "src/index.js",
-    "repository": {
-      "type": "git",
-      "url": "git+https://github.com/MrJacz/discord.js-lavalink.git"
-    },
-    "version": "2.0.2",
-    "$longname": "package:discord.js-lavalink",
-    "$kind": "package",
-    "$docmaLink": "?api=lavalink#package:discord.js-lavalink"
-  },
-  {
     "comment": "/**\n * LavaLink Player\n * @extends {EventEmitter}\n */",
     "meta": {
       "range": [
