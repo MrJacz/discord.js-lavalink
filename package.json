@@ -41,7 +41,7 @@
     "typescript": "^2.9.1"
   },
   "dependencies": {
-    "ws": "^5.2.0"
+    "ws": "^6.0.0"
   },
   "peerDependencies": {
     "discord.js": "^11.3.2"
