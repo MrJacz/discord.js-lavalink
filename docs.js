@@ -27,7 +27,7 @@ Docma.create()
         ],
         dest: "./docs",
         debug: true,
-        jsdoc: { package: "./package.json" },
+        jsdoc: { plugins: ["jsdoc-dynamic"] },
         template: {
             options: {
                 title: Package.name,
