@@ -10,7 +10,7 @@ module.exports = {
  * @see {@link https://discord.js.org/#/docs/main/master/class/Client}
  */
 
- /**
+/**
  * @external Collection
  * @see {@link https://discord.js.org/#/docs/main/master/class/Collection}
  */
