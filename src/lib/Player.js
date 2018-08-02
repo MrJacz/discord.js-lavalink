@@ -21,12 +21,6 @@ class Player extends EventEmitter {
      */
     constructor(options = {}) {
         super();
-
-        /**
-         * Player options
-         * @type {Object}
-         */
-        this.options = options;
         /**
          * Player id (Guild ID)
          * @type {string}
@@ -36,17 +30,17 @@ class Player extends EventEmitter {
          * Discord.js Client
          * @type {external:Client}
          */
-        this.client = options.client;
+        Object.defineProperty(this, "client", { value: options.client });
         /**
          * The PlayerManager that initilized the player
          * @type {PlayerManager}
          */
-        this.manager = options.manager;
+        Object.defineProperty(this, "manager", { value: options.manager });
         /**
          * The current node for this Player
          * @type {LavalinkNode}
          */
-        this.node = options.node;
+        Object.defineProperty(this, "node", { value: options.node });
         /**
          * The current channel id
          * @type {string}
@@ -121,12 +115,11 @@ class Player extends EventEmitter {
      */
     play(track, options = {}) {
         this.track = track;
-        const payload = Object.assign({
+        this.node.send(Object.assign({
             op: "play",
             guildId: this.id,
             track
-        }, options);
-        this.node.send(payload);
+        }, options));
         this.playing = true;
         this.timestamp = Date.now();
         return this;
@@ -152,13 +145,12 @@ class Player extends EventEmitter {
      * @returns {Player}
      */
     pause(pause = true) {
-        if ((pause && this.paused) || (!pause && !this.paused)) return;
         this.node.send({
             op: "pause",
             guildId: this.id,
             pause
         });
-        this.paused = Boolean(pause);
+        this.paused = pause;
         return this;
     }
 

@@ -1,13 +1,12 @@
-const PlayerStore = require("./structures/PlayerStore.js");
+const { Collection } = require("discord.js");
 const Player = require("./Player");
 const LavalinkNode = require("./LavalinkNode");
-const { Collection } = require("discord.js");
 
 /**
  * Player Manager class
- * @extends {PlayerStore}
+ * @extends {external:Collection}
  */
-class PlayerManager extends PlayerStore {
+class PlayerManager extends Collection {
 
     /**
 	 * @typedef {Object} PlayerManagerOptions
@@ -23,36 +22,37 @@ class PlayerManager extends PlayerStore {
      * @param {PlayerManagerOptions} options PlayerManager Options
      */
     constructor(client, nodes = [], options = {}) {
-        super(options.player || Player);
-        if (!client) throw new Error("INVALID_CLIENT");
+        super();
+        if (!client) throw new Error("INVALID_CLIENT: No client provided.");
 
         /**
-         * Discord.js Client for the Player Manager
+         * The client of the PlayerManager
          * @type {external:Client}
+         * @private
          */
-        this.client = client;
+        Object.defineProperty(this, "client", { value: client });
         /**
          * Collection of LavaLink Nodes
-         * @type {Collection<string, LavalinkNode>}
+         * @type {external:Collection<string, LavalinkNode>}
          */
         this.nodes = new Collection();
         /**
          * This client's id
          * @type {string}
          */
-        this.user = options.user || client.user.id;
+        this.user = client.user ? client.user.id : options.user;
         /**
          * Total number of shards your bot is operating on
          * @type {number}
          */
-        this.shards = options.shards;
+        this.shards = options.shards || 1;
         /**
-         * PlayerManager Options
-         * @type {Object}
+         * The Player class
+         * @type {Player}
          */
-        this.options = options;
+        this.player = options.player || Player;
 
-        for (let i = 0; i < nodes.length; i++) this.createNode(nodes[i]);
+        for (const node of nodes) this.createNode(node);
 
         client.on("raw", message => {
             if (message.t === "VOICE_SERVER_UPDATE") this.voiceServerUpdate(message.d);
@@ -62,6 +62,7 @@ class PlayerManager extends PlayerStore {
     /**
      * A function to create LavaLink nodes and set them to PlayerManager#nodes
      * @param {Object} options Node options
+     * @returns {LavalinkNode}
      */
     createNode(options) {
         const node = new LavalinkNode(this, options);
@@ -70,6 +71,8 @@ class PlayerManager extends PlayerStore {
         node.on("message", this.onMessage.bind(this));
 
         this.nodes.set(options.host, node);
+
+        return node;
     }
 
     /**
@@ -117,7 +120,7 @@ class PlayerManager extends PlayerStore {
      * @param {Object} [options] Options
      * @param {boolean} [options.selfmute=false] Selfmute
      * @param {boolean} [options.selfdeaf=false] Selfdeaf
-     * @returns {Promise<Player>}
+     * @returns {Player}
      * @example
      * // Join voice channel
      * PlayerManager.join({
@@ -126,12 +129,11 @@ class PlayerManager extends PlayerStore {
      *  host: "localhost"
      * });
      */
-    async join(data, { selfmute = false, selfdeaf = false } = {}) {
+    join(data, { selfmute = false, selfdeaf = false } = {}) {
         const player = this.get(data.guild);
         if (player) return player;
         this.client.ws.send({
             op: 4,
-            shard: this.client.shard ? this.client.shard.id : 0,
             d: {
                 guild_id: data.guild,
                 channel_id: data.channel,
@@ -155,11 +157,8 @@ class PlayerManager extends PlayerStore {
      * PlayerManager.leave("412180910587379712");
      */
     leave(guild) {
-        const player = this.get(guild);
-        if (!player) return false;
         this.client.ws.send({
             op: 4,
-            shard: this.client.shard ? this.client.shard.id : 0,
             d: {
                 guild_id: guild,
                 channel_id: null,
@@ -167,6 +166,8 @@ class PlayerManager extends PlayerStore {
                 self_deaf: false
             }
         });
+        const player = this.get(guild);
+        if (!player) return false;
         player.removeAllListeners();
         player.destroy();
         return this.delete(guild);
@@ -202,13 +203,13 @@ class PlayerManager extends PlayerStore {
         if (player) return player;
         const node = this.nodes.get(data.host);
         if (!node) throw new Error(`INVALID_HOST: No available node with ${data.host}`);
-        return this.add({
+        return this.set(data.guild, new this.Player({
             id: data.guild,
             client: this.client,
             manager: this,
             node,
             channel: data.channel
-        });
+        }));
     }
 
 }

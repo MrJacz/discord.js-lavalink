@@ -8,27 +8,19 @@ declare module "discord.js-lavalink" {
 
     export const version: string;
 
-    export class PlayerManager extends PlayerStore<string, Player> {
+    export class PlayerManager extends Collection<string, Player> {
         public constructor(client: DiscordClient, nodes: object[], options: PlayerManagerOptions);
 
         public client: DiscordClient;
         public nodes: Collection<string, LavalinkNode>;
-        public options: PlayerManagerOptions;
 
-        public createNode(options: object): void;
+        public createNode(options: object): LavalinkNode;
         public removeNode(host: string): boolean;
         private onMessage(message: object): any;
         public join(data: { guild: string, channel: string, host: string, }, options?: { selfmute?: boolean, selfdeaf?: boolean }): Promise<Player>;
         public leave(guild: string): boolean;
         private voiceServerUpdate(data: object): void;
         public spawnPlayer(data: { guild: string, channel: string, host: string }): Player;
-    }
-
-    export class PlayerStore<K, V> extends Collection<K, V> {
-        public constructor(Player: Player);
-
-        private Player: Player;
-        private add(obj: object): Player;
     }
 
     export class Player extends EventEmitter {
@@ -108,10 +100,6 @@ declare module "discord.js-lavalink" {
     }
 
     export { LavalinkNode as Node };
-
-    export class Util {
-        public static isClass(input: Function): boolean;
-    }
 
     export type PlayerManagerOptions = {
         user: string;

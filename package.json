@@ -30,16 +30,16 @@
   },
   "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
   "devDependencies": {
-    "@types/node": "^10.3.1",
-    "@types/ws": "^5.1.1",
+    "@types/node": "^10.5.5",
+    "@types/ws": "^5.1.2",
     "discord.js": "^11.3.2",
     "docma": "^2.1.0",
     "jsdoc-dynamic": "^1.0.4",
-    "eslint": "^5.1.0",
+    "eslint": "^5.2.0",
     "eslint-plugin-node": "^7.0.1",
     "eslint-plugin-promise": "^3.8.0",
-    "tslint": "^5.10.0",
-    "typescript": "^2.9.1"
+    "tslint": "^5.11.0",
+    "typescript": "^3.0.1"
   },
   "dependencies": {
     "ws": "^6.0.0"
