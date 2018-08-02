@@ -1,5 +1,5 @@
 module.exports = {
-    extends:["eslint:recommended", "plugin:vue/base"],
+    extends: "eslint:recommended",
     env: {
         node: true,
         es6: true
@@ -10,8 +10,7 @@ module.exports = {
     },
     plugins: [
         "promise",
-        "node",
-        "vue"
+        "node"
     ],
     rules: {
         "no-extra-parens": [
@@ -256,19 +255,6 @@ module.exports = {
         "arrow-parens": [
             "error",
             "as-needed"
-        ],
-        "vue/html-indent":[
-            "error",
-            "tab",
-            {
-                "attribute":1,
-                "closeBracket":0,
-                "alignAttributesVertically":true,
-                "ignores":[]
-            }
-        ],
-        "vue/max-attributes-per-line":0,
-        "vue/require-prop-types":0,
-        "vue/require-v-for-key": "off"
+        ]
     }
 };
