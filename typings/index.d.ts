@@ -26,7 +26,6 @@ declare module "discord.js-lavalink" {
     export class Player extends EventEmitter {
         public constructor(options: PlayerOptions);
 
-        public options: PlayerOptions;
         public id: string;
         public client: DiscordClient;
         public manager: PlayerManager;
