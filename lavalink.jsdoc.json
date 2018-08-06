@@ -1823,7 +1823,7 @@
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
             "id": "astnode100001110",
-            "name": "this.player",
+            "name": "this.Player",
             "type": "LogicalExpression",
             "value": "",
             "paramnames": []
@@ -1835,14 +1835,14 @@
             "Player"
           ]
         },
-        "name": "player",
-        "longname": "PlayerManager#player",
+        "name": "Player",
+        "longname": "PlayerManager#Player",
         "kind": "member",
         "memberof": "PlayerManager",
         "scope": "instance",
-        "$longname": "PlayerManager#player",
+        "$longname": "PlayerManager#Player",
         "$kind": "property",
-        "$docmaLink": "?api=lavalink#PlayerManager#player"
+        "$docmaLink": "?api=lavalink#PlayerManager#Player"
       },
       {
         "comment": "/**\n     * Removes a node by host\n     * @param {string} host Node host\n     * @returns {boolean}\n     */",
