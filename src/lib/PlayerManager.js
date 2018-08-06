@@ -50,7 +50,7 @@ class PlayerManager extends Collection {
          * The Player class
          * @type {Player}
          */
-        this.player = options.player || Player;
+        this.Player = options.player || Player;
 
         for (const node of nodes) this.createNode(node);
 
