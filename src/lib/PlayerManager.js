@@ -199,17 +199,18 @@ class PlayerManager extends Collection {
      * @returns {Player}
      */
     spawnPlayer(data) {
-        const player = this.get(data.guild);
-        if (player) return player;
+        const exists = this.get(data.guild);
+        if (exists) return exists;
         const node = this.nodes.get(data.host);
         if (!node) throw new Error(`INVALID_HOST: No available node with ${data.host}`);
-        return this.set(data.guild, new this.Player({
+        const player = new this.Player({
             id: data.guild,
             client: this.client,
             manager: this,
             node,
             channel: data.channel
-        }));
+        });
+        return this.set(data.guild, player);
     }
 
 }
