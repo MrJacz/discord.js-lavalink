@@ -210,7 +210,8 @@ class PlayerManager extends Collection {
             node,
             channel: data.channel
         });
-        return this.set(data.guild, player);
+        this.set(data.guild, player);
+        return player;
     }
 
 }
