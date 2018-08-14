@@ -43,13 +43,13 @@ client.on("message", async message => {
     const command = args.shift().toLowerCase();
 
     if (command === "join" || command === "play") {
-        if (!message.member || !message.member.voiceChannel || !message.member.voiceChannelID) return message.reply("Must be in a voice channel");
+        if (!message.member || !message.member.voice.channel) return message.reply("Must be in a voice channel");
         let [...track] = args;
         track = track.join(" ");
         const [song] = await getSong(track);
         const player = await client.player.join({
             guild: message.guild.id,
-            channel: message.member.voiceChannelID,
+            channel: message.member.voice.channel.id,
             host: getIdealHost(message.guild.region)
         }, { selfdeaf: true });
         if (!player) throw "No player found...";

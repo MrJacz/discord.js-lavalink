@@ -179,13 +179,14 @@ class PlayerManager extends Collection {
      * @returns {void}
      * @private
      */
-    voiceServerUpdate(data) {
+    async voiceServerUpdate(data) {
         const guild = this.client.guilds.get(data.guild_id);
         if (!guild) return;
         const player = this.get(data.guild_id);
         if (!player) return;
+        if (!guild.me) await guild.members.fetch(this.client.user.id).catch(() => null);
         player.connect({
-            session: guild.me.voiceSessionID,
+            session: guild.me.voice.sessionID || guild.me.voiceSessionID,
             event: data
         });
     }
