@@ -186,7 +186,7 @@ class PlayerManager extends Collection {
         if (!player) return;
         if (!guild.me) await guild.members.fetch(this.client.user.id).catch(() => null);
         player.connect({
-            session: guild.me.voice.sessionID || guild.me.voiceSessionID,
+            session: guild.me.voice ? guild.me.voice.sessionID : guild.me.voiceSessionID,
             event: data
         });
     }
