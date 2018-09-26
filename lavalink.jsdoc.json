@@ -1492,7 +1492,7 @@
     "meta": {
       "range": [
         197,
-        6428
+        6444
       ],
       "filename": "PlayerManager.js",
       "lineno": 9,
@@ -1935,15 +1935,15 @@
         "comment": "/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @param {string} data.guild Player guild id\n     * @param {string} data.channel Player channel id\n     * @param {string} data.host Player host id\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            5929,
-            6425
+            5945,
+            6441
           ],
           "filename": "PlayerManager.js",
           "lineno": 202,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
-            "id": "astnode100001528",
+            "id": "astnode100001533",
             "name": "PlayerManager#spawnPlayer",
             "type": "MethodDefinition",
             "paramnames": [
