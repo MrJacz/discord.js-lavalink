@@ -198,6 +198,14 @@ class Player extends EventEmitter {
         });
         return this;
     }
+	
+    setEQ(bands) {
+	this.node.send({
+	    op: "equalizer",
+	    guildId: this.id,
+	    bands
+	});
+    }
 
     /**
      * Switch player channel
