@@ -200,11 +200,12 @@ class Player extends EventEmitter {
     }
 	
     setEQ(bands) {
-	this.node.send({
-	    op: "equalizer",
-	    guildId: this.id,
-	    bands
-	});
+        this.node.send({
+            op: "equalizer",
+            guildId: this.id,
+            bands
+        });
+        return this;
     }
 
     /**
