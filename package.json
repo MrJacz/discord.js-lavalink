@@ -33,7 +33,7 @@
     "@types/node": "^10.5.5",
     "@types/ws": "^6.0.0",
     "discord.js": "^11.3.2",
-    "docma": "^2.1.0",
+    "docma": "^3.1.0",
     "jsdoc-dynamic": "^1.0.4",
     "eslint": "^5.2.0",
     "eslint-plugin-node": "^7.0.1",
