@@ -56,5 +56,5 @@ jspm_packages/
 
 # Custom
 package-lock.json
-testing/config.json
+example/config.json
 

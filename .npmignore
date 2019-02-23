@@ -7,3 +7,4 @@ testing
 .travis.yml
 docs.js
 tslint.json
+example

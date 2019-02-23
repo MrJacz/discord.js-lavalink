@@ -40,7 +40,7 @@ Start by creating a new `PlayerManager` passing an array of nodes and an object 
 const { PlayerManager } = require("discord.js-lavalink");
 
 const nodes = [
-    { host: "localhost", port: 80, region: "asia", password: "youshallnotpass" }
+    { host: "localhost", port: 2333, password: "youshallnotpass" }
 ];
 
 const manager = new PlayerManager(client, nodes, {
@@ -50,16 +50,22 @@ const manager = new PlayerManager(client, nodes, {
 ```
 Resolving tracks using LavaLink REST API
 ```javascript
-async function getSongs(string) {
-    const res = await snekfetch.get(`http://localhost:2333/loadtracks?identifier=${string}`)
-        .set("Authorization", "youshallnotpass")
+const fetch = require("node-fetch");
+const { URLSearchParams } = require("url");
+
+async function getSongs(search) {
+    const node = client.player.nodes.first();
+
+    const params = new URLSearchParams();
+    params.append("identifier", search);
+
+    return fetch(`http://${node.host}:${node.port}/loadtracks?${params.toString()}`, { headers: { Authorization: node.password } })
+        .then(res => res.json())
+        .then(data => data.tracks)
         .catch(err => {
             console.error(err);
             return null;
         });
-    if (!res) throw "There was an error, try again";
-    if (!res.body.length) throw "No tracks found";
-    return res.body;
 }
 
 getSongs("ytsearch:30 second song").then(songs => {
@@ -70,8 +76,8 @@ Joining and Leaving channels
 ```javascript
 // Join
 manager.join({
-    guild: guildId // Guild id
-    channel: channelId // Channel id
+    guild: guildId, // Guild id
+    channel: channelId, // Channel id
     host: "localhost" // lavalink host, based on array of nodes
 }).then(player => {
     player.play(track); // Track is a base64 string we get from Lavalink REST API
@@ -87,4 +93,4 @@ manager.join({
 manager.leave(guildId); // Player ID aka guild id
 ```
 
-For a proper example look at [**Testing/app.js**](https://github.com/MrJacz/discord.js-lavalink/blob/master/testing/app.js)
+For a proper example look at [**example/app.js**](https://github.com/MrJacz/discord.js-lavalink/blob/master/example/app.js)
