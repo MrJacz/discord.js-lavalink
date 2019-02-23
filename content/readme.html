@@ -35,32 +35,36 @@
 <p>```javascript
 const { PlayerManager } = require(“discord.js-lavalink”);</p>
 <p>const nodes = [
-    { host: “localhost”, port: 80, region: “asia”, password: “youshallnotpass” }
+    { host: “localhost”, port: 2333, password: “youshallnotpass” }
 ];</p>
 <p>const manager = new PlayerManager(client, nodes, {
     user: client.user.id, // Client id
     shards: shardCount // Total number of shards your bot is operating on
 });
 <code>Resolving tracks using LavaLink REST API</code>javascript
-async function getSongs(string) {
-    const res = await snekfetch.get(<code>http://localhost:2333/loadtracks?identifier=${string}</code>)
-        .set(“Authorization”, “youshallnotpass”)
-        .catch(err =&gt; {
-            console.error(err);
-            return null;
-        });
-    if (!res) throw “There was an error, try again”;
-    if (!res.body.length) throw “No tracks found”;
-    return res.body;
-}</p>
+const fetch = require(“node-fetch”);
+const { URLSearchParams } = require(“url”);</p>
+<p>async function getSongs(search) {
+    const node = client.player.nodes.first();</p>
+<pre><code>const params = new URLSearchParams();
+params.append("identifier", search);
+
+return fetch(`http://${node.host}:${node.port}/loadtracks?${params.toString()}`, { headers: { Authorization: node.password } })
+    .then(res =&gt; res.json())
+    .then(data =&gt; data.tracks)
+    .catch(err =&gt; {
+        console.error(err);
+        return null;
+    });
+</code></pre><p>}</p>
 <p>getSongs(“ytsearch:30 second song”).then(songs =&gt; {
     // handle loading of the tracks somehow ¯_(ツ)_/¯
 });
 <code>Joining and Leaving channels</code>javascript
 // Join
 manager.join({
-    guild: guildId // Guild id
-    channel: channelId // Channel id
+    guild: guildId, // Guild id
+    channel: channelId, // Channel id
     host: “localhost” // lavalink host, based on array of nodes
 }).then(player =&gt; {
     player.play(track); // Track is a base64 string we get from Lavalink REST API</p>
@@ -73,5 +77,5 @@ player.once("end", data =&gt; {
 <p>// Leave voice channel and destory Player
 manager.leave(guildId); // Player ID aka guild id
 ```</p>
-<p>For a proper example look at <a href="https://github.com/MrJacz/discord.js-lavalink/blob/master/testing/app.js"><strong>Testing/app.js</strong></a></p>
+<p>For a proper example look at <a href="https://github.com/MrJacz/discord.js-lavalink/blob/master/example/app.js"><strong>example/app.js</strong></a></p>
 </body></html>

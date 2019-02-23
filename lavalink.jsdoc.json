@@ -4,7 +4,7 @@
     "meta": {
       "range": [
         135,
-        5857
+        5861
       ],
       "filename": "LavalinkNode.js",
       "lineno": 8,
@@ -57,8 +57,8 @@
         "comment": "/**\n     * Connects to the WebSocket server\n     */",
         "meta": {
           "range": [
-            2592,
-            3064
+            2596,
+            3068
           ],
           "filename": "LavalinkNode.js",
           "lineno": 95,
@@ -89,8 +89,8 @@
         "comment": "/**\n     * Destroys the WebSocket\n     * @returns {boolean}\n     */",
         "meta": {
           "range": [
-            3794,
-            3932
+            3798,
+            3936
           ],
           "filename": "LavalinkNode.js",
           "lineno": 145,
@@ -258,8 +258,8 @@
         "comment": "/**\n         * If the lavalink websocket is ready or not\n         * @type {boolean}\n         */",
         "meta": {
           "range": [
-            1985,
-            2003
+            1989,
+            2007
           ],
           "filename": "LavalinkNode.js",
           "lineno": 67,
@@ -292,8 +292,8 @@
         "comment": "/**\n         * Roconnection interval\n         * @type {?NodeJS.Timer}\n         */",
         "meta": {
           "range": [
-            2206,
-            2227
+            2210,
+            2231
           ],
           "filename": "LavalinkNode.js",
           "lineno": 77,
@@ -327,8 +327,8 @@
         "comment": "/**\n         * The interval to use for auto Reconnecting\n         * @type {number}\n         */",
         "meta": {
           "range": [
-            2340,
-            2399
+            2344,
+            2403
           ],
           "filename": "LavalinkNode.js",
           "lineno": 82,
@@ -361,8 +361,8 @@
         "comment": "/**\n         * Region\n         * @type {?string}\n         */",
         "meta": {
           "range": [
-            1625,
-            1661
+            1629,
+            1665
           ],
           "filename": "LavalinkNode.js",
           "lineno": 56,
@@ -396,8 +396,8 @@
         "comment": "/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {boolean}\n     */",
         "meta": {
           "range": [
-            3430,
-            3716
+            3434,
+            3720
           ],
           "filename": "LavalinkNode.js",
           "lineno": 128,
@@ -449,8 +449,8 @@
         "comment": "/**\n         * Player stats\n         * @type {Object}\n         */",
         "meta": {
           "range": [
-            2483,
-            2498
+            2487,
+            2502
           ],
           "filename": "LavalinkNode.js",
           "lineno": 87,
@@ -483,8 +483,8 @@
         "comment": "/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */",
         "meta": {
           "range": [
-            2092,
-            2106
+            2096,
+            2110
           ],
           "filename": "LavalinkNode.js",
           "lineno": 72,
@@ -519,8 +519,8 @@
       "comment": "/**\n     * LavaLink options\n     * @param {PlayerManager} manager The PlayerManager that created the Node\n     * @param {LavalinkNodeOptions} options LavaLink options\n     */",
       "meta": {
         "range": [
-          765,
-          2530
+          767,
+          2534
         ],
         "filename": "LavalinkNode.js",
         "lineno": 25,
@@ -1492,7 +1492,7 @@
     "meta": {
       "range": [
         197,
-        6869
+        6848
       ],
       "filename": "PlayerManager.js",
       "lineno": 9,
