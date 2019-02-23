@@ -132,7 +132,7 @@ class PlayerManager extends Collection {
     join(data, { selfmute = false, selfdeaf = false } = {}) {
         const player = this.get(data.guild);
         if (player) return player;
-        this.client.ws.send({
+        this.client.guilds.get(data.guild).shard.send({
             op: 4,
             d: {
                 guild_id: data.guild,
@@ -157,7 +157,7 @@ class PlayerManager extends Collection {
      * PlayerManager.leave("412180910587379712");
      */
     leave(guild) {
-        this.client.ws.send({
+        this.client.guilds.get(guild).shard.send({
             op: 4,
             d: {
                 guild_id: guild,
