@@ -11,7 +11,6 @@ class LavalinkNode extends EventEmitter {
 	 * @typedef {Object} LavalinkNodeOptions
      * @property {string} host Lavalink host
      * @property {number|string} [port=80] Lavalink port
-     * @property {number|string} [restPort=8080] Lavalink REST API Port
      * @property {string} [address] Lavalink address
      * @property {string} [region] Lavalink region
      * @property {string} [password="youshallnotpass"] Lavalink password
@@ -44,12 +43,6 @@ class LavalinkNode extends EventEmitter {
          * @private
          */
         Object.defineProperty(this, "port", { value: options.port || 80 });
-        /**
-         * Lavalink REST API Port
-         * @type {?(number|string)}
-         * @private
-         */
-        Object.defineProperty(this, "restPort", { value: options.restPort || null });
         /**
          * Address
          * @type {string}

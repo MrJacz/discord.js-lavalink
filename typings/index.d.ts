@@ -21,6 +21,7 @@ declare module "discord.js-lavalink" {
         public leave(guild: string): boolean;
         private voiceServerUpdate(data: object): void;
         public spawnPlayer(data: { guild: string, channel: string, host: string }): Player;
+        private sendWS(data: { op: number, d: object }): any;
     }
 
     export class Player extends EventEmitter {

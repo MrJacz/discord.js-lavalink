@@ -266,9 +266,8 @@ class Player extends EventEmitter {
      * @private
      */
     updateVoiceState(channel, { selfmute = false, selfdeaf = false } = {}) {
-        this.client.guilds.get(this.id).shard.send({
+        this.manager.sendWS({
             op: 4,
-            shard: this.client.shard ? this.client.shard.id : 0,
             d: {
                 guild_id: this.id,
                 channel_id: channel,

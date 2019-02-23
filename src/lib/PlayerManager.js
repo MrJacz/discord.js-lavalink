@@ -132,7 +132,7 @@ class PlayerManager extends Collection {
     join(data, { selfmute = false, selfdeaf = false } = {}) {
         const player = this.get(data.guild);
         if (player) return player;
-        this.client.guilds.get(data.guild).shard.send({
+        this.sendWS({
             op: 4,
             d: {
                 guild_id: data.guild,
@@ -157,7 +157,7 @@ class PlayerManager extends Collection {
      * PlayerManager.leave("412180910587379712");
      */
     leave(guild) {
-        this.client.guilds.get(guild).shard.send({
+        this.sendWS({
             op: 4,
             d: {
                 guild_id: guild,
@@ -213,6 +213,19 @@ class PlayerManager extends Collection {
         });
         this.set(data.guild, player);
         return player;
+    }
+
+    /**
+     * Private function for sending WS packets.
+     * @param {Object} data Data for the player
+     * @param {number} data.op OP for WS
+     * @param {Object} data.d The actual data for the WS
+     * @returns {void}
+     * @private
+     */
+    sendWS(data) {
+        const send = typeof this.client.ws.send === "function" ? this.client.ws.send : this.client.guilds.get(data.d.guild_id).shard.send;
+        return send(data);
     }
 
 }
