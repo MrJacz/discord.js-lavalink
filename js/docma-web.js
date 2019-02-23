@@ -2026,17 +2026,7 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
    * Module dependencies.
    */
 
-  
 
-  /**
-   * Module exports.
-   */
-
-  var page_js = page;
-  page.default = page;
-  page.Context = Context;
-  page.Route = Route;
-  page.sameOrigin = sameOrigin;
 
   /**
    * Short-cuts for global-object checks
@@ -2060,53 +2050,551 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
   var isLocation = hasWindow && !!(window.history.location || window.location);
 
   /**
-   * Perform initial dispatch.
+   * The page instance
+   * @api private
+   */
+  function Page() {
+    // public things
+    this.callbacks = [];
+    this.exits = [];
+    this.current = '';
+    this.len = 0;
+
+    // private things
+    this._decodeURLComponents = true;
+    this._base = '';
+    this._strict = false;
+    this._running = false;
+    this._hashbang = false;
+
+    // bound functions
+    this.clickHandler = this.clickHandler.bind(this);
+    this._onpopstate = this._onpopstate.bind(this);
+  }
+
+  /**
+   * Configure the instance of page. This can be called multiple times.
+   *
+   * @param {Object} options
+   * @api public
    */
 
-  var dispatch = true;
+  Page.prototype.configure = function(options) {
+    var opts = options || {};
+
+    this._window = opts.window || (hasWindow && window);
+    this._decodeURLComponents = opts.decodeURLComponents !== false;
+    this._popstate = opts.popstate !== false && hasWindow;
+    this._click = opts.click !== false && hasDocument;
+    this._hashbang = !!opts.hashbang;
+
+    var _window = this._window;
+    if(this._popstate) {
+      _window.addEventListener('popstate', this._onpopstate, false);
+    } else if(hasWindow) {
+      _window.removeEventListener('popstate', this._onpopstate, false);
+    }
+
+    if (this._click) {
+      _window.document.addEventListener(clickEvent, this.clickHandler, false);
+    } else if(hasDocument) {
+      _window.document.removeEventListener(clickEvent, this.clickHandler, false);
+    }
+
+    if(this._hashbang && hasWindow && !hasHistory) {
+      _window.addEventListener('hashchange', this._onpopstate, false);
+    } else if(hasWindow) {
+      _window.removeEventListener('hashchange', this._onpopstate, false);
+    }
+  };
+
+  /**
+   * Get or set basepath to `path`.
+   *
+   * @param {string} path
+   * @api public
+   */
+
+  Page.prototype.base = function(path) {
+    if (0 === arguments.length) return this._base;
+    this._base = path;
+  };
+
+  /**
+   * Gets the `base`, which depends on whether we are using History or
+   * hashbang routing.
+
+   * @api private
+   */
+  Page.prototype._getBase = function() {
+    var base = this._base;
+    if(!!base) return base;
+    var loc = hasWindow && this._window && this._window.location;
+
+    if(hasWindow && this._hashbang && loc && loc.protocol === 'file:') {
+      base = loc.pathname;
+    }
+
+    return base;
+  };
+
+  /**
+   * Get or set strict path matching to `enable`
+   *
+   * @param {boolean} enable
+   * @api public
+   */
+
+  Page.prototype.strict = function(enable) {
+    if (0 === arguments.length) return this._strict;
+    this._strict = enable;
+  };
 
 
   /**
-   * Decode URL components (query string, pathname, hash).
-   * Accommodates both regular percent encoding and x-www-form-urlencoded format.
+   * Bind with the given `options`.
+   *
+   * Options:
+   *
+   *    - `click` bind to click events [true]
+   *    - `popstate` bind to popstate [true]
+   *    - `dispatch` perform initial dispatch [true]
+   *
+   * @param {Object} options
+   * @api public
    */
-  var decodeURLComponents = true;
+
+  Page.prototype.start = function(options) {
+    var opts = options || {};
+    this.configure(opts);
+
+    if (false === opts.dispatch) return;
+    this._running = true;
+
+    var url;
+    if(isLocation) {
+      var window = this._window;
+      var loc = window.location;
+
+      if(this._hashbang && ~loc.hash.indexOf('#!')) {
+        url = loc.hash.substr(2) + loc.search;
+      } else if (this._hashbang) {
+        url = loc.search + loc.hash;
+      } else {
+        url = loc.pathname + loc.search + loc.hash;
+      }
+    }
+
+    this.replace(url, null, true, opts.dispatch);
+  };
 
   /**
-   * Base path.
+   * Unbind click and popstate event handlers.
+   *
+   * @api public
    */
 
-  var base = '';
+  Page.prototype.stop = function() {
+    if (!this._running) return;
+    this.current = '';
+    this.len = 0;
+    this._running = false;
+
+    var window = this._window;
+    this._click && window.document.removeEventListener(clickEvent, this.clickHandler, false);
+    hasWindow && window.removeEventListener('popstate', this._onpopstate, false);
+    hasWindow && window.removeEventListener('hashchange', this._onpopstate, false);
+  };
 
   /**
-   * Strict path matching.
+   * Show `path` with optional `state` object.
+   *
+   * @param {string} path
+   * @param {Object=} state
+   * @param {boolean=} dispatch
+   * @param {boolean=} push
+   * @return {!Context}
+   * @api public
    */
 
-  var strict = false;
+  Page.prototype.show = function(path, state, dispatch, push) {
+    var ctx = new Context(path, state, this),
+      prev = this.prevContext;
+    this.prevContext = ctx;
+    this.current = ctx.path;
+    if (false !== dispatch) this.dispatch(ctx, prev);
+    if (false !== ctx.handled && false !== push) ctx.pushState();
+    return ctx;
+  };
 
   /**
-   * Running flag.
+   * Goes back in the history
+   * Back should always let the current route push state and then go back.
+   *
+   * @param {string} path - fallback path to go back if no more history exists, if undefined defaults to page.base
+   * @param {Object=} state
+   * @api public
    */
 
-  var running;
+  Page.prototype.back = function(path, state) {
+    var page = this;
+    if (this.len > 0) {
+      var window = this._window;
+      // this may need more testing to see if all browsers
+      // wait for the next tick to go back in history
+      hasHistory && window.history.back();
+      this.len--;
+    } else if (path) {
+      setTimeout(function() {
+        page.show(path, state);
+      });
+    } else {
+      setTimeout(function() {
+        page.show(page._getBase(), state);
+      });
+    }
+  };
 
   /**
-   * HashBang option
+   * Register route to redirect from one path to other
+   * or just redirect to another route
+   *
+   * @param {string} from - if param 'to' is undefined redirects to 'from'
+   * @param {string=} to
+   * @api public
    */
+  Page.prototype.redirect = function(from, to) {
+    var inst = this;
 
-  var hashbang = false;
+    // Define route from a path to another
+    if ('string' === typeof from && 'string' === typeof to) {
+      page.call(this, from, function(e) {
+        setTimeout(function() {
+          inst.replace(/** @type {!string} */ (to));
+        }, 0);
+      });
+    }
+
+    // Wait for the push state and replace it with another
+    if ('string' === typeof from && 'undefined' === typeof to) {
+      setTimeout(function() {
+        inst.replace(from);
+      }, 0);
+    }
+  };
 
   /**
-   * Previous context, for capturing
-   * page exit events.
+   * Replace `path` with optional `state` object.
+   *
+   * @param {string} path
+   * @param {Object=} state
+   * @param {boolean=} init
+   * @param {boolean=} dispatch
+   * @return {!Context}
+   * @api public
    */
 
-  var prevContext;
+
+  Page.prototype.replace = function(path, state, init, dispatch) {
+    var ctx = new Context(path, state, this),
+      prev = this.prevContext;
+    this.prevContext = ctx;
+    this.current = ctx.path;
+    ctx.init = init;
+    ctx.save(); // save before dispatching, which may redirect
+    if (false !== dispatch) this.dispatch(ctx, prev);
+    return ctx;
+  };
 
   /**
-   * The window for which this `page` is running
+   * Dispatch the given `ctx`.
+   *
+   * @param {Context} ctx
+   * @api private
    */
-  var pageWindow;
+
+  Page.prototype.dispatch = function(ctx, prev) {
+    var i = 0, j = 0, page = this;
+
+    function nextExit() {
+      var fn = page.exits[j++];
+      if (!fn) return nextEnter();
+      fn(prev, nextExit);
+    }
+
+    function nextEnter() {
+      var fn = page.callbacks[i++];
+
+      if (ctx.path !== page.current) {
+        ctx.handled = false;
+        return;
+      }
+      if (!fn) return unhandled.call(page, ctx);
+      fn(ctx, nextEnter);
+    }
+
+    if (prev) {
+      nextExit();
+    } else {
+      nextEnter();
+    }
+  };
+
+  /**
+   * Register an exit route on `path` with
+   * callback `fn()`, which will be called
+   * on the previous context when a new
+   * page is visited.
+   */
+  Page.prototype.exit = function(path, fn) {
+    if (typeof path === 'function') {
+      return this.exit('*', path);
+    }
+
+    var route = new Route(path, null, this);
+    for (var i = 1; i < arguments.length; ++i) {
+      this.exits.push(route.middleware(arguments[i]));
+    }
+  };
+
+  /**
+   * Handle "click" events.
+   */
+
+  /* jshint +W054 */
+  Page.prototype.clickHandler = function(e) {
+    if (1 !== this._which(e)) return;
+
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (e.defaultPrevented) return;
+
+    // ensure link
+    // use shadow dom when available if not, fall back to composedPath()
+    // for browsers that only have shady
+    var el = e.target;
+    var eventPath = e.path || (e.composedPath ? e.composedPath() : null);
+
+    if(eventPath) {
+      for (var i = 0; i < eventPath.length; i++) {
+        if (!eventPath[i].nodeName) continue;
+        if (eventPath[i].nodeName.toUpperCase() !== 'A') continue;
+        if (!eventPath[i].href) continue;
+
+        el = eventPath[i];
+        break;
+      }
+    }
+
+    // continue ensure link
+    // el.nodeName for svg links are 'a' instead of 'A'
+    while (el && 'A' !== el.nodeName.toUpperCase()) el = el.parentNode;
+    if (!el || 'A' !== el.nodeName.toUpperCase()) return;
+
+    // check if link is inside an svg
+    // in this case, both href and target are always inside an object
+    var svg = (typeof el.href === 'object') && el.href.constructor.name === 'SVGAnimatedString';
+
+    // Ignore if tag has
+    // 1. "download" attribute
+    // 2. rel="external" attribute
+    if (el.hasAttribute('download') || el.getAttribute('rel') === 'external') return;
+
+    // ensure non-hash for the same path
+    var link = el.getAttribute('href');
+    if(!this._hashbang && this._samePath(el) && (el.hash || '#' === link)) return;
+
+    // Check for mailto: in the href
+    if (link && link.indexOf('mailto:') > -1) return;
+
+    // check target
+    // svg target is an object and its desired value is in .baseVal property
+    if (svg ? el.target.baseVal : el.target) return;
+
+    // x-origin
+    // note: svg links that are not relative don't call click events (and skip page.js)
+    // consequently, all svg links tested inside page.js are relative and in the same origin
+    if (!svg && !this.sameOrigin(el.href)) return;
+
+    // rebuild path
+    // There aren't .pathname and .search properties in svg links, so we use href
+    // Also, svg href is an object and its desired value is in .baseVal property
+    var path = svg ? el.href.baseVal : (el.pathname + el.search + (el.hash || ''));
+
+    path = path[0] !== '/' ? '/' + path : path;
+
+    // strip leading "/[drive letter]:" on NW.js on Windows
+    if (hasProcess && path.match(/^\/[a-zA-Z]:\//)) {
+      path = path.replace(/^\/[a-zA-Z]:\//, '/');
+    }
+
+    // same page
+    var orig = path;
+    var pageBase = this._getBase();
+
+    if (path.indexOf(pageBase) === 0) {
+      path = path.substr(pageBase.length);
+    }
+
+    if (this._hashbang) path = path.replace('#!', '');
+
+    if (pageBase && orig === path && (!isLocation || this._window.location.protocol !== 'file:')) {
+      return;
+    }
+
+    e.preventDefault();
+    this.show(orig);
+  };
+
+  /**
+   * Handle "populate" events.
+   * @api private
+   */
+
+  Page.prototype._onpopstate = (function () {
+    var loaded = false;
+    if ( ! hasWindow ) {
+      return function () {};
+    }
+    if (hasDocument && document.readyState === 'complete') {
+      loaded = true;
+    } else {
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          loaded = true;
+        }, 0);
+      });
+    }
+    return function onpopstate(e) {
+      if (!loaded) return;
+      var page = this;
+      if (e.state) {
+        var path = e.state.path;
+        page.replace(path, e.state);
+      } else if (isLocation) {
+        var loc = page._window.location;
+        page.show(loc.pathname + loc.search + loc.hash, undefined, undefined, false);
+      }
+    };
+  })();
+
+  /**
+   * Event button.
+   */
+  Page.prototype._which = function(e) {
+    e = e || (hasWindow && this._window.event);
+    return null == e.which ? e.button : e.which;
+  };
+
+  /**
+   * Convert to a URL object
+   * @api private
+   */
+  Page.prototype._toURL = function(href) {
+    var window = this._window;
+    if(typeof URL === 'function' && isLocation) {
+      return new URL(href, window.location.toString());
+    } else if (hasDocument) {
+      var anc = window.document.createElement('a');
+      anc.href = href;
+      return anc;
+    }
+  };
+
+  /**
+   * Check if `href` is the same origin.
+   * @param {string} href
+   * @api public
+   */
+
+  Page.prototype.sameOrigin = function(href) {
+    if(!href || !isLocation) return false;
+
+    var url = this._toURL(href);
+    var window = this._window;
+
+    var loc = window.location;
+    return loc.protocol === url.protocol &&
+      loc.hostname === url.hostname &&
+      loc.port === url.port;
+  };
+
+  /**
+   * @api private
+   */
+  Page.prototype._samePath = function(url) {
+    if(!isLocation) return false;
+    var window = this._window;
+    var loc = window.location;
+    return url.pathname === loc.pathname &&
+      url.search === loc.search;
+  };
+
+  /**
+   * Remove URL encoding from the given `str`.
+   * Accommodates whitespace in both x-www-form-urlencoded
+   * and regular percent-encoded form.
+   *
+   * @param {string} val - URL component to decode
+   * @api private
+   */
+  Page.prototype._decodeURLEncodedURIComponent = function(val) {
+    if (typeof val !== 'string') { return val; }
+    return this._decodeURLComponents ? decodeURIComponent(val.replace(/\+/g, ' ')) : val;
+  };
+
+  /**
+   * Create a new `page` instance and function
+   */
+  function createPage() {
+    var pageInstance = new Page();
+
+    function pageFn(/* args */) {
+      return page.apply(pageInstance, arguments);
+    }
+
+    // Copy all of the things over. In 2.0 maybe we use setPrototypeOf
+    pageFn.callbacks = pageInstance.callbacks;
+    pageFn.exits = pageInstance.exits;
+    pageFn.base = pageInstance.base.bind(pageInstance);
+    pageFn.strict = pageInstance.strict.bind(pageInstance);
+    pageFn.start = pageInstance.start.bind(pageInstance);
+    pageFn.stop = pageInstance.stop.bind(pageInstance);
+    pageFn.show = pageInstance.show.bind(pageInstance);
+    pageFn.back = pageInstance.back.bind(pageInstance);
+    pageFn.redirect = pageInstance.redirect.bind(pageInstance);
+    pageFn.replace = pageInstance.replace.bind(pageInstance);
+    pageFn.dispatch = pageInstance.dispatch.bind(pageInstance);
+    pageFn.exit = pageInstance.exit.bind(pageInstance);
+    pageFn.configure = pageInstance.configure.bind(pageInstance);
+    pageFn.sameOrigin = pageInstance.sameOrigin.bind(pageInstance);
+    pageFn.clickHandler = pageInstance.clickHandler.bind(pageInstance);
+
+    pageFn.create = createPage;
+
+    Object.defineProperty(pageFn, 'len', {
+      get: function(){
+        return pageInstance.len;
+      },
+      set: function(val) {
+        pageInstance.len = val;
+      }
+    });
+
+    Object.defineProperty(pageFn, 'current', {
+      get: function(){
+        return pageInstance.current;
+      },
+      set: function(val) {
+        pageInstance.current = val;
+      }
+    });
+
+    // In 2.0 these can be named exports
+    pageFn.Context = Context;
+    pageFn.Route = Route;
+
+    return pageFn;
+  }
 
   /**
    * Register `path` with callback `fn()`,
@@ -2129,265 +2617,23 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
   function page(path, fn) {
     // <callback>
     if ('function' === typeof path) {
-      return page('*', path);
+      return page.call(this, '*', path);
     }
 
     // route <path> to <callback ...>
     if ('function' === typeof fn) {
-      var route = new Route(/** @type {string} */ (path));
+      var route = new Route(/** @type {string} */ (path), null, this);
       for (var i = 1; i < arguments.length; ++i) {
-        page.callbacks.push(route.middleware(arguments[i]));
+        this.callbacks.push(route.middleware(arguments[i]));
       }
       // show <path> with [state]
     } else if ('string' === typeof path) {
-      page['string' === typeof fn ? 'redirect' : 'show'](path, fn);
+      this['string' === typeof fn ? 'redirect' : 'show'](path, fn);
       // start [options]
     } else {
-      page.start(path);
+      this.start(path);
     }
   }
-
-  /**
-   * Callback functions.
-   */
-
-  page.callbacks = [];
-  page.exits = [];
-
-  /**
-   * Current path being processed
-   * @type {string}
-   */
-  page.current = '';
-
-  /**
-   * Number of pages navigated to.
-   * @type {number}
-   *
-   *     page.len == 0;
-   *     page('/login');
-   *     page.len == 1;
-   */
-
-  page.len = 0;
-
-  /**
-   * Get or set basepath to `path`.
-   *
-   * @param {string} path
-   * @api public
-   */
-
-  page.base = function(path) {
-    if (0 === arguments.length) return base;
-    base = path;
-  };
-
-  /**
-   * Get or set strict path matching to `enable`
-   *
-   * @param {boolean} enable
-   * @api public
-   */
-
-  page.strict = function(enable) {
-    if (0 === arguments.length) return strict;
-    strict = enable;
-  };
-
-  /**
-   * Bind with the given `options`.
-   *
-   * Options:
-   *
-   *    - `click` bind to click events [true]
-   *    - `popstate` bind to popstate [true]
-   *    - `dispatch` perform initial dispatch [true]
-   *
-   * @param {Object} options
-   * @api public
-   */
-
-  page.start = function(options) {
-    options = options || {};
-    if (running) return;
-    running = true;
-    pageWindow = options.window || (hasWindow && window);
-    if (false === options.dispatch) dispatch = false;
-    if (false === options.decodeURLComponents) decodeURLComponents = false;
-    if (false !== options.popstate && hasWindow) pageWindow.addEventListener('popstate', onpopstate, false);
-    if (false !== options.click && hasDocument) {
-      pageWindow.document.addEventListener(clickEvent, onclick, false);
-    }
-    hashbang = !!options.hashbang;
-    if(hashbang && hasWindow && !hasHistory) {
-      pageWindow.addEventListener('hashchange', onpopstate, false);
-    }
-    if (!dispatch) return;
-
-    var url;
-    if(isLocation) {
-      var loc = pageWindow.location;
-
-      if(hashbang && ~loc.hash.indexOf('#!')) {
-        url = loc.hash.substr(2) + loc.search;
-      } else if (hashbang) {
-        url = loc.search + loc.hash;
-      } else {
-        url = loc.pathname + loc.search + loc.hash;
-      }
-    }
-
-    page.replace(url, null, true, dispatch);
-  };
-
-  /**
-   * Unbind click and popstate event handlers.
-   *
-   * @api public
-   */
-
-  page.stop = function() {
-    if (!running) return;
-    page.current = '';
-    page.len = 0;
-    running = false;
-    hasDocument && pageWindow.document.removeEventListener(clickEvent, onclick, false);
-    hasWindow && pageWindow.removeEventListener('popstate', onpopstate, false);
-    hasWindow && pageWindow.removeEventListener('hashchange', onpopstate, false);
-  };
-
-  /**
-   * Show `path` with optional `state` object.
-   *
-   * @param {string} path
-   * @param {Object=} state
-   * @param {boolean=} dispatch
-   * @param {boolean=} push
-   * @return {!Context}
-   * @api public
-   */
-
-  page.show = function(path, state, dispatch, push) {
-    var ctx = new Context(path, state),
-      prev = prevContext;
-    prevContext = ctx;
-    page.current = ctx.path;
-    if (false !== dispatch) page.dispatch(ctx, prev);
-    if (false !== ctx.handled && false !== push) ctx.pushState();
-    return ctx;
-  };
-
-  /**
-   * Goes back in the history
-   * Back should always let the current route push state and then go back.
-   *
-   * @param {string} path - fallback path to go back if no more history exists, if undefined defaults to page.base
-   * @param {Object=} state
-   * @api public
-   */
-
-  page.back = function(path, state) {
-    if (page.len > 0) {
-      // this may need more testing to see if all browsers
-      // wait for the next tick to go back in history
-      hasHistory && pageWindow.history.back();
-      page.len--;
-    } else if (path) {
-      setTimeout(function() {
-        page.show(path, state);
-      });
-    }else{
-      setTimeout(function() {
-        page.show(getBase(), state);
-      });
-    }
-  };
-
-
-  /**
-   * Register route to redirect from one path to other
-   * or just redirect to another route
-   *
-   * @param {string} from - if param 'to' is undefined redirects to 'from'
-   * @param {string=} to
-   * @api public
-   */
-  page.redirect = function(from, to) {
-    // Define route from a path to another
-    if ('string' === typeof from && 'string' === typeof to) {
-      page(from, function(e) {
-        setTimeout(function() {
-          page.replace(/** @type {!string} */ (to));
-        }, 0);
-      });
-    }
-
-    // Wait for the push state and replace it with another
-    if ('string' === typeof from && 'undefined' === typeof to) {
-      setTimeout(function() {
-        page.replace(from);
-      }, 0);
-    }
-  };
-
-  /**
-   * Replace `path` with optional `state` object.
-   *
-   * @param {string} path
-   * @param {Object=} state
-   * @param {boolean=} init
-   * @param {boolean=} dispatch
-   * @return {!Context}
-   * @api public
-   */
-
-
-  page.replace = function(path, state, init, dispatch) {
-    var ctx = new Context(path, state),
-      prev = prevContext;
-    prevContext = ctx;
-    page.current = ctx.path;
-    ctx.init = init;
-    ctx.save(); // save before dispatching, which may redirect
-    if (false !== dispatch) page.dispatch(ctx, prev);
-    return ctx;
-  };
-
-  /**
-   * Dispatch the given `ctx`.
-   *
-   * @param {Context} ctx
-   * @api private
-   */
-
-  page.dispatch = function(ctx, prev) {
-    var i = 0,
-      j = 0;
-
-    function nextExit() {
-      var fn = page.exits[j++];
-      if (!fn) return nextEnter();
-      fn(prev, nextExit);
-    }
-
-    function nextEnter() {
-      var fn = page.callbacks[i++];
-
-      if (ctx.path !== page.current) {
-        ctx.handled = false;
-        return;
-      }
-      if (!fn) return unhandled(ctx);
-      fn(ctx, nextEnter);
-    }
-
-    if (prev) {
-      nextExit();
-    } else {
-      nextEnter();
-    }
-  };
 
   /**
    * Unhandled `ctx`. When it's not the initial
@@ -2400,46 +2646,23 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
   function unhandled(ctx) {
     if (ctx.handled) return;
     var current;
+    var page = this;
+    var window = page._window;
 
-    if (hashbang) {
-      current = isLocation && getBase() + pageWindow.location.hash.replace('#!', '');
+    if (page._hashbang) {
+      current = isLocation && this._getBase() + window.location.hash.replace('#!', '');
     } else {
-      current = isLocation && pageWindow.location.pathname + pageWindow.location.search;
+      current = isLocation && window.location.pathname + window.location.search;
     }
 
     if (current === ctx.canonicalPath) return;
     page.stop();
     ctx.handled = false;
-    isLocation && (pageWindow.location.href = ctx.canonicalPath);
+    isLocation && (window.location.href = ctx.canonicalPath);
   }
 
-  /**
-   * Register an exit route on `path` with
-   * callback `fn()`, which will be called
-   * on the previous context when a new
-   * page is visited.
-   */
-  page.exit = function(path, fn) {
-    if (typeof path === 'function') {
-      return page.exit('*', path);
-    }
-
-    var route = new Route(path);
-    for (var i = 1; i < arguments.length; ++i) {
-      page.exits.push(route.middleware(arguments[i]));
-    }
-  };
-
-  /**
-   * Remove URL encoding from the given `str`.
-   * Accommodates whitespace in both x-www-form-urlencoded
-   * and regular percent-encoded form.
-   *
-   * @param {string} val - URL component to decode
-   */
-  function decodeURLEncodedURIComponent(val) {
-    if (typeof val !== 'string') { return val; }
-    return decodeURLComponents ? decodeURIComponent(val.replace(/\+/g, ' ')) : val;
+  function escapeRegExp(s) {
+    return s.replace(/([.+*?=^!:${}()[\]|/\\])/g, '\\$1')
   }
 
   /**
@@ -2452,20 +2675,25 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
    * @api public
    */
 
-  function Context(path, state) {
-    var pageBase = getBase();
+  function Context(path, state, pageInstance) {
+    var _page = this.page = pageInstance || page;
+    var window = _page._window;
+    var hashbang = _page._hashbang;
+
+    var pageBase = _page._getBase();
     if ('/' === path[0] && 0 !== path.indexOf(pageBase)) path = pageBase + (hashbang ? '#!' : '') + path;
     var i = path.indexOf('?');
 
     this.canonicalPath = path;
-    this.path = path.replace(pageBase, '') || '/';
+    var re = new RegExp('^' + escapeRegExp(pageBase));
+    this.path = path.replace(re, '') || '/';
     if (hashbang) this.path = this.path.replace('#!', '') || '/';
 
-    this.title = (hasDocument && pageWindow.document.title);
+    this.title = (hasDocument && window.document.title);
     this.state = state || {};
     this.state.path = path;
-    this.querystring = ~i ? decodeURLEncodedURIComponent(path.slice(i + 1)) : '';
-    this.pathname = decodeURLEncodedURIComponent(~i ? path.slice(0, i) : path);
+    this.querystring = ~i ? _page._decodeURLEncodedURIComponent(path.slice(i + 1)) : '';
+    this.pathname = _page._decodeURLEncodedURIComponent(~i ? path.slice(0, i) : path);
     this.params = {};
 
     // fragment
@@ -2474,16 +2702,10 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
       if (!~this.path.indexOf('#')) return;
       var parts = this.path.split('#');
       this.path = this.pathname = parts[0];
-      this.hash = decodeURLEncodedURIComponent(parts[1]) || '';
+      this.hash = _page._decodeURLEncodedURIComponent(parts[1]) || '';
       this.querystring = this.querystring.split('#')[0];
     }
   }
-
-  /**
-   * Expose `Context`.
-   */
-
-  page.Context = Context;
 
   /**
    * Push state.
@@ -2492,9 +2714,13 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
    */
 
   Context.prototype.pushState = function() {
+    var page = this.page;
+    var window = page._window;
+    var hashbang = page._hashbang;
+
     page.len++;
     if (hasHistory) {
-        pageWindow.history.pushState(this.state, this.title,
+        window.history.pushState(this.state, this.title,
           hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
     }
   };
@@ -2506,9 +2732,10 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
    */
 
   Context.prototype.save = function() {
-    if (hasHistory && pageWindow.location.protocol !== 'file:') {
-        pageWindow.history.replaceState(this.state, this.title,
-          hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
+    var page = this.page;
+    if (hasHistory && page._window.location.protocol !== 'file:') {
+        page._window.history.replaceState(this.state, this.title,
+          page._hashbang && this.path !== '/' ? '#!' + this.path : this.canonicalPath);
     }
   };
 
@@ -2527,21 +2754,14 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
    * @api private
    */
 
-  function Route(path, options) {
-    options = options || {};
-    options.strict = options.strict || strict;
+  function Route(path, options, page) {
+    var _page = this.page = page || globalPage;
+    var opts = options || {};
+    opts.strict = opts.strict || page._strict;
     this.path = (path === '*') ? '(.*)' : path;
     this.method = 'GET';
-    this.regexp = pathToRegexp_1(this.path,
-      this.keys = [],
-      options);
+    this.regexp = pathToRegexp_1(this.path, this.keys = [], opts);
   }
-
-  /**
-   * Expose `Route`.
-   */
-
-  page.Route = Route;
 
   /**
    * Return route middleware with
@@ -2580,7 +2800,7 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
 
     for (var i = 1, len = m.length; i < len; ++i) {
       var key = keys[i - 1];
-      var val = decodeURLEncodedURIComponent(m[i]);
+      var val = this.page._decodeURLEncodedURIComponent(m[i]);
       if (val !== undefined || !(hasOwnProperty.call(params, key.name))) {
         params[key.name] = val;
       }
@@ -2591,172 +2811,14 @@ pathToRegexp_1.tokensToRegExp = tokensToRegExp_1;
 
 
   /**
-   * Handle "populate" events.
+   * Module exports.
    */
 
-  var onpopstate = (function () {
-    var loaded = false;
-    if ( ! hasWindow ) {
-      return;
-    }
-    if (hasDocument && document.readyState === 'complete') {
-      loaded = true;
-    } else {
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          loaded = true;
-        }, 0);
-      });
-    }
-    return function onpopstate(e) {
-      if (!loaded) return;
-      if (e.state) {
-        var path = e.state.path;
-        page.replace(path, e.state);
-      } else if (isLocation) {
-        var loc = pageWindow.location;
-        page.show(loc.pathname + loc.hash, undefined, undefined, false);
-      }
-    };
-  })();
-  /**
-   * Handle "click" events.
-   */
+  var globalPage = createPage();
+  var page_js = globalPage;
+  var default_1 = globalPage;
 
-  /* jshint +W054 */
-  function onclick(e) {
-    if (1 !== which(e)) return;
-
-    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-    if (e.defaultPrevented) return;
-
-    // ensure link
-    // use shadow dom when available if not, fall back to composedPath() for browsers that only have shady
-    var el = e.target;
-    var eventPath = e.path || (e.composedPath ? e.composedPath() : null);
-
-    if(eventPath) {
-      for (var i = 0; i < eventPath.length; i++) {
-        if (!eventPath[i].nodeName) continue;
-        if (eventPath[i].nodeName.toUpperCase() !== 'A') continue;
-        if (!eventPath[i].href) continue;
-
-        el = eventPath[i];
-        break;
-      }
-    }
-    // continue ensure link
-    // el.nodeName for svg links are 'a' instead of 'A'
-    while (el && 'A' !== el.nodeName.toUpperCase()) el = el.parentNode;
-    if (!el || 'A' !== el.nodeName.toUpperCase()) return;
-
-    // check if link is inside an svg
-    // in this case, both href and target are always inside an object
-    var svg = (typeof el.href === 'object') && el.href.constructor.name === 'SVGAnimatedString';
-
-    // Ignore if tag has
-    // 1. "download" attribute
-    // 2. rel="external" attribute
-    if (el.hasAttribute('download') || el.getAttribute('rel') === 'external') return;
-
-    // ensure non-hash for the same path
-    var link = el.getAttribute('href');
-    if(!hashbang && samePath(el) && (el.hash || '#' === link)) return;
-
-    // Check for mailto: in the href
-    if (link && link.indexOf('mailto:') > -1) return;
-
-    // check target
-    // svg target is an object and its desired value is in .baseVal property
-    if (svg ? el.target.baseVal : el.target) return;
-
-    // x-origin
-    // note: svg links that are not relative don't call click events (and skip page.js)
-    // consequently, all svg links tested inside page.js are relative and in the same origin
-    if (!svg && !sameOrigin(el.href)) return;
-
-    // rebuild path
-    // There aren't .pathname and .search properties in svg links, so we use href
-    // Also, svg href is an object and its desired value is in .baseVal property
-    var path = svg ? el.href.baseVal : (el.pathname + el.search + (el.hash || ''));
-
-    path = path[0] !== '/' ? '/' + path : path;
-
-    // strip leading "/[drive letter]:" on NW.js on Windows
-    if (hasProcess && path.match(/^\/[a-zA-Z]:\//)) {
-      path = path.replace(/^\/[a-zA-Z]:\//, '/');
-    }
-
-    // same page
-    var orig = path;
-    var pageBase = getBase();
-
-    if (path.indexOf(pageBase) === 0) {
-      path = path.substr(base.length);
-    }
-
-    if (hashbang) path = path.replace('#!', '');
-
-    if (pageBase && orig === path) return;
-
-    e.preventDefault();
-    page.show(orig);
-  }
-
-  /**
-   * Event button.
-   */
-
-  function which(e) {
-    e = e || (hasWindow && window.event);
-    return null == e.which ? e.button : e.which;
-  }
-
-  /**
-   * Convert to a URL object
-   */
-  function toURL(href) {
-    if(typeof URL === 'function' && isLocation) {
-      return new URL(href, location.toString());
-    } else if (hasDocument) {
-      var anc = document.createElement('a');
-      anc.href = href;
-      return anc;
-    }
-  }
-
-  /**
-   * Check if `href` is the same origin.
-   */
-
-  function sameOrigin(href) {
-    if(!href || !isLocation) return false;
-    var url = toURL(href);
-
-    var loc = pageWindow.location;
-    return loc.protocol === url.protocol &&
-      loc.hostname === url.hostname &&
-      loc.port === url.port;
-  }
-
-  function samePath(url) {
-    if(!isLocation) return false;
-    var loc = pageWindow.location;
-    return url.pathname === loc.pathname &&
-      url.search === loc.search;
-  }
-
-  /**
-   * Gets the `base`, which depends on whether we are using History or
-   * hashbang routing.
-   */
-  function getBase() {
-    if(!!base) return base;
-    var loc = hasWindow && pageWindow && pageWindow.location;
-    return (hasWindow && hashbang && loc && loc.protocol === 'file:') ? loc.pathname : base;
-  }
-
-  page.sameOrigin = sameOrigin;
+page_js.default = default_1;
 
 return page_js;
 
@@ -3251,15 +3313,15 @@ return page_js;
 
 /* docma (dust) compiled templates */
 (function(dust){dust.register("docma-404",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{"boxed":"true"}).w("<div id=\"page-content-wrapper\"><div class=\"container container-boxed\"><br /><br /><h1>404</h1><hr /><h3>Page Not Found</h3><br />The file or page you have requested is not found. &nbsp;&nbsp;<br />Please make sure page address is entered correctly.<br /><br /><br /></div></div>");}body_0.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("docma-api",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{}).w("<div id=\"wrapper\">").x(ctx.getPath(false, ["template","options","sidebar","enabled"]),ctx,{"block":body_1},{}).w("<div id=\"page-content-wrapper\"><div class=\"container\"><br />").s(ctx.get(["documentation"], false),ctx,{"block":body_2},{}).w("<br /><span class=\"docma-info\">Documentation built with <b><a target=\"_blank\" href=\"https://onury.io/docma\">Docma</a></b>.</span></div></div></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<div id=\"sidebar-wrapper\">").p("sidebar",ctx,ctx,{}).w("</div>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(true, []),"template":ctx.get(["template"], false)});}body_2.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("docma-content",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{"boxed":"true"}).w("<div id=\"page-content-wrapper\"><div class='").h("eq",ctx,{"block":body_1},{"key":ctx.getPath(false, ["currentRoute","sourceType"]),"value":"md"},"h").w("'><div id=\"docma-content\"></div>").h("eq",ctx,{"block":body_2},{"key":ctx.getPath(false, ["currentRoute","sourceType"]),"value":"md"},"h").w("</div></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("container container-boxed");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<br /><hr /><span class=\"docma-info\">Documentation built with <b><a target=\"_blank\" href=\"https://onury.io/docma\">Docma</a></b>.</span>");}body_2.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("docma-api",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{}).w("<div id=\"wrapper\">").x(ctx.getPath(false, ["template","options","sidebar","enabled"]),ctx,{"block":body_1},{}).w("<div id=\"page-content-wrapper\"><div class=\"container\"><br />").s(ctx.get(["documentation"], false),ctx,{"block":body_2},{}).w("<br /><span class=\"docma-info\">Documentation built with <b><a target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://onury.io/docma\">Docma</a></b>.</span></div></div></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<div id=\"sidebar-wrapper\">").p("sidebar",ctx,ctx,{}).w("</div>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(true, []),"template":ctx.get(["template"], false)});}body_2.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("docma-content",body_0);function body_0(chk,ctx){return chk.p("navbar",ctx,ctx,{"boxed":"true"}).w("<div id=\"page-content-wrapper\"><div class='").h("eq",ctx,{"block":body_1},{"key":ctx.getPath(false, ["currentRoute","sourceType"]),"value":"md"},"h").w("'><div id=\"docma-content\"></div>").h("eq",ctx,{"block":body_2},{"key":ctx.getPath(false, ["currentRoute","sourceType"]),"value":"md"},"h").w("</div></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("container container-boxed");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<br /><hr /><span class=\"docma-info\">Documentation built with <b><a target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://onury.io/docma\">Docma</a></b>.</span>");}body_2.__dustBody=!0;return body_0}(dust));
 (function(dust){dust.register("enums",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["$members"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.h("eq",ctx,{"else":body_2,"block":body_4},{"key":ctx.getPath(false, ["template","options","symbols","enums"]),"value":"table"},"h");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div class=\"space-top-sm space-bottom-xs fw-bold\">Enumeration</div><ul class=\"param-list\">").s(ctx.get(["$members"], false),ctx,{"block":body_3},{}).w("</ul>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<li><div class=\"param-meta clearfix\"><span class=\"inline-block space-right-sm\"><code>").f(ctx.getPath(true, []),ctx,"h",["$longname","s","$dot_prop"]).w("</code>&nbsp;:&nbsp;<code>").f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></span><span class=\"param-info-box\"><span class=\"param-info value\">Value:&nbsp;</span><code>").f(ctx.getPath(true, []),ctx,"h",["$val"]).w("</code></span></div><div class=\"param-desc\">").f(ctx.getPath(true, []),ctx,"h",["s","$desc"]).w("</div></li>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Enumeration</th><th>Type</th><th>Value</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["$members"], false),ctx,{"block":body_5},{}).w("</tbody></table>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<tr><td><code>").f(ctx.getPath(true, []),ctx,"h",["$longname","s","$dot_prop"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["$val"]).w("</code></td><td>").f(ctx.getPath(true, []),ctx,"h",["s","$desc"]).w("</td></tr>");}body_5.__dustBody=!0;return body_0}(dust));
 (function(dust){dust.register("navbar",body_0);function body_0(chk,ctx){return chk.x(ctx.getPath(false, ["template","options","navbar","enabled"]),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<nav class=\"navbar ").x(ctx.getPath(false, ["template","options","navbar","dark"]),ctx,{"block":body_2},{}).w("\"><div class=\"navbar-inner ").x(ctx.get(["boxed"], false),ctx,{"block":body_3},{}).w("\"><div class=\"navbar-brand\">").x(ctx.getPath(false, ["template","options","logo","dark"]),ctx,{"block":body_4},{}).w("<span class=\"navbar-title\"><a href=\"").f(ctx.getPath(false, ["template","options","title","href"]),ctx,"h").w("\">").f(ctx.getPath(false, ["template","options","title","label"]),ctx,"h").w("</a></span></div>").h("gt",ctx,{"block":body_7},{"key":ctx.getPath(false, ["template","options","navbar","menu","length"]),"value":0},"h").w("</div></nav>").x(ctx.getPath(false, ["template","options","navbar","fixed"]),ctx,{"block":body_16},{}).w("<div class=\"nav-overlay\"></div>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("dark");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("container container-boxed");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.x(ctx.getPath(false, ["template","options","navbar","dark"]),ctx,{"else":body_5,"block":body_6},{});}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<img src=\"").f(ctx.getPath(false, ["template","options","logo","dark"]),ctx,"h").w("\" alt=\"logo\" class=\"navbar-logo\" />");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<img src=\"").f(ctx.getPath(false, ["template","options","logo","light"]),ctx,"h").w("\" alt=\"logo\" class=\"navbar-logo\" />");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<div class=\"navbar-menu-btn\" tabindex=\"0\"><i class=\"fas fa-lg fa-bars trans-all-ease\"></i><i class=\"fas fa-md fa-times trans-all-ease\"></i></div><div class=\"navbar-menu\"><ul class=\"navbar-list\">").s(ctx.getPath(false, ["template","options","navbar","menu"]),ctx,{"block":body_8},{}).w("</ul></div>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.x(ctx.get(["items"], false),ctx,{"else":body_9,"block":body_10},{});}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.p("navitem",ctx,ctx.rebase(ctx.getPath(true, [])),{});}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.w("<li class=\"dropdown\"><a href=\"").x(ctx.get(["href"], false),ctx,{"else":body_11,"block":body_12},{}).w("\" role=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\"><i class=\"nav-icon ").f(ctx.get(["iconClass"], false),ctx,"h").w("\" aria-hidden=\"true\"></i>").x(ctx.get(["label"], false),ctx,{"block":body_13},{}).x(ctx.get(["chevron"], false),ctx,{"block":body_14},{}).w("</a><ul>").s(ctx.get(["items"], false),ctx,{"block":body_15},{}).w("</ul></li>");}body_10.__dustBody=!0;function body_11(chk,ctx){return chk.w("#");}body_11.__dustBody=!0;function body_12(chk,ctx){return chk.f(ctx.get(["href"], false),ctx,"h");}body_12.__dustBody=!0;function body_13(chk,ctx){return chk.w("<span class=\"nav-label\">").f(ctx.get(["label"], false),ctx,"h").w("</span>");}body_13.__dustBody=!0;function body_14(chk,ctx){return chk.w("<i class=\"nav-arrow fas fa-sm fa-angle-down\"></i>");}body_14.__dustBody=!0;function body_15(chk,ctx){return chk.w(" ").p("navitem",ctx,ctx.rebase(ctx.getPath(true, [])),{}).w(" ");}body_15.__dustBody=!0;function body_16(chk,ctx){return chk.w("<div class=\"nav-spacer\"></div>");}body_16.__dustBody=!0;return body_0}(dust));
 (function(dust){dust.register("navitem",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["separator"], false),ctx,{"else":body_1,"block":body_6},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<li><a href=\"").x(ctx.get(["href"], false),ctx,{"else":body_2,"block":body_3},{}).w("\" target=\"").f(ctx.get(["target"], false),ctx,"h").w("\">").x(ctx.get(["iconClass"], false),ctx,{"block":body_4},{}).x(ctx.get(["label"], false),ctx,{"block":body_5},{}).w("</a></li>");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("#");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.f(ctx.get(["href"], false),ctx,"h");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<i class=\"nav-icon ").f(ctx.get(["iconClass"], false),ctx,"h").w("\" aria-hidden=\"true\"></i>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<span class=\"nav-label\">").f(ctx.get(["label"], false),ctx,"h",["s"]).w("</span>");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<li role=\"separator\" class=\"divider\"></li>");}body_6.__dustBody=!0;return body_0}(dust));
 (function(dust){dust.register("params",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["params"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.h("eq",ctx,{"else":body_2,"block":body_8},{"key":ctx.getPath(false, ["template","options","symbols","params"]),"value":"table"},"h");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div class=\"space-top-sm space-bottom-xs fw-bold\">Parameters</div><ul class=\"param-list\">").s(ctx.get(["params"], false),ctx,{"block":body_3},{}).w("</ul>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<li><div class=\"param-meta clearfix\"><span class=\"inline-block space-right-sm\"><code>").x(ctx.get(["variable"], false),ctx,{"block":body_4},{}).f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code>&nbsp;:&nbsp;<code>").x(ctx.get(["variable"], false),ctx,{"block":body_5},{}).f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></span><span class=\"param-info-box\">").x(ctx.get(["optional"], false),ctx,{"else":body_6,"block":body_7},{}).w("</span></div><div class=\"param-desc\">").f(ctx.getPath(true, []),ctx,"h",["s","$param_desc"]).w("</div></li>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("...");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("...");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<span class=\"param-info required boxed\">Required</span>");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<span class=\"param-info default\">Default:&nbsp;</span><code>").f(ctx.getPath(true, []),ctx,"h",["$def"]).w("</code>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["params"], false),ctx,{"block":body_9},{}).w("</tbody></table>");}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.w("<tr><td><code>").x(ctx.get(["variable"], false),ctx,{"block":body_10},{}).f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code></td><td><code>").x(ctx.get(["variable"], false),ctx,{"block":body_11},{}).f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></td><td>").x(ctx.get(["optional"], false),ctx,{"else":body_12,"block":body_13},{}).f(ctx.getPath(true, []),ctx,"h",["s","$param_desc"]).w("</td></tr>");}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.w("...");}body_10.__dustBody=!0;function body_11(chk,ctx){return chk.w("...");}body_11.__dustBody=!0;function body_12(chk,ctx){return chk.w("<span class=\"param-info required boxed\">Required</span>");}body_12.__dustBody=!0;function body_13(chk,ctx){return chk.w("<span class=\"param-info default boxed\">Default</span><span class=\"color-gray\">:</span><code>").f(ctx.getPath(true, []),ctx,"h",["$def"]).w("</code>");}body_13.__dustBody=!0;return body_0}(dust));
 (function(dust){dust.register("properties",body_0);function body_0(chk,ctx){return chk.x(ctx.get(["properties"], false),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.h("eq",ctx,{"else":body_2,"block":body_4},{"key":ctx.getPath(false, ["template","options","symbols","props"]),"value":"table"},"h");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div class=\"space-top-sm space-bottom-xs fw-bold\">Properties</div><ul class=\"param-list\">").s(ctx.get(["properties"], false),ctx,{"block":body_3},{}).w("</ul>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<li><div class=\"param-meta clearfix\"><span class=\"inline-block space-right-sm\"><code>").f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code>&nbsp;:&nbsp;<code>").f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></span></div><div class=\"param-desc\">").f(ctx.get(["description"], false),ctx,"h",["s","$p"]).w("</div></li>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<table class=\"table table-striped table-bordered\"><thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead><tbody>").s(ctx.get(["properties"], false),ctx,{"block":body_5},{}).w("</tbody></table>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<tr><td><code>").f(ctx.get(["name"], false),ctx,"h",["s","$dot_prop"]).w("</code></td><td><code>").f(ctx.getPath(true, []),ctx,"h",["s","$type"]).w("</code></td><td>").f(ctx.get(["description"], false),ctx,"h",["s","$p"]).w("</td></tr>");}body_5.__dustBody=!0;return body_0}(dust));
 (function(dust){dust.register("sidebar",body_0);function body_0(chk,ctx){return chk.w("<div class=\"sidebar-header\"><div id=\"sidebar-toggle\"><i class=\"fas fa-lg fa-bars trans-all-ease\"></i></div><div class=\"sidebar-brand\">").x(ctx.getPath(false, ["template","options","logo","light"]),ctx,{"block":body_1},{}).w("<span class=\"sidebar-title\"><a href=\"").f(ctx.getPath(false, ["template","options","title","href"]),ctx,"h").w("\">").f(ctx.getPath(false, ["template","options","title","label"]),ctx,"h").w("</a></span></div>").x(ctx.getPath(false, ["template","options","sidebar","search"]),ctx,{"block":body_2},{}).x(ctx.getPath(false, ["template","options","sidebar","toolbar"]),ctx,{"block":body_3},{}).w("</div><div class=\"sidebar-nav-container\"><ul class=\"sidebar-nav\">").f(ctx.get(["symbols"], false),ctx,"h",["s","$navnodes"]).w("</ul></div>");}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<img src=\"").f(ctx.getPath(false, ["template","options","logo","light"]),ctx,"h").w("\" alt=\"logo\" class=\"sidebar-logo\" />");}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.w("<div class=\"sidebar-search\"><div class=\"sidebar-search-icon\"><i class=\"fas fa-md fa-search\"></i></div><input id=\"txt-search\" type=\"search\" placeholder=\"Search...\" autocorrect=\"off\" autocapitalize=\"off\" spellcheck=\"false\" /><div class=\"sidebar-search-clean\"><i class=\"fas fa-lg fa-times-circle\"></i></div></div>");}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<div class=\"sidebar-toolbar\"><div class=\"toolbar-scope-filters\"></div><div class=\"toolbar-kind-filters\"></div><div class=\"toolbar-buttons\"><span class=\"btn-switch-fold inline-block\" title=\"Fold Symbols\">").h("eq",ctx,{"else":body_4,"block":body_5},{"key":ctx.getPath(false, ["template","options","sidebar","itemsFolded"]),"type":"boolean","value":"true"},"h").w("</span><span class=\"btn-switch-outline inline-block space-left-xs\" title=\"Toggle Outline\">").h("eq",ctx,{"else":body_6,"block":body_7},{"key":ctx.getPath(false, ["template","options","sidebar","outline"]),"type":"string","value":"tree"},"h").w("</span></div></div>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<i class=\"far fa-lg fa-caret-square-down\"></i>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<i class=\"far fa-lg fa-caret-square-right\"></i>");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<i class=\"fas fa-lg fa-outdent\"></i>");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<i class=\"fas fa-lg fa-indent\"></i>");}body_7.__dustBody=!0;return body_0}(dust));
-(function(dust){dust.register("symbol",body_0);function body_0(chk,ctx){return chk.nx(ctx.getPath(false, ["symbol","$hide"]),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<div id=\"").f(ctx.get(["symbol"], false),ctx,"h",["$id"]).w("\" class=\"symbol-container\"><div class=\"symbol-heading\"><div class=\"symbol\"><a href=\"#").f(ctx.get(["symbol"], false),ctx,"h",["$id"]).w("\"><i class=\"fas fa-link color-gray-light\" aria-hidden=\"true\"></i></a><code class=\"symbol-name\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$longname_params"]).w("</code><span class=\"symbol-sep\">").f(ctx.get(["symbol"], false),ctx,"h",["$type_sep"]).w("</span><code class=\"symbol-type\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$type"]).w("</code>").f(ctx.get(["symbol"], false),ctx,"h",["s","$tags"]).w("</div></div><div class=\"symbol-definition\"><div class=\"symbol-info\">").x(ctx.getPath(false, ["symbol","alias"]),ctx,{"block":body_2},{}).x(ctx.getPath(false, ["symbol","augments"]),ctx,{"block":body_4},{}).x(ctx.getPath(false, ["symbol","version"]),ctx,{"block":body_5},{}).x(ctx.getPath(false, ["symbol","since"]),ctx,{"block":body_6},{}).x(ctx.getPath(false, ["symbol","copyright"]),ctx,{"block":body_7},{}).x(ctx.getPath(false, ["symbol","author"]),ctx,{"block":body_8},{}).x(ctx.getPath(false, ["symbol","license"]),ctx,{"block":body_9},{}).w("</div>").f(ctx.get(["symbol"], false),ctx,"h",["s","$desc"]).x(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_10},{}).h("ne",ctx,{"block":body_15},{"key":ctx.getPath(false, ["symbol","meta","code","type"]),"value":"ClassDeclaration"},"h").x(ctx.getPath(false, ["symbol","fires"]),ctx,{"block":body_18},{}).x(ctx.getPath(false, ["symbol","returns"]),ctx,{"block":body_20},{}).x(ctx.getPath(false, ["symbol","generator"]),ctx,{"block":body_23},{}).x(ctx.getPath(false, ["symbol","exceptions"]),ctx,{"block":body_27},{}).x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"block":body_30},{}).x(ctx.getPath(false, ["symbol","examples"]),ctx,{"block":body_31},{}).x(ctx.getPath(false, ["template","options","symbols","meta"]),ctx,{"block":body_34},{}).w("</div></div><hr />").x(ctx.getPath(false, ["symbol","$constructor"]),ctx,{"block":body_38},{}).nx(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"block":body_40},{});}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.nx(ctx.get(["$constructor"], false),ctx,{"block":body_3},{});}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<p><b class=\"caption\">Alias:</b> <code>").f(ctx.getPath(false, ["symbol","alias"]),ctx,"h",["s","$dot_prop"]).w("</code></p>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<p><b class=\"caption\">Extends:</b> ").f(ctx.get(["symbol"], false),ctx,"h",["s","$extends"]).w("</p>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<p><b class=\"caption\">Version:</b>&nbsp;").f(ctx.getPath(false, ["symbol","version"]),ctx,"h",["s"]).w("</p>");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<p><b class=\"caption\">Since:</b>&nbsp;").f(ctx.getPath(false, ["symbol","since"]),ctx,"h",["s"]).w("</p>");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<p><b class=\"caption\">Copyright:</b>&nbsp;").f(ctx.getPath(false, ["symbol","copyright"]),ctx,"h",["s"]).w("</p>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.w("<p><b class=\"caption\">Author:</b>&nbsp;").f(ctx.getPath(false, ["symbol","author"]),ctx,"h",["s","$author"]).w("</p>");}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.w("<p><b class=\"caption\">License:</b>&nbsp;").f(ctx.getPath(false, ["symbol","license"]),ctx,"h",["s"]).w("</p>");}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.w("<p class=\"no-margin\"><b>See</b>").h("gt",ctx,{"else":body_11,"block":body_13},{"key":ctx.getPath(false, ["symbol","see","length"]),"value":1},"h").w("</p>");}body_10.__dustBody=!0;function body_11(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_12},{});}body_11.__dustBody=!0;function body_12(chk,ctx){return chk.w("&nbsp;").f(ctx.getPath(true, []),ctx,"h",["s","$pl"]);}body_12.__dustBody=!0;function body_13(chk,ctx){return chk.w("<ul>").s(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_14},{}).w("</ul>");}body_13.__dustBody=!0;function body_14(chk,ctx){return chk.w("<li>").f(ctx.getPath(true, []),ctx,"h",["s","$pl"]).w("</li>");}body_14.__dustBody=!0;function body_15(chk,ctx){return chk.p("params",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ").x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"else":body_16,"block":body_17},{});}body_15.__dustBody=!0;function body_16(chk,ctx){return chk.p("properties",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ");}body_16.__dustBody=!0;function body_17(chk,ctx){return chk;}body_17.__dustBody=!0;function body_18(chk,ctx){return chk.h("gt",ctx,{"block":body_19},{"key":ctx.getPath(false, ["symbol","fires","length"]),"value":"0","type":"number"},"h");}body_18.__dustBody=!0;function body_19(chk,ctx){return chk.w("<p><b class=\"caption\">Emits:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$emits"]).w("</p>");}body_19.__dustBody=!0;function body_20(chk,ctx){return chk.h("gt",ctx,{"else":body_21,"block":body_22},{"key":ctx.getPath(false, ["symbol","returns","length"]),"value":"1","type":"number"},"h");}body_20.__dustBody=!0;function body_21(chk,ctx){return chk.w("<p><b class=\"caption\">Returns:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$returns"]).w("</p>");}body_21.__dustBody=!0;function body_22(chk,ctx){return chk.w("<b class=\"caption\">Returns:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$returns"]).w("</p>");}body_22.__dustBody=!0;function body_23(chk,ctx){return chk.x(ctx.getPath(false, ["symbol","yields"]),ctx,{"block":body_24},{});}body_23.__dustBody=!0;function body_24(chk,ctx){return chk.h("gt",ctx,{"else":body_25,"block":body_26},{"key":ctx.getPath(false, ["symbol","yields","length"]),"value":"1","type":"number"},"h");}body_24.__dustBody=!0;function body_25(chk,ctx){return chk.w("<p><b class=\"caption\">Yields:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$yields"]).w("</p>");}body_25.__dustBody=!0;function body_26(chk,ctx){return chk.w("<b class=\"caption\">Yields:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$yields"]).w("</p>");}body_26.__dustBody=!0;function body_27(chk,ctx){return chk.h("gt",ctx,{"else":body_28,"block":body_29},{"key":ctx.getPath(false, ["symbol","exceptions","length"]),"value":"1","type":"number"},"h");}body_27.__dustBody=!0;function body_28(chk,ctx){return chk.w("<p><b class=\"caption\">Throws:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$exceptions"]).w("</p>");}body_28.__dustBody=!0;function body_29(chk,ctx){return chk.w("<b class=\"caption\">Throws:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$exceptions"]).w("</p>");}body_29.__dustBody=!0;function body_30(chk,ctx){return chk.p("enums",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ");}body_30.__dustBody=!0;function body_31(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","examples"]),ctx,{"block":body_32},{});}body_31.__dustBody=!0;function body_32(chk,ctx){return chk.w("<p><b>Example").h("gt",ctx,{"block":body_33},{"key":ctx.getPath(false, ["symbol","examples","length"]),"value":1},"h").w("</b>").f(ctx.getPath(true, []),ctx,"h",["$get_caption","s"]).w("</p><pre><code>").f(ctx.getPath(true, []),ctx,"h",["$nt","$tnl","$remove_caption"]).w("</code></pre>");}body_32.__dustBody=!0;function body_33(chk,ctx){return chk.w("&nbsp;#").h("math",ctx,{},{"key":ctx.get(["$idx"], false),"method":"add","operand":"1"},"h");}body_33.__dustBody=!0;function body_34(chk,ctx){return chk.x(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,{"block":body_35},{});}body_34.__dustBody=!0;function body_35(chk,ctx){return chk.w("<p class=\"symbol-meta\">").x(ctx.getPath(false, ["symbol","meta","filename"]),ctx,{"block":body_36},{}).x(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,{"block":body_37},{}).w("</p>");}body_35.__dustBody=!0;function body_36(chk,ctx){return chk.w("<b>File:</b> ").f(ctx.getPath(false, ["symbol","meta","filename"]),ctx,"h").w("&nbsp;&nbsp;");}body_36.__dustBody=!0;function body_37(chk,ctx){return chk.w("<b>Line:</b> ").f(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,"h").w("&nbsp;&nbsp;");}body_37.__dustBody=!0;function body_38(chk,ctx){return chk.h("ne",ctx,{"block":body_39},{"key":ctx.getPath(false, ["symbol","hideconstructor"]),"type":"boolean","value":"true"},"h");}body_38.__dustBody=!0;function body_39(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(false, ["symbol","$constructor"]),"template":ctx.get(["template"], false)});}body_39.__dustBody=!0;function body_40(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","$members"]),ctx,{"block":body_41},{});}body_40.__dustBody=!0;function body_41(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(true, []),"template":ctx.get(["template"], false)});}body_41.__dustBody=!0;return body_0}(dust));
+(function(dust){dust.register("symbol",body_0);function body_0(chk,ctx){return chk.nx(ctx.getPath(false, ["symbol","$hide"]),ctx,{"block":body_1},{});}body_0.__dustBody=!0;function body_1(chk,ctx){return chk.w("<div id=\"").f(ctx.get(["symbol"], false),ctx,"h",["$id"]).w("\" class=\"symbol-container\"><div class=\"symbol-heading\"><div class=\"symbol\"><a href=\"#").f(ctx.get(["symbol"], false),ctx,"h",["$id"]).w("\"><i class=\"fas fa-link color-gray-light\" aria-hidden=\"true\"></i></a><code class=\"symbol-name\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$longname_params"]).w("</code><span class=\"symbol-sep\">").f(ctx.get(["symbol"], false),ctx,"h",["$type_sep"]).w("</span><code class=\"symbol-type\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$type"]).w("</code>").f(ctx.get(["symbol"], false),ctx,"h",["s","$tags"]).w("</div></div><div class=\"symbol-definition\"><div class=\"symbol-info\">").x(ctx.getPath(false, ["symbol","alias"]),ctx,{"block":body_2},{}).x(ctx.getPath(false, ["symbol","augments"]),ctx,{"block":body_4},{}).x(ctx.getPath(false, ["symbol","version"]),ctx,{"block":body_5},{}).x(ctx.getPath(false, ["symbol","since"]),ctx,{"block":body_6},{}).x(ctx.getPath(false, ["symbol","copyright"]),ctx,{"block":body_7},{}).x(ctx.getPath(false, ["symbol","author"]),ctx,{"block":body_8},{}).x(ctx.getPath(false, ["symbol","license"]),ctx,{"block":body_9},{}).w("</div>").x(ctx.getPath(false, ["symbol","defaultvalue"]),ctx,{"block":body_10},{}).f(ctx.get(["symbol"], false),ctx,"h",["s","$desc"]).x(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_11},{}).h("ne",ctx,{"block":body_16},{"key":ctx.getPath(false, ["symbol","meta","code","type"]),"value":"ClassDeclaration"},"h").x(ctx.getPath(false, ["symbol","fires"]),ctx,{"block":body_19},{}).x(ctx.getPath(false, ["symbol","returns"]),ctx,{"block":body_21},{}).x(ctx.getPath(false, ["symbol","generator"]),ctx,{"block":body_24},{}).x(ctx.getPath(false, ["symbol","exceptions"]),ctx,{"block":body_28},{}).x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"block":body_31},{}).x(ctx.getPath(false, ["symbol","examples"]),ctx,{"block":body_32},{}).x(ctx.getPath(false, ["template","options","symbols","meta"]),ctx,{"block":body_35},{}).w("</div></div><hr />").x(ctx.getPath(false, ["symbol","$constructor"]),ctx,{"block":body_39},{}).nx(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"block":body_41},{});}body_1.__dustBody=!0;function body_2(chk,ctx){return chk.nx(ctx.get(["$constructor"], false),ctx,{"block":body_3},{});}body_2.__dustBody=!0;function body_3(chk,ctx){return chk.w("<p><b class=\"caption\">Alias:</b> <code>").f(ctx.getPath(false, ["symbol","alias"]),ctx,"h",["s","$dot_prop"]).w("</code></p>");}body_3.__dustBody=!0;function body_4(chk,ctx){return chk.w("<p><b class=\"caption\">Extends:</b> ").f(ctx.get(["symbol"], false),ctx,"h",["s","$extends"]).w("</p>");}body_4.__dustBody=!0;function body_5(chk,ctx){return chk.w("<p><b class=\"caption\">Version:</b>&nbsp;").f(ctx.getPath(false, ["symbol","version"]),ctx,"h",["s"]).w("</p>");}body_5.__dustBody=!0;function body_6(chk,ctx){return chk.w("<p><b class=\"caption\">Since:</b>&nbsp;").f(ctx.getPath(false, ["symbol","since"]),ctx,"h",["s"]).w("</p>");}body_6.__dustBody=!0;function body_7(chk,ctx){return chk.w("<p><b class=\"caption\">Copyright:</b>&nbsp;").f(ctx.getPath(false, ["symbol","copyright"]),ctx,"h",["s"]).w("</p>");}body_7.__dustBody=!0;function body_8(chk,ctx){return chk.w("<p><b class=\"caption\">Author:</b>&nbsp;").f(ctx.getPath(false, ["symbol","author"]),ctx,"h",["s","$author"]).w("</p>");}body_8.__dustBody=!0;function body_9(chk,ctx){return chk.w("<p><b class=\"caption\">License:</b>&nbsp;").f(ctx.getPath(false, ["symbol","license"]),ctx,"h",["s"]).w("</p>");}body_9.__dustBody=!0;function body_10(chk,ctx){return chk.w("<p class=\"symbol-def-val\"><b class=\"caption\"><i>Value:</i></b>&nbsp;<code>").f(ctx.get(["symbol"], false),ctx,"h",["$def"]).w("</code></p>");}body_10.__dustBody=!0;function body_11(chk,ctx){return chk.w("<p class=\"no-margin\"><b>See</b>").h("gt",ctx,{"else":body_12,"block":body_14},{"key":ctx.getPath(false, ["symbol","see","length"]),"value":1},"h").w("</p>");}body_11.__dustBody=!0;function body_12(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_13},{});}body_12.__dustBody=!0;function body_13(chk,ctx){return chk.w("&nbsp;").f(ctx.getPath(true, []),ctx,"h",["s","$pl"]);}body_13.__dustBody=!0;function body_14(chk,ctx){return chk.w("<ul>").s(ctx.getPath(false, ["symbol","see"]),ctx,{"block":body_15},{}).w("</ul>");}body_14.__dustBody=!0;function body_15(chk,ctx){return chk.w("<li>").f(ctx.getPath(true, []),ctx,"h",["s","$pl"]).w("</li>");}body_15.__dustBody=!0;function body_16(chk,ctx){return chk.p("params",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ").x(ctx.getPath(false, ["symbol","isEnum"]),ctx,{"else":body_17,"block":body_18},{});}body_16.__dustBody=!0;function body_17(chk,ctx){return chk.p("properties",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ");}body_17.__dustBody=!0;function body_18(chk,ctx){return chk;}body_18.__dustBody=!0;function body_19(chk,ctx){return chk.h("gt",ctx,{"block":body_20},{"key":ctx.getPath(false, ["symbol","fires","length"]),"value":"0","type":"number"},"h");}body_19.__dustBody=!0;function body_20(chk,ctx){return chk.w("<p><b class=\"caption\">Emits:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$emits"]).w("</p>");}body_20.__dustBody=!0;function body_21(chk,ctx){return chk.h("gt",ctx,{"else":body_22,"block":body_23},{"key":ctx.getPath(false, ["symbol","returns","length"]),"value":"1","type":"number"},"h");}body_21.__dustBody=!0;function body_22(chk,ctx){return chk.w("<p><b class=\"caption\">Returns:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$returns"]).w("</p>");}body_22.__dustBody=!0;function body_23(chk,ctx){return chk.w("<b class=\"caption\">Returns:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$returns"]).w("</p>");}body_23.__dustBody=!0;function body_24(chk,ctx){return chk.x(ctx.getPath(false, ["symbol","yields"]),ctx,{"block":body_25},{});}body_24.__dustBody=!0;function body_25(chk,ctx){return chk.h("gt",ctx,{"else":body_26,"block":body_27},{"key":ctx.getPath(false, ["symbol","yields","length"]),"value":"1","type":"number"},"h");}body_25.__dustBody=!0;function body_26(chk,ctx){return chk.w("<p><b class=\"caption\">Yields:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$yields"]).w("</p>");}body_26.__dustBody=!0;function body_27(chk,ctx){return chk.w("<b class=\"caption\">Yields:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$yields"]).w("</p>");}body_27.__dustBody=!0;function body_28(chk,ctx){return chk.h("gt",ctx,{"else":body_29,"block":body_30},{"key":ctx.getPath(false, ["symbol","exceptions","length"]),"value":"1","type":"number"},"h");}body_28.__dustBody=!0;function body_29(chk,ctx){return chk.w("<p><b class=\"caption\">Throws:</b>&nbsp;&nbsp;").f(ctx.get(["symbol"], false),ctx,"h",["s","$exceptions"]).w("</p>");}body_29.__dustBody=!0;function body_30(chk,ctx){return chk.w("<b class=\"caption\">Throws:</b><p class=\"pad-left\">").f(ctx.get(["symbol"], false),ctx,"h",["s","$exceptions"]).w("</p>");}body_30.__dustBody=!0;function body_31(chk,ctx){return chk.p("enums",ctx,ctx.rebase(ctx.get(["symbol"], false)),{"template":ctx.get(["template"], false)}).w(" ");}body_31.__dustBody=!0;function body_32(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","examples"]),ctx,{"block":body_33},{});}body_32.__dustBody=!0;function body_33(chk,ctx){return chk.w("<p><b>Example").h("gt",ctx,{"block":body_34},{"key":ctx.getPath(false, ["symbol","examples","length"]),"value":1},"h").w("</b>").f(ctx.getPath(true, []),ctx,"h",["$get_caption","s"]).w("</p><pre><code>").f(ctx.getPath(true, []),ctx,"h",["$nt","$tnl","$remove_caption"]).w("</code></pre>");}body_33.__dustBody=!0;function body_34(chk,ctx){return chk.w("&nbsp;#").h("math",ctx,{},{"key":ctx.get(["$idx"], false),"method":"add","operand":"1"},"h");}body_34.__dustBody=!0;function body_35(chk,ctx){return chk.x(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,{"block":body_36},{});}body_35.__dustBody=!0;function body_36(chk,ctx){return chk.w("<p class=\"symbol-meta\">").x(ctx.getPath(false, ["symbol","meta","filename"]),ctx,{"block":body_37},{}).x(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,{"block":body_38},{}).w("</p>");}body_36.__dustBody=!0;function body_37(chk,ctx){return chk.w("<b>File:</b> ").f(ctx.getPath(false, ["symbol","meta","filename"]),ctx,"h").w("&nbsp;&nbsp;");}body_37.__dustBody=!0;function body_38(chk,ctx){return chk.w("<b>Line:</b> ").f(ctx.getPath(false, ["symbol","meta","lineno"]),ctx,"h").w("&nbsp;&nbsp;");}body_38.__dustBody=!0;function body_39(chk,ctx){return chk.h("ne",ctx,{"block":body_40},{"key":ctx.getPath(false, ["symbol","hideconstructor"]),"type":"boolean","value":"true"},"h");}body_39.__dustBody=!0;function body_40(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(false, ["symbol","$constructor"]),"template":ctx.get(["template"], false)});}body_40.__dustBody=!0;function body_41(chk,ctx){return chk.s(ctx.getPath(false, ["symbol","$members"]),ctx,{"block":body_42},{});}body_41.__dustBody=!0;function body_42(chk,ctx){return chk.p("symbol",ctx,ctx,{"symbol":ctx.getPath(true, []),"template":ctx.get(["template"], false)});}body_42.__dustBody=!0;return body_0}(dust));
 /*!
  * Docma (Web) Core
  * https://github.com/onury/docma
@@ -3275,7 +3337,7 @@ var DocmaWeb = (function () {
 
 /**
  *  Docma (web) core class.
- *  See {@link ?api=docma-web|documentation}.
+ *  See {@link api/web|documentation}.
  *  @name DocmaWeb
  *  @class
  */
@@ -3294,29 +3356,49 @@ var DocmaWeb = (function () {
  */
 var Utils = {};
 
-/** @private */
 function getStr(value) {
-    return value && value.trim() !== '' ? value : null;
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function bracket(prop) {
+    var re = /^[a-z$_][a-z\d$_]*$/i; // non-bracket notation
+    return re.test(prop) ? '.' + prop : '["' + prop + '"]';
+}
+// fixes a jsdoc bug
+// e.g. MyClass.Enum."STATE"] —» MyClass.Enum.STATE
+function fixBracket(notation) {
+    return notation.replace(/(.*?)\."([^"]+)"\]?$/, function (str, $1, $2) {
+        return $2 ? $1 + bracket($2) : notation;
+    });
 }
 
 /**
  *  Cleans the given symbol name.
- *  e.g. <anonymous>~obj.doStuff —> obj.doStuff
  *  @private
+ *  @param {String} name - Symbol name to be cleaned.
+ *  @returns {String} -
  */
 function cleanName(name) {
-    return (name || '').replace(/([^>]+>)?~?(.*)/, '$2')
-        .replace(/^(module\.)?exports\./, '');
+    // e.g. <anonymous>~obj.doStuff —» obj.doStuff
+    name = getStr(name)
+        .replace(/([^>]+>)?~?(.*)/, '$2')
+        // e.g. '"./node_modules/eventemitter3/index.js"~EventEmitter'.
+        .replace(/^"[^"]+"\.?~?([^"]+)$/, '$1')
+        .replace(/^(module\.)?exports\./, '')
+        .replace(/^module:/, '');
+    return fixBracket(name);
 }
 
-/** @private */
 function getMetaCodeName(symbol) {
     return cleanName(Utils.notate(symbol, 'meta.code.name') || '');
 }
 
-/** @private */
 function identity(o) {
     return o;
+}
+
+function hasConstructorTag(symbol) {
+    return /\*\s+@construct(s|or)\b/.test(symbol.comment);
 }
 
 /**
@@ -3373,7 +3455,7 @@ Utils.notate = function (obj, notation) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.getName = function (symbol) {
     // if @alias is set, the original (long) name is only found at meta.code.name
@@ -3394,12 +3476,14 @@ Utils.getName = function (symbol) {
  *  @static
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.getLongName = function (symbol) {
     var longName = cleanName(symbol.longname);
     var metaCodeName = getMetaCodeName(symbol) || longName;
-    var memberOf = cleanName(symbol.memberof || '');
+    var memberOf =  symbol.memberof || '';
+    // if memberOf is like "\"./some/file.js\""
+    memberOf = /^".*"$/.test(memberOf) ? '' : cleanName(memberOf);
 
     // JSDoc bug: if the constructor is not marked with @constructs, the
     // longname is incorrect. e.g. `ClassName#ClassName`. So we return
@@ -3481,7 +3565,7 @@ Utils.getSymbolByName = function (docsOrApis, name) {
  *  @function
  *
  *  @param {Object|String} symbol - Documented symbol object or long name.
- *  @returns {Number}
+ *  @returns {Number} -
  */
 Utils.getLevels = function (symbol) {
     var longname = (typeof symbol === 'string' ? symbol : symbol.$longname) || '';
@@ -3502,12 +3586,16 @@ Utils.getLevels = function (symbol) {
  *  @function
  *
  *  @param {Object|String} symbol - Documented symbol object or long name.
- *  @returns {Number}
+ *  @returns {Number} -
  */
 Utils.getParentName = function (symbol) {
     var longname;
     if (typeof symbol !== 'string') {
-        if (symbol.memberof) return cleanName(symbol.memberof);
+        if (symbol.memberof
+                // if memberOf is like "\"./some/file.js\""
+                && /^".*"$/.test(symbol.memberof) === false) {
+            return cleanName(symbol.memberof);
+        }
         longname = cleanName(symbol.$longname);
     } else {
         longname = cleanName(symbol);
@@ -3524,6 +3612,8 @@ Utils.getParentName = function (symbol) {
  *  @name DocmaWeb.Utils.getParent
  *  @function
  *
+ *  @param {Array|Object} docs - Documentation array or APIs object
+ *  with signature `{ documentation:Array, symbols:Array }`.
  *  @param {Object|String} symbol - Documented symbol object or long name.
  *  @returns {String} - `null` if symbol has no parent.
  */
@@ -3532,7 +3622,8 @@ Utils.getParent = function (docs, symbol) {
         ? Utils.getSymbolByName(docs, symbol)
         : symbol;
     if (!sym) return null;
-    var parentName = (sym && cleanName(sym.memberof)) || Utils.getParentName(symbol);
+    // var parentName = (sym && cleanName(sym.memberof)) || Utils.getParentName(symbol);
+    var parentName = Utils.getParentName(sym);
     if (parentName) return Utils.getSymbolByName(docs, parentName);
     return null;
 };
@@ -3543,7 +3634,7 @@ Utils.getParent = function (docs, symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isDeprecated = function (symbol) {
     return symbol.deprecated;
@@ -3555,7 +3646,7 @@ Utils.isDeprecated = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isGlobal = function (symbol) {
     return symbol.scope === 'global';
@@ -3567,7 +3658,7 @@ Utils.isGlobal = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isNamespace = function (symbol) {
     return symbol.kind === 'namespace';
@@ -3579,7 +3670,7 @@ Utils.isNamespace = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isModule = function (symbol) {
     return symbol.kind === 'module';
@@ -3592,7 +3683,7 @@ Utils.isModule = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isMixin = function (symbol) {
     return symbol.kind === 'mixin';
@@ -3604,11 +3695,12 @@ Utils.isMixin = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isClass = function (symbol) {
     return symbol.kind === 'class'
-        && Utils.notate(symbol, 'meta.code.type') !== 'MethodDefinition'; // constructor if MethodDefinition
+        && Utils.notate(symbol, 'meta.code.type') !== 'MethodDefinition' // constructor if MethodDefinition
+        && !hasConstructorTag(symbol);
     // && Utils.notate(symbol, 'meta.code.type') === 'ClassDeclaration';
 };
 
@@ -3618,7 +3710,7 @@ Utils.isClass = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isConstant = function (symbol) {
     return symbol.kind === 'constant';
@@ -3630,11 +3722,11 @@ Utils.isConstant = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isConstructor = function (symbol) {
     return symbol.kind === 'class'
-        && Utils.notate(symbol, 'meta.code.type') === 'MethodDefinition';
+        && (Utils.notate(symbol, 'meta.code.type') === 'MethodDefinition' || hasConstructorTag(symbol));
 };
 
 /**
@@ -3645,7 +3737,7 @@ Utils.isConstructor = function (symbol) {
  *  @static
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isStaticMember = function (symbol) {
     return symbol.scope === 'static';
@@ -3662,7 +3754,7 @@ Utils.isStatic = Utils.isStaticMember;
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isInner = function (symbol) {
     return symbol.scope === 'inner';
@@ -3674,7 +3766,7 @@ Utils.isInner = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isInstanceMember = function (symbol) {
     return symbol.scope === 'instance';
@@ -3687,7 +3779,7 @@ Utils.isInstanceMember = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isInterface = function (symbol) {
     return symbol.scope === 'interface';
@@ -3699,7 +3791,7 @@ Utils.isInterface = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isMethod = function (symbol) {
     var codeType = Utils.notate(symbol, 'meta.code.type');
@@ -3717,7 +3809,7 @@ Utils.isFunction = Utils.isMethod;
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isInstanceMethod = function (symbol) {
     return Utils.isInstanceMember(symbol) && Utils.isMethod(symbol);
@@ -3729,7 +3821,7 @@ Utils.isInstanceMethod = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isStaticMethod = function (symbol) {
     return Utils.isStaticMember(symbol) && Utils.isMethod(symbol);
@@ -3741,7 +3833,7 @@ Utils.isStaticMethod = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isProperty = function (symbol) {
     return symbol.kind === 'member' && !Utils.isMethod(symbol);
@@ -3753,7 +3845,7 @@ Utils.isProperty = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isInstanceProperty = function (symbol) {
     return Utils.isInstanceMember(symbol) && Utils.isProperty(symbol);
@@ -3765,7 +3857,7 @@ Utils.isInstanceProperty = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isStaticProperty = function (symbol) {
     return Utils.isStaticMember(symbol) && Utils.isProperty(symbol);
@@ -3779,7 +3871,7 @@ Utils.isStaticProperty = function (symbol) {
  *  @static
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isTypeDef = function (symbol) {
     return symbol.kind === 'typedef';
@@ -3797,7 +3889,7 @@ Utils.isCustomType = Utils.isTypeDef;
  *  @static
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isCallback = function (symbol) {
     var typeNames = (symbol.type || {}).names || [];
@@ -3812,7 +3904,7 @@ Utils.isCallback = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isEnum = function (symbol) {
     return Boolean(symbol.isEnum);
@@ -3824,7 +3916,7 @@ Utils.isEnum = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isEvent = function (symbol) {
     return symbol.kind === 'event';
@@ -3836,7 +3928,7 @@ Utils.isEvent = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isExternal = function (symbol) {
     return symbol.kind === 'external';
@@ -3848,7 +3940,7 @@ Utils.isExternal = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isGenerator = function (symbol) {
     return symbol.generator && symbol.kind === 'function';
@@ -3860,7 +3952,7 @@ Utils.isGenerator = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isReadOnly = function (symbol) {
     return symbol.readonly;
@@ -3872,7 +3964,7 @@ Utils.isReadOnly = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isPublic = function (symbol) {
     return typeof symbol.access !== 'string' || symbol.access === 'public';
@@ -3884,7 +3976,7 @@ Utils.isPublic = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isPrivate = function (symbol) {
     return symbol.access === 'private';
@@ -3898,7 +3990,7 @@ Utils.isPrivate = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isPackagePrivate = function (symbol) {
     return symbol.access === 'package';
@@ -3910,7 +4002,7 @@ Utils.isPackagePrivate = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isProtected = function (symbol) {
     return symbol.access === 'protected';
@@ -3923,7 +4015,7 @@ Utils.isProtected = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.isUndocumented = function (symbol) {
     // we could use the `undocumented` property but it still seems buggy.
@@ -3939,7 +4031,7 @@ Utils.isUndocumented = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Documented symbol object.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 Utils.hasDescription = function (symbol) {
     return Boolean(getStr(symbol.classdesc) || getStr(symbol.description));
@@ -3952,7 +4044,7 @@ Utils.hasDescription = function (symbol) {
  *  @function
  *
  *  @param {String} string - String to be trimmed.
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.trimLeft = function (string) {
     // remove leading space and dashes.
@@ -3965,7 +4057,7 @@ Utils.trimLeft = function (string) {
  *  @function
  *
  *  @param {String} string - String to be trimmed.
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.trimNewLines = function (string) {
     return string.replace(/^[\r\n]+|[\r\n]+$/, '');
@@ -3979,9 +4071,10 @@ Utils.trimNewLines = function (string) {
  *  @param {String} string
  *         String to be parsed.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.parseTicks = function (string) {
+    if (typeof string !== 'string') return '';
     return string
         .replace(/(```\s*)([\s\S]*?)(\s*```)/g, function (match, p1, p2) { // , p3, offset, string
             return Utils.normalizeTabs(Utils._wrapCode(p2, true, true).replace(/`/g, '&#x60;'));
@@ -3996,14 +4089,12 @@ Utils.parseTicks = function (string) {
  *  @name DocmaWeb.Utils.parseNewLines
  *  @function
  *
- *  @param {String} string
- *         String to be parsed.
- *  @param {Object} [options]
- *         Parse options.
+ *  @param {String} string - String to be parsed.
+ *  @param {Object} [options] - Parse options.
  *         @param {Boolean} [options.keepIfSingle=false]
- *                If `true`, lines will not be converted to paragraphs.
+ *         If `true`, lines will not be converted to paragraphs.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.parseNewLines = function (string, options) {
     options = options || {};
@@ -4022,16 +4113,14 @@ Utils.parseNewLines = function (string, options) {
  *  @name DocmaWeb.Utils.parseLinks
  *  @function
  *
- *  @param {String} string
- *         String to be parsed.
- *  @param {Object} [options]
- *         Parse options.
- *         @param {String} [options.target]
- *                Href target. e.g. `"_blank"`
+ *  @param {String} string - String to be parsed.
+ *  @param {Object} [options] - Parse options.
+ *  @param {String} [options.target] - Href target. e.g. `"_blank"`
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.parseLinks = function (string, options) {
+    if (typeof string !== 'string') return '';
     options = options || {};
     var re = /\{@link +([^}]*?)\}/g;
     var out = string.replace(re, function (match, p1) { // , offset, string
@@ -4043,15 +4132,14 @@ Utils.parseLinks = function (string, options) {
             link = parts[0].trim();
             label = parts[1].trim();
         }
-        // label = Utils.parseTicks(label);
-        // if the link is a symbol, prepend with a hash to trigger the bookmark when clicked
+        // if does not look like a URL path, treat this as a symbol bookmark.
+        // instead, we could check like this:
         // if (symbolNames && symbolNames.indexOf(link) >= 0) {..}
-        // if no slash, treat this as a bookmark
-        // if ((/\//i).test(link) === false) {
-        //     return '<a href="#' + link + '">' + label + '</a>';
-        // }
+        // but it has too much overhead...
+        if ((/[/?&=]/).test(link) === false && link[0] !== '#') link = '#' + link;
+
         var target = options.target
-            ? ' target="' + options.target + '"'
+            ? ' target="' + options.target + '" rel="noopener noreferrer"'
             : '';
         return '<a href="' + link + '"' + target + '>' + label + '</a>';
     });
@@ -4065,16 +4153,14 @@ Utils.parseLinks = function (string, options) {
  *  @name DocmaWeb.Utils.parse
  *  @function
  *
- *  @param {String} string
- *         String to be parsed.
- *  @param {Object} [options]
- *         Parse options.
+ *  @param {String} string - String to be parsed.
+ *  @param {Object} [options] - Parse options.
  *         @param {Object} [options.keepIfSingle=false]
- *                If enabled, single lines will not be converted to paragraphs.
+ *         If enabled, single lines will not be converted to paragraphs.
  *         @param {String} [options.target]
- *                Href target for links. e.g. `"_blank"`
+ *         Href target for links. e.g. `"_blank"`
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.parse = function (string, options) {
     options = options || {};
@@ -4091,12 +4177,12 @@ Utils.parse = function (string, options) {
  *  @name DocmaWeb.Utils.normalizeTabs
  *  @function
  *
- *  @param {String} string
- *         String to process.
+ *  @param {String} string - String to process.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.normalizeTabs = function (string) {
+    if (typeof string !== 'string') return '';
     var m = string.match(/^\s*/gm),
         min = Infinity;
 
@@ -4132,7 +4218,7 @@ Utils.normalizeTabs = function (string) {
  *  @function
  *
  *  @param {Object} symbol - Target documentation symbol.
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.getKeywords = function (symbol) {
     if (typeof symbol === 'string') return symbol.toLowerCase();
@@ -4160,7 +4246,7 @@ Utils.getKeywords = function (symbol) {
  *  @function
  *
  *  @param {Object} symbol - Target documentation symbol.
- *  @returns {Object}
+ *  @returns {Object} -
  */
 Utils.getCodeFileInfo = function (symbol) {
     return {
@@ -4192,20 +4278,20 @@ Utils.getSymbolLink = function (docsOrApis, symbolOrName) {
 };
 
 var reEndBrackets = /\[\]$/;
-// regexp for inspecting type parts such as `Promise<Boolean|String>[]` or
-// simply `Boolean`. this also removes/ignores dots from types such as
-// Array.<String>
-var reTypeParts = /^([^<]+?)(?:\.)?(?:<([^>]+)>)?(\[\])?$/;
+// regexp for inspecting type parts such as `Map<String, Object>`,
+// `Promise<Boolean|String>[]` or simply `Boolean`. this also
+// removes/ignores dots from types such as Array.<String>
+var reTypeParts = /^([^<]+?)(?:\.)?(?:<\(([^>)]+)\)>)?(?:<([^>]+)>)?(\[\])?$/;
 
 function _link(docsOrApis, type, options) {
     var endBrackets = reEndBrackets.test(type) ? '[]' : '';
-    var t = type.replace(reEndBrackets, '');
+    var t = (type || '').replace(reEndBrackets, '');
     var opts = options || {};
     var link;
     var target = '';
     if (opts.linkType !== 'internal') {
         link = Utils._getTypeExternalLink(t);
-        if (link) target = ' target="_blank"';
+        if (link) target = ' target="_blank" rel="noopener noreferrer"';
     }
     if (!link && opts.linkType !== 'external') link = Utils.getSymbolLink(docsOrApis, t);
     if (link) type = '<a href="' + link + '"' + target + '>' + (opts.displayText || t) + endBrackets + '</a>';
@@ -4219,7 +4305,7 @@ function _link(docsOrApis, type, options) {
  *
  *  @param {Array|Object} docsOrApis - Documentation array or APIs object
  *  with signature `{ documentation:Array, symbols:Array }`.
- *  @param {String} type - Symbol name or type.
+ *  @param {String} strType - Symbol type.
  *  @param {String} [options] - Options
  *      @param {String} [options.displayText] - Alternative display text to
  *      be placed within the anchor tag.
@@ -4227,23 +4313,30 @@ function _link(docsOrApis, type, options) {
  *      symbol link) or `"external"` (JS or Web-API MDN link), or omit to
  *      get any of them, if found.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils._parseAnchorLinks = function (docsOrApis, strType, options) {
     // see reTypeParts and reEndBrackets
     var m = strType.match(reTypeParts);
     if (!m || !m[1]) return '';
     // maybe we have end brackets e.g. Boolean[] or Promise<Boolean>[]
-    var endBrackets = m[3] || '';
-    var sTypes = '';
-    // check for sub-types e.g. Promise<Boolean|String>
-    if (m[2]) {
-        sTypes = m[2].split('|');
-        sTypes = sTypes.map(function (t) {
-            return _link(docsOrApis, t, options);
-        }).join('<span class="code-delim">|</span>');
-        if (sTypes) sTypes = '&lt;' + sTypes + '&gt;';
+    var endBrackets = m[4] || '';
+    var sTypes = m[2] || m[3] || '';
+    // check for multiple types e.g. Map<String, String>
+    if (sTypes) {
+        sTypes = sTypes.split(',').map(function (outerT) {
+            // check for sub-types e.g. Promise<Boolean|String>
+            return outerT
+                .trim()
+                .split('|')
+                .map(function (t) {
+                    return _link(docsOrApis, t, options);
+                })
+                .join('<span class="code-delim">|</span>');
+        }).join('<span class="code-delim">, </span>');
     }
+    if (sTypes) sTypes = '&lt;' + sTypes + '&gt;';
+    // check for sub-types e.g. Promise<Boolean|String>
     return _link(docsOrApis, m[1], options) + sTypes + endBrackets;
 };
 
@@ -4263,7 +4356,7 @@ Utils._parseAnchorLinks = function (docsOrApis, strType, options) {
  *      JS/Web-API built-in type/object) or `true` to try linking either
  *      to an internal or external target, which ever is found.
  *
- *  @returns {String}
+ *  @returns {String} -
  *
  *  @example
  *  var symbol = { "type": { "names": ["Number", "String"] } };
@@ -4305,7 +4398,7 @@ Utils.getTypes = function (docsOrApis, symbol, options) {
  *      JS/Web-API built-in type/object) or `true` to try linking either
  *      to an internal or external target, which ever is found.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.getReturnTypes = function (docsOrApis, symbol, options) {
     var ret = symbol.returns;
@@ -4344,7 +4437,7 @@ Utils.getReturnTypes = function (docsOrApis, symbol, options) {
  *      JS/Web-API built-in type/object) or `true` to try linking either
  *      to an internal or external target, which ever is found.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.getCodeTags = function (docsOrApis, list, options) {
     var opts = options || {};
@@ -4381,10 +4474,10 @@ Utils.getCodeTags = function (docsOrApis, list, options) {
  *      @param {Boolean} [options.descriptions=true] - Whether to include descriptions.
  *      @param {String} [options.descDelimeter="  —  "] - Description delimiter.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.getFormattedTypeList = function (docsOrApis, list, options) {
-    if (!list || list.length === 0) return '';
+    if (!Array.isArray(list) || list.length === 0) return '';
 
     var opts = options || {};
     var delim = '<span class="code-delim">' + (opts.delimeter || '|') + '</span>';
@@ -4397,17 +4490,21 @@ Utils.getFormattedTypeList = function (docsOrApis, list, options) {
             desc = Utils.parse(item.description || '', { keepIfSingle: true });
             if (desc) desc = descDelim + desc;
         }
-        var types = item.type.names;
-        types = types.map(function (type) {
-            if (opts.links) {
-                var parsed = Utils._parseAnchorLinks(docsOrApis, type, {
-                    linkType: opts.links
-                });
-                return Utils._wrapCode(parsed, false);
-            }
-            return Utils._wrapCode(type, true);
-        });
-        return types.join(delim) + desc;
+        if (item.type) {
+            // https://github.com/onury/docma/issues/55
+            var types = (item.type.names || []).map(function (type) {
+                if (opts.links) {
+                    var parsed = Utils._parseAnchorLinks(docsOrApis, type, {
+                        linkType: opts.links
+                    });
+                    return Utils._wrapCode(parsed, false);
+                }
+                return Utils._wrapCode(type, true);
+            });
+            return types.join(delim) + desc;
+        }
+        // no type names, returning desc only
+        return desc ? '— ' + desc : '';
     });
     if (pList.length > 1) {
         return '<ul><li>' + pList.join('</li><li>') + '</li></ul>';
@@ -4425,6 +4522,7 @@ Utils.getFormattedTypeList = function (docsOrApis, list, options) {
  *  @param {Array|Object} docsOrApis - Documentation array or APIs object
  *  with signature `{ documentation:Array, symbols:Array }`.
  *  @param {Array} list - List of emitted (fired) events.
+ *  @param {Object} [options] - Options.
  *  @param {String} [options.delimeter=", "] - Events delimeter.
  *  @param {Boolean|String} [options.links=false] - Whether to add
  *      HTML anchor links to output. Set to `"internal"` to link
@@ -4433,7 +4531,7 @@ Utils.getFormattedTypeList = function (docsOrApis, list, options) {
  *      JS/Web-API built-in type/object) or `true` to try linking either
  *      to an internal or external target, which ever is found.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils.getEmittedEvents = function (docsOrApis, list, options) {
     if (!list || list.length === 0) return '';
@@ -4543,7 +4641,7 @@ Utils._assign = function (target, source, enumerable) {
  *
  *  @param {Object} source - Source object.
  *
- *  @returns {Array}
+ *  @returns {Array} -
  */
 Utils._values = function (source) {
     if (Array.isArray(source)) return source;
@@ -4569,9 +4667,10 @@ Utils._values = function (source) {
  *  @param {Boolean} [pre=false] - Whether to also wrap the code with
  *         `&lt;pre&gt;` tags.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils._wrapCode = function (code, escape, pre) {
+    if (typeof code !== 'string') return '';
     if (escape === undefined || escape === true) {
         code = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
@@ -4622,16 +4721,16 @@ Utils._tokenize = function (string, callback) {
 };
 
 /**
- *  Ensures left and/or right slashes for the give string.
+ *  Ensures left and/or right slashes for the given string.
  *  @name DocmaWeb.Utils._ensureSlash
  *  @function
  *  @private
  *
  *  @param {Boolean} left - Whether to ensure left slash.
- *  @param {String} string - String to be checked and modified.
- *  @param {Boolean} left - Whether to ensure right slash.
+ *  @param {String} str - String to be checked and modified.
+ *  @param {Boolean} right - Whether to ensure right slash.
  *
- *  @returns {String}
+ *  @returns {String} -
  */
 Utils._ensureSlash = function (left, str, right) {
     if (!str) return left || right ? '/' : '';
@@ -4639,6 +4738,85 @@ Utils._ensureSlash = function (left, str, right) {
     if (right && str.slice(-1) !== '/') str += '/';
     return str;
 };
+
+function serializer(replacer) {
+    var stack = [];
+    var keys = [];
+
+    return function (key, value) {
+        // browsers will not print more than 20K
+        if (stack.length > 2000) return '[Too Big Object]';
+
+        if (stack.length > 0) {
+            var thisPos = stack.indexOf(this);
+            if (~thisPos) {
+                stack.splice(thisPos + 1);
+                keys.splice(thisPos, Infinity, key);
+            } else {
+                stack.push(this);
+                keys.push(key);
+            }
+            if (stack.indexOf(value) >= 0) {
+                // value = cycleReplacer.call(this, key, value);
+                value = (stack[0] === value)
+                    ? '[Circular ~]'
+                    : '[Circular ~.' + keys.slice(0, stack.indexOf(value)).join('.') + ']';
+            }
+        } else {
+            stack.push(value);
+        }
+
+        return !replacer ? value : replacer.call(this, key, value);
+    };
+}
+
+Utils._safeStringify = function (obj, replacer, spaces) {
+    try {
+        return JSON.stringify(obj, serializer(replacer), spaces);
+    } catch (e) {
+        return String(obj);
+    }
+};
+
+/**
+ *  Joins the given strings as a path.
+ *  @name DocmaWeb.Utils._joinPath
+ *  @function
+ *  @private
+ *
+ *  @param {Array} args - Parts of a path to be joined.
+ *  @param {Object} options - Join options.
+ *      @param {Boolean} [options.left] - Set to `true` to
+ *      ensure the path has a `/` in front of it. `false`
+ *      will ensure it has not. Omit to leave it as is.
+ *      @param {Boolean} [options.right] - Set to `true` to
+ *      ensure the path has a `/` at the end of it. `false`
+ *      will ensure it has not. Omit to leave it as is.
+ *
+ *  @returns {String} -
+ */
+// Utils._joinPath = function (args, options) {  // NOT USED BUT KEEP THIS
+//     options = options || {};
+//     var proto = (/^[a-z]*:\/\//i).test(args[0]) ? args.shift() : '';
+//     var p = args.join('/').replace(/\/+/g, '/');
+
+//     var left = p[0] === '/';
+//     var right = p.slice(-1) === '/';
+
+//     if (proto || options.left === false) {
+//         p = p.slice(1);
+//     } else if (options.left === true) {
+//         if (!left) p = '/' + p;
+//     }
+
+//     if (options.right === true) {
+//         if (!right) p += '/';
+//     } else if (options.right === false) {
+//         if (right) p = p.slice(0, -1);
+//     }
+
+//     return proto + p;
+// };
 
 // ----------------------
 // DOM Utils
@@ -4670,6 +4848,7 @@ var ATTR_BODY_STYLE = 'data-body-style';
  *  @static
  *
  *  @param {HTMLElement} e - Target element.
+ *  @returns {Object|null} -
  */
 Utils.DOM.getOffset = function (e) {
     var elem = typeof e === 'object' ? e : document.getElementById(e);
@@ -4707,7 +4886,8 @@ Utils.DOM.scrollTo = function (hash) {
     }
     var elem = document.getElementById(hash);
     if (!elem) return;
-    body.scrollTop = Utils.DOM.getOffset(elem).top;
+    var offset = Utils.DOM.getOffset(elem);
+    if (offset) body.scrollTop = offset.top;
 };
 
 /**
@@ -5134,15 +5314,15 @@ var _cats = Object.keys(_builtins);
 /**
  *  Gets an external link for documentation of the given type or object.
  *  @private
- *  @param {String} type
- *  @returns {String}
+ *  @param {String} type -
+ *  @returns {String} -
  */
 Utils._getTypeExternalLink = function (type) {
     var i, cat;
     for (i = 0; i < _cats.length; i++) {
         cat = _cats[i];
         if (_builtins[cat].indexOf(type) >= 0) {
-            return _builtinURLs[cat] + type.replace(/^([^.]*\.)/, '');
+            return _builtinURLs[cat] + (type || '').replace(/^([^.]*\.)/, '');
             // e.g. remove "WebAssembly." from "WebAssembly.Instance" bec. MDN link is .../Instance
         }
     }
@@ -5179,12 +5359,14 @@ Utils._getTypeExternalLink = function (type) {
  *  on the generated documentation data.</blockquote>
  *
  *  @class
+ *  @name DocmaWeb
  *  @hideconstructor
  *  @emits DocmaWeb~event:ready
  *  @emits DocmaWeb~event:render
  *  @emits DocmaWeb~event:route
  *  @emits DocmaWeb~event:navigate
  */
+
 function DocmaWeb(data) {
     this._ = data || {};
 
@@ -5199,7 +5381,7 @@ function DocmaWeb(data) {
     /**
      *  Provides configuration data of the generated SPA, which is originally set
      *  at build-time, by the user.
-     *  See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
+     *  See {@link api/#Docma~BuildConfiguration|build configuration} for more
      *  details on how these settings take affect.
      *  @name DocmaWeb#app
      *  @type {Object}
@@ -5238,7 +5420,7 @@ function DocmaWeb(data) {
         *	`{ documentation:Array, symbols:Array }`. `documentation` is the actual
         *	JSDoc data, and `symbols` is a flat array of symbol names.
         *
-        *  <blockquote>See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
+        *  <blockquote>See {@link api/#Docma~BuildConfiguration|build configuration} for more
         *  details on how Javascript files can be grouped (and named) to form separate
         *  API documentations and SPA routes.</blockquote>
         *
@@ -5273,7 +5455,7 @@ function DocmaWeb(data) {
     /**
      *  Array of available SPA routes of the documentation.
      *  This is created at build-time and defined via the `src` param of the
-     *  {@link ?api=docma#Docma~BuildConfiguration|build configuration}.
+     *  {@link api/#Docma~BuildConfiguration|build configuration}.
      *
      *  @name DocmaWeb#routes
      *  @type {Array}
@@ -5387,7 +5569,7 @@ function DocmaWeb(data) {
                     // Modified from http://stackoverflow.com/a/901144/112731
                     query = query === undefined ? (window.location.search || '') : query;
                     if (query.slice(0, 1) === '?') query = query.slice(1);
-                    name = name.replace(/[[\]]/g, '\\$&');
+                    name = (name || '').replace(/[[\]]/g, '\\$&');
                     var regex = new RegExp('&?' + name + '(=([^&#]*)|&|#|$)'),
                         results = regex.exec(query);
                     if (!results || !results[2]) return '';
@@ -5433,7 +5615,7 @@ function DocmaWeb(data) {
      *	JSDoc documentation data for the current API route.
      *	If current route is not an API route, this will be `null`.
      *
-     *  <blockquote>See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
+     *  <blockquote>See {@link api/#Docma~BuildConfiguration|build configuration} for more
      *  details on how Javascript files can be grouped (and named) to form
      *  separate API documentations and SPA routes.</blockquote>
      *
@@ -5464,7 +5646,7 @@ function DocmaWeb(data) {
      *	building menus, etc... If current route is not an API route, this will
      *	be `null`.
      *
-     *  <blockquote>See {@link ?api=docma#Docma~BuildConfiguration|build configuration} for more
+     *  <blockquote>See {@link api/docma#Docma~BuildConfiguration|build configuration} for more
      *  details on how Javascript files can be grouped (and named) to form
      *  separate API documentations and SPA routes.</blockquote>
      *
@@ -5803,6 +5985,8 @@ DocmaWeb.prototype._loadCompiledContent = function (compiledHTML) {
  *  sub paths. This will fix that behaviour.
  *  @private
  *
+ *  @param {Function} cb - Callback.
+ *
  *  @returns {void}
  */
 DocmaWeb.prototype._fixAnchors = function (cb) {
@@ -5830,16 +6014,13 @@ DocmaWeb.prototype._fixAnchors = function (cb) {
 /**
  *  Adds a new Dust filter.
  *  @chainable
- *  @see {@link ?content=docma-filters|Existing Docma (Dust) filters}
+ *  @see {@link templates/filters/|Existing Docma (Dust) filters}
  *  @see {@link http://www.dustjs.com/docs/filter-api|Dust Filter API}
  *
- *  @param {String} name
- *         Name of the filter to be added.
- *  @param {Function} fn
- *         Filter function.
+ *  @param {String} name - Name of the filter to be added.
+ *  @param {Function} fn - Filter function.
  *
  *  @returns {DocmaWeb} - `DocmaWeb` instance for chaining.
- *
  *  @throws {Error} - If a filter with the given name already exists.
  */
 DocmaWeb.prototype.addFilter = function (name, fn) {
@@ -5853,9 +6034,7 @@ DocmaWeb.prototype.addFilter = function (name, fn) {
 /**
  *  Removes an existing Dust filter.
  *  @chainable
- *
  *  @param {String} name - Name of the filter to be removed.
- *
  *  @returns {DocmaWeb} - `DocmaWeb` instance for chaining.
  */
 DocmaWeb.prototype.removeFilter = function (name) {
@@ -5865,10 +6044,8 @@ DocmaWeb.prototype.removeFilter = function (name) {
 
 /**
  *  Checks whether a Dust filter with the given name already exists.
- *
  *  @param {String} name - Name of the filter to be checked.
- *
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 DocmaWeb.prototype.filterExists = function (name) {
     return typeof dust.filters[name] === 'function';
@@ -5897,13 +6074,7 @@ DocmaWeb.prototype.createRoute = function (name, type) {
  *  Get route information object from the given route ID.
  *  @private
  *
- *  @param {DocmaWeb} docma
- *         `DocmaWeb` instance.
- *  @param {String} id
- *         ID of the route (in `type:name` format).
- *  @param {Boolean} [force=false]
- *         Whether to return the first route in available routes, if there
- *         is no match.
+ *  @param {String} id - ID of the route (in `type:name` format).
  *
  *  @returns {DocmaWeb.Route} - Route instance.
  */
@@ -5931,16 +6102,6 @@ DocmaWeb.prototype.createRouteFromQuery = function (querystring) {
         routeType = query[0].toLowerCase(), // "api" or "content"
         routeName = query[1];
 
-    // if (!docma.app.routing.caseSensitive) routeName = (routeName || '').toLowerCase();
-    // routeName = routeName || docma._.defaultApiName;
-    //
-    // // return if invalid route type
-    // if (_arrRouteTypes.indexOf(routeType) < 0) return new Route(null);
-    //
-    // if (!routeName) {
-    //     if (routeType === Route.Type.API) routeName = docma._.defaultApiName;
-    // }
-
     return new DocmaWeb.Route(this, routeName, routeType);
 };
 
@@ -5961,7 +6122,11 @@ DocmaWeb.prototype._render = function (dustTemplateName, callback) {
     var self = this;
     // render docma main template
     dust.render(dustTemplateName, this, function (err, compiledHTML) {
-        if (err) throw err;
+        if (err) {
+            self.warn('Could not load Docma partial:', dustTemplateName);
+            self.log('Compiled HTML: ', compiledHTML);
+            throw err;
+        }
         self._loadCompiledContent(compiledHTML);
         if (typeof callback === 'function') callback();
     });
@@ -5983,7 +6148,7 @@ DocmaWeb.prototype._triggerAfterRender = function () {
 /**
  *  Renders docma-404 partial. Used for not-found routes.
  *  @private
- *
+ *  @param {Object} routeInfo -
  *  @param {Function} statusCallback -
  */
 DocmaWeb.prototype._render404 = function (routeInfo, statusCallback) {
@@ -5994,7 +6159,7 @@ DocmaWeb.prototype._render404 = function (routeInfo, statusCallback) {
         Utils.DOM.scrollTo();
         if (typeof statusCallback === 'function') return statusCallback(404);
         // no callback, throw...
-        throw new Error('Page or content not found for route: ' + JSON.stringify(routeInfo));
+        throw new Error('Page or content not found for route: ' + Utils._safeStringify(routeInfo));
     });
 };
 
@@ -6026,20 +6191,19 @@ DocmaWeb.prototype.fetch = function (url, callback) {
 /**
  *  Renders content into docma-main element, by the given route information.
  *
- *  If the content is empty or `"api"`, we'll render the `docma-api`
- *  Dust template. Otherwise, (e.g. `"readme"`) we'll render `docma-content`
- *  Dust template, then  fetch `content/readme.html` and load it in the
- *  `docma-main` element.
+ *  If the content is empty or `"api"`, we'll render the `docma-api` Dust
+ *  template. Otherwise, (e.g. `"readme"`) we'll render `docma-content` Dust
+ *  template, then  fetch `content/readme.html` and load it in the `docma-main`
+ *  element.
  *
  *  <blockquote>Note that rendering and the callback will be cancelled if the given
  *  content is the latest content rendered.</blockquote>
  *
- *  @param {DocmaWeb.Route} routeInfo
- *         Route information of the page to be rendered.
- *  @param {Function} [callback]
- *         Function to be executed when the rendering is complete.
- *         `function (httpStatus:Number) { .. }`
- *
+ *  @param {DocmaWeb.Route} routeInfo - Route information of the page to be
+ *  rendered.
+ *  @param {Function} [callback] - Function to be executed when the rendering is
+ *  complete. `function (httpStatus:Number) { .. }`
+ *  @returns {void}
  *  @emits DocmaWeb~event:render
  */
 DocmaWeb.prototype.render = function (routeInfo, callback) {
@@ -6069,7 +6233,9 @@ DocmaWeb.prototype.render = function (routeInfo, callback) {
                 self.loadContent(html);
                 self._triggerAfterRender();
                 if (isCbFn) callback(status);
-                self._fixAnchors();
+                self._fixAnchors(function () {
+                    Utils.DOM.scrollTo();
+                });
             });
         });
     }
@@ -6082,7 +6248,7 @@ DocmaWeb.prototype.render = function (routeInfo, callback) {
 /**
  *  Utilities for inspecting JSDoc documentation and symbols; and parsing
  *  documentation data into proper HTML.
- *  See {@link ?api=docma-web-utils|`DocmaWeb.Utils` documentation}.
+ *  See {@link api/web/utils|`DocmaWeb.Utils` documentation}.
  *  @type {Object}
  *  @namespace
  */
@@ -6150,18 +6316,18 @@ DocmaWeb.Route = function (docma, name, type) {
  *  @example <caption>When `docma.app.routing.method` is `"query"`</caption>
  *  type     name              path
  *  -------  ----------------  --------------------------
- *  api      _def_             /?api
- *  api      docma-web         /?api=docma-web
- *  content  templates         /?content=templates
- *  content  guide             /?content=guide
+ *  api      _def_             ?api
+ *  api      web               ?api=web
+ *  content  templates         ?content=templates
+ *  content  guide             ?content=guide
  *
  *  @example <caption>When `docma.app.routing.method` is `"path"`</caption>
  *  type     name              path
  *  -------  ----------------  --------------------------
- *  api      _def_             /api
- *  api      docma-web         /api/docma-web
- *  content  templates         /templates
- *  content  guide             /guide
+ *  api      _def_             api/
+ *  api      web               api/web/
+ *  content  templates         templates/
+ *  content  guide             guide/
  *
  */
 DocmaWeb.Route.Type = {
@@ -6210,7 +6376,7 @@ DocmaWeb.Route.SourceType = {
 
 /**
  *  Gets the ID of the route. A route ID consists of the route type and the
- *  name; delimited via a colon. e.g. `api:docma-web`.
+ *  name; delimited via a colon. e.g. `api:web`.
  *  @name DocmaWeb.Route#id
  *  @type {String}
  *  @instance
@@ -6226,7 +6392,8 @@ DocmaWeb.Route.SourceType = {
 
 /**
  *  Gets the URL path of the SPA route. For example, if SPA route method is
- *  `query`, the URL path for a route named `guide` will be `/?content=guide`.
+ *  `query`, the URL path for a route named `guide` will be `?content=guide`.
+ *  If routing method is `path` it will be `guide/`.
  *  @name DocmaWeb.Route#path
  *  @type {String}
  *  @instance
@@ -6234,7 +6401,7 @@ DocmaWeb.Route.SourceType = {
 
 /**
  *  Gets the type of the generated SPA route. See
- *  {@link ?api=docma-web#DocmaWeb.Route.Type|`DocmaWeb.Route.Type`} enumeration
+ *  {@link #DocmaWeb.Route.Type|`DocmaWeb.Route.Type`} enumeration
  *  for possible values.
  *  @name DocmaWeb.Route#type
  *  @type {String}
@@ -6243,7 +6410,7 @@ DocmaWeb.Route.SourceType = {
 
 /**
  *  Gets the type of the source which this route is generated from. See
- *  {@link ?api=docma-web#DocmaWeb.Route.SourceType|`DocmaWeb.Route.SourceType`} enumeration
+ *  {@link #DocmaWeb.Route.SourceType|`DocmaWeb.Route.SourceType`} enumeration
  *  for possible values.
  *  @name DocmaWeb.Route#sourceType
  *  @type {String}
@@ -6260,8 +6427,7 @@ DocmaWeb.Route.SourceType = {
 
 /**
  *  Checks whether the route actually exists.
- *
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 DocmaWeb.Route.prototype.exists = function () {
     return Boolean(this.id);
@@ -6269,9 +6435,8 @@ DocmaWeb.Route.prototype.exists = function () {
 
 /**
  *  Checks whether the route is equal to the given route.
- *
  *  @param {DocmaWeb.Route} routeInfo - Route to be checked against.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 DocmaWeb.Route.prototype.isEqualTo = function (routeInfo) {
     if (!routeInfo || !routeInfo.exists() || !this.exists()) return false;
@@ -6280,9 +6445,8 @@ DocmaWeb.Route.prototype.isEqualTo = function (routeInfo) {
 
 /**
  *  Checks whether the route is currently being viewed.
- *
  *  @param {DocmaWeb.Route} routeInfo - Object to be checked.
- *  @returns {Boolean}
+ *  @returns {Boolean} -
  */
 DocmaWeb.Route.prototype.isCurrent = function () {
     return this.isEqualTo(this._docma.currentRoute);
@@ -6290,12 +6454,12 @@ DocmaWeb.Route.prototype.isCurrent = function () {
 
 /**
  *  Applies the route to the application.
- *
  *  @emits DocmaWeb~event:route
- *
+ *  @param {Function} [cb] - Callback function to be executed after route is
+ *  rendered.
  *  @returns {DocmaWeb.Route} - The route instance for chaining.
  */
-DocmaWeb.Route.prototype.apply = function () {
+DocmaWeb.Route.prototype.apply = function (cb) {
     if (this.type === DocmaWeb.Route.Type.API) {
         this._docma._.documentation = this._docma.apis[this.name].documentation;
         this._docma._.symbols = this._docma.apis[this.name].symbols;
@@ -6306,17 +6470,34 @@ DocmaWeb.Route.prototype.apply = function () {
     }
     // this._docma.log('Route Info:', this.toString());
     this._docma._trigger(DocmaWeb.Event.Route, [this.exists() ? this : null]);
-    this._docma.render(this);
+    this._docma.render(this, cb);
     return this;
 };
 
 /**
  *  Gets the string representation of the route.
- *
- *  @returns {String}
+ *  @returns {String} -
  */
 DocmaWeb.Route.prototype.toString = function () {
-    return JSON.stringify(this);
+    var o = this.toJSON();
+    return Object.keys(o).map(function (key) {
+        return key + ': ' + o[key];
+    }).join(', ');
+};
+
+/**
+ *  @private
+ *  @returns {Object} - Always return an object for toJSON() method.
+ */
+DocmaWeb.Route.prototype.toJSON = function () {
+    return {
+        id: this.id,
+        contentPath: this.contentPath,
+        path: this.path,
+        type: this.type,
+        sourceType: this.sourceType,
+        name: this.name
+    };
 };
 
 
@@ -6364,25 +6545,33 @@ dust.filters.$desc = function (symbol) {
     return DocmaWeb.Utils.parse(symbol.classdesc || symbol.description || '');
 };
 
-dust.filters.$def = function (param) {
-    return param.optional ? String(param.defaultvalue) : '';
-};
-
 var reJSValues = (/true|false|null|undefined|Infinity|NaN|\d+|Number\.\w+|Math\.(PI|E|LN(2|10)|LOG(2|10)E|SQRT(1_)?2)|\[.*?]|\{.*?}|new [a-zA-Z]+.*|\/.+\/[gmiu]*|Date\.(now\(\)|UTC\(.*)|window|document/);
-dust.filters.$val = function (symbol) {
-    var val = DocmaWeb.Utils.notate(symbol, 'meta.code.value');
-    if (val === undefined) return '';
-    if (typeof val !== 'string') return val;
+
+function getFormatValue(symbol, val) {
+    if (arguments.length < 2) {
+        val = DocmaWeb.Utils.notate(symbol, 'meta.code.value') || symbol.defaultvalue;
+    }
+    // if (val === undefined) return 'undefined';
+    if (typeof val !== 'string') return String(val);
     var types = DocmaWeb.Utils.notate(symbol, 'type.names') || [];
     // first char is NOT a single or double quote or tick
     if (!(/['"`]/).test(val.slice(0, 1))
-            // types include "String"
-            && types.indexOf('String') >= 0
-            // only "String" type or value is NOT a JS non-string value/keyword
-            && (types.length === 1 || reJSValues.indexOf(val) === -1)) {
+        // types include "String"
+        && types.indexOf('String') >= 0
+        // only "String" type or value is NOT a JS non-string value/keyword
+        && (types.length === 1 || reJSValues.indexOf(val) === -1)) {
         return '"' + val + '"';
     }
-    return val;
+    return String(val);
+}
+
+dust.filters.$def = function (symbolOrParam) {
+    if (!symbolOrParam.hasOwnProperty('defaultvalue')) return 'undefined';
+    return getFormatValue(symbolOrParam, symbolOrParam.defaultvalue);
+};
+
+dust.filters.$val = function (symbol) {
+    return getFormatValue(symbol);
 };
 
 dust.filters.$id = function (symbol) {
@@ -6397,10 +6586,10 @@ dust.filters.$id = function (symbol) {
 };
 
 
-DocmaWeb.version = "2.1.0";
+DocmaWeb.version = "3.2.2";
 return DocmaWeb;
 })();
-var docma = Object.freeze(new DocmaWeb({"version":"2.1.0","routes":[{"id":"api:","type":"api","name":"_def_","path":"/?api","contentPath":null,"sourceType":"js"},{"id":"api:lavalink","type":"api","name":"lavalink","path":"/?api=lavalink","contentPath":null,"sourceType":"js"},{"id":"content:readme","type":"content","name":"readme","path":"/?content=readme","contentPath":"content/readme.html","sourceType":"md"}],"apis":{"_def_":{"documentation":[],"symbols":[]},"lavalink":{"documentation":[{"comment":"/**\n * Lavalink Websocket\n * @extends {EventEmitter}\n */","meta":{"range":[135,6129],"filename":"LavalinkNode.js","lineno":8,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000016","name":"LavalinkNode","type":"ClassDeclaration","paramnames":["manager","options"]}},"classdesc":"Lavalink Websocket","augments":["EventEmitter"],"name":"LavalinkNode","longname":"LavalinkNode","kind":"class","scope":"global","description":"LavaLink options","params":[{"type":{"names":["PlayerManager"]},"description":"The PlayerManager that created the Node","name":"manager"},{"type":{"names":["LavalinkNodeOptions"]},"description":"LavaLink options","name":"options"}],"$longname":"LavalinkNode","$kind":"class","$docmaLink":"?api=lavalink#LavalinkNode","$members":[{"comment":"/**\n     * Connects to the WebSocket server\n     */","meta":{"range":[2864,3336],"filename":"LavalinkNode.js","lineno":102,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000167","name":"LavalinkNode#connect","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Connects to the WebSocket server","name":"connect","longname":"LavalinkNode#connect","kind":"function","memberof":"LavalinkNode","scope":"instance","params":[],"$longname":"LavalinkNode#connect","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#connect"},{"comment":"/**\n     * Destroys the WebSocket\n     * @returns {boolean}\n     */","meta":{"range":[4066,4204],"filename":"LavalinkNode.js","lineno":152,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000321","name":"LavalinkNode#destroy","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Destroys the WebSocket","returns":[{"type":{"names":["boolean"]}}],"name":"destroy","longname":"LavalinkNode#destroy","kind":"function","memberof":"LavalinkNode","scope":"instance","params":[],"$longname":"LavalinkNode#destroy","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#destroy"},{"comment":"/**\n\t\t * Emmited when the node disconnects from the WebSocket and won't attempt to reconnect\n\t\t * @event LavalinkNode#disconnect\n\t\t * @param {string} reason The reason for the disconnect\n\t\t */","meta":{"filename":"LavalinkNode.js","lineno":186,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node disconnects from the WebSocket and won't attempt to reconnect","kind":"event","name":"disconnect","params":[{"type":{"names":["string"]},"description":"The reason for the disconnect","name":"reason"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:disconnect","scope":"instance","$longname":"LavalinkNode#event:disconnect","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:disconnect"},{"comment":"/**\n         * Emitted whenever the Node's WebSocket encounters a connection error.\n         * @event LavalinkNode#error\n         * @param {Error} error The encountered error\n         */","meta":{"filename":"LavalinkNode.js","lineno":221,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted whenever the Node's WebSocket encounters a connection error.","kind":"event","name":"error","params":[{"type":{"names":["Error"]},"description":"The encountered error","name":"error"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:error","scope":"instance","$longname":"LavalinkNode#event:error","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:error"},{"comment":"/**\n\t\t     * Emmited when a message is received and parsed\n\t\t     * @event LavalinkNode#message\n\t\t     * @param {Object} data The raw message data\n\t\t     */","meta":{"filename":"LavalinkNode.js","lineno":204,"columnno":12,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when a message is received and parsed","kind":"event","name":"message","params":[{"type":{"names":["Object"]},"description":"The raw message data","name":"data"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:message","scope":"instance","$longname":"LavalinkNode#event:message","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:message"},{"comment":"/**\n\t\t * Emmited when the node gets ready\n\t\t * @event LavalinkNode#ready\n\t\t */","meta":{"filename":"LavalinkNode.js","lineno":123,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node gets ready","kind":"event","name":"ready","memberof":"LavalinkNode","longname":"LavalinkNode#event:ready","scope":"instance","$longname":"LavalinkNode#event:ready","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:ready"},{"comment":"/**\n\t\t\t * Emmited when the node is attempting a reconnect\n\t\t\t * @event LavalinkNode#reconnecting\n\t\t\t */","meta":{"filename":"LavalinkNode.js","lineno":166,"columnno":12,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node is attempting a reconnect","kind":"event","name":"reconnecting","memberof":"LavalinkNode","longname":"LavalinkNode#event:reconnecting","scope":"instance","$longname":"LavalinkNode#event:reconnecting","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:reconnecting"},{"comment":"/**\n         * If the lavalink websocket is ready or not\n         * @type {boolean}\n         */","meta":{"range":[2257,2275],"filename":"LavalinkNode.js","lineno":74,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000129","name":"this.ready","type":"Literal","value":false,"paramnames":[]}},"description":"If the lavalink websocket is ready or not","type":{"names":["boolean"]},"name":"ready","longname":"LavalinkNode#ready","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#ready","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#ready"},{"comment":"/**\n         * Roconnection interval\n         * @type {?NodeJS.Timer}\n         */","meta":{"range":[2478,2499],"filename":"LavalinkNode.js","lineno":84,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000141","name":"this.reconnect","type":"Literal","value":null,"paramnames":[]}},"description":"Roconnection interval","type":{"names":["NodeJS.Timer"]},"nullable":true,"name":"reconnect","longname":"LavalinkNode#reconnect","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#reconnect","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#reconnect"},{"comment":"/**\n         * The interval to use for auto Reconnecting\n         * @type {number}\n         */","meta":{"range":[2612,2671],"filename":"LavalinkNode.js","lineno":89,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000147","name":"this.reconnectInterval","type":"LogicalExpression","value":"","paramnames":[]}},"description":"The interval to use for auto Reconnecting","type":{"names":["number"]},"name":"reconnectInterval","longname":"LavalinkNode#reconnectInterval","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#reconnectInterval","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#reconnectInterval"},{"comment":"/**\n         * Region\n         * @type {?string}\n         */","meta":{"range":[1897,1933],"filename":"LavalinkNode.js","lineno":63,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000105","name":"this.region","type":"LogicalExpression","value":"","paramnames":[]}},"description":"Region","type":{"names":["string"]},"nullable":true,"name":"region","longname":"LavalinkNode#region","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#region","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#region"},{"comment":"/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {boolean}\n     */","meta":{"range":[3702,3988],"filename":"LavalinkNode.js","lineno":135,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000276","name":"LavalinkNode#send","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Sends data to the Lavalink Node","params":[{"type":{"names":["Object"]},"description":"Object to send","name":"data"}],"returns":[{"type":{"names":["boolean"]}}],"name":"send","longname":"LavalinkNode#send","kind":"function","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#send","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#send"},{"comment":"/**\n         * Player stats\n         * @type {Object}\n         */","meta":{"range":[2755,2770],"filename":"LavalinkNode.js","lineno":94,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000157","name":"this.stats","type":"ObjectExpression","value":"{}","paramnames":[]}},"description":"Player stats","type":{"names":["Object"]},"name":"stats","longname":"LavalinkNode#stats","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#stats","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#stats"},{"comment":"/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */","meta":{"range":[2364,2378],"filename":"LavalinkNode.js","lineno":79,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000135","name":"this.ws","type":"Literal","value":null,"paramnames":[]}},"description":"The WebSocket","type":{"names":["WebSocket"]},"nullable":true,"name":"ws","longname":"LavalinkNode#ws","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#ws","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#ws"}],"$constructor":{"comment":"/**\n     * LavaLink options\n     * @param {PlayerManager} manager The PlayerManager that created the Node\n     * @param {LavalinkNodeOptions} options LavaLink options\n     */","meta":{"range":[837,2802],"filename":"LavalinkNode.js","lineno":26,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000020","name":"LavalinkNode","type":"MethodDefinition","paramnames":["manager","options"]},"vars":{"":null}},"description":"LavaLink options","params":[{"type":{"names":["PlayerManager"]},"description":"The PlayerManager that created the Node","name":"manager"},{"type":{"names":["LavalinkNodeOptions"]},"description":"LavaLink options","name":"options"}],"name":"LavalinkNode","longname":"LavalinkNode","kind":"class","scope":"global","undocumented":true,"$longname":"LavalinkNode","$kind":"constructor","$docmaLink":"?api=lavalink#LavalinkNode"}},{"comment":"/**\n\t\t         * Emmited when the player encounters an error\n\t\t         * @event LavaPlayer#error\n\t\t         * @prop {object} message The raw message\n\t\t         */","meta":{"filename":"Player.js","lineno":230,"columnno":16,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the player encounters an error","kind":"event","name":"error","properties":[{"type":{"names":["object"]},"description":"The raw message","name":"message"}],"memberof":"LavaPlayer","longname":"LavaPlayer#event:error","scope":"instance","$longname":"LavaPlayer#event:error","$kind":"event","$docmaLink":"?api=lavalink#LavaPlayer#event:error"},{"comment":"/**\n * LavaLink Player\n * @extends {EventEmitter}\n */","meta":{"range":[99,7071],"filename":"Player.js","lineno":7,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000491","name":"Player","type":"ClassDeclaration","paramnames":["options"]}},"classdesc":"LavaLink Player","augments":["EventEmitter"],"name":"Player","longname":"Player","kind":"class","scope":"global","description":"LavaLink Player Options","params":[{"type":{"names":["PlayerOptions"]},"description":"Player Options","name":"options"}],"$longname":"Player","$kind":"class","$docmaLink":"?api=lavalink#Player","$members":[{"comment":"/**\n         * The current channel id\n         * @type {string}\n         */","meta":{"range":[1335,1365],"filename":"Player.js","lineno":48,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000550","name":"this.channel","type":"MemberExpression","value":"options.channel","paramnames":[]}},"description":"The current channel id","type":{"names":["string"]},"name":"channel","longname":"Player#channel","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#channel","$kind":"property","$docmaLink":"?api=lavalink#Player#channel"},{"comment":"/**\n     * Sends a packet to Lavalink for voiceUpdate\n     * @param {Object} data voiceUpdate event data\n     * @returns {Player}\n     */","meta":{"range":[2144,2351],"filename":"Player.js","lineno":81,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000589","name":"Player#connect","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Sends a packet to Lavalink for voiceUpdate","params":[{"type":{"names":["Object"]},"description":"voiceUpdate event data","name":"data"}],"returns":[{"type":{"names":["Player"]}}],"name":"connect","longname":"Player#connect","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#connect","$kind":"method","$docmaLink":"?api=lavalink#Player#connect"},{"comment":"/**\n     * Destroys the Player\n     * @returns {Player}\n     */","meta":{"range":[4663,4794],"filename":"Player.js","lineno":194,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000822","name":"Player#destroy","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Destroys the Player","returns":[{"type":{"names":["Player"]}}],"name":"destroy","longname":"Player#destroy","kind":"function","memberof":"Player","scope":"instance","params":[],"$longname":"Player#destroy","$kind":"method","$docmaLink":"?api=lavalink#Player#destroy"},{"comment":"/**\n     * Disconnects the player\n     * @param {string} msg Disconnect reason\n     * @returns {Player}\n     */","meta":{"range":[2473,2765],"filename":"Player.js","lineno":96,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000618","name":"Player#disconnect","type":"MethodDefinition","paramnames":["msg"]},"vars":{"":null}},"description":"Disconnects the player","params":[{"type":{"names":["string"]},"description":"Disconnect reason","name":"msg"}],"returns":[{"type":{"names":["Player"]}}],"name":"disconnect","longname":"Player#disconnect","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#disconnect","$kind":"method","$docmaLink":"?api=lavalink#Player#disconnect"},{"comment":"/**\n                 * Emitted whenever the Player gets Stuck or ends\n                 * @event Player#end\n                 * @param {string} message Data containg reason\n                 */","meta":{"filename":"Player.js","lineno":240,"columnno":16,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted whenever the Player gets Stuck or ends","kind":"event","name":"end","params":[{"type":{"names":["string"]},"description":"Data containg reason","name":"message"}],"memberof":"Player","longname":"Player#event:end","scope":"instance","$longname":"Player#event:end","$kind":"event","$docmaLink":"?api=lavalink#Player#event:end"},{"comment":"/**\n         * Player id (Guild ID)\n         * @type {string}\n         */","meta":{"range":[700,720],"filename":"Player.js","lineno":28,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000506","name":"this.id","type":"MemberExpression","value":"options.id","paramnames":[]}},"description":"Player id (Guild ID)","type":{"names":["string"]},"name":"id","longname":"Player#id","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#id","$kind":"property","$docmaLink":"?api=lavalink#Player#id"},{"comment":"/**\n     * Pauses or Resumes the player\n     * @param {boolean} [pause=true] Whether to resume or pause the player\n     * @returns {Player}\n     */","meta":{"range":[3738,3925],"filename":"Player.js","lineno":147,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000727","name":"Player#pause","type":"MethodDefinition","paramnames":["pause"]},"vars":{"":null}},"description":"Pauses or Resumes the player","params":[{"type":{"names":["boolean"]},"optional":true,"defaultvalue":true,"description":"Whether to resume or pause the player","name":"pause"}],"returns":[{"type":{"names":["Player"]}}],"name":"pause","longname":"Player#pause","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#pause","$kind":"method","$docmaLink":"?api=lavalink#Player#pause"},{"comment":"/**\n         * Whether the Player is paused or not.\n         * @type {boolean}\n         */","meta":{"range":[1582,1601],"filename":"Player.js","lineno":58,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000564","name":"this.paused","type":"Literal","value":false,"paramnames":[]}},"description":"Whether the Player is paused or not.","type":{"names":["boolean"]},"name":"paused","longname":"Player#paused","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#paused","$kind":"property","$docmaLink":"?api=lavalink#Player#paused"},{"comment":"/**\n     * Plays a song\n     * @param {string} track A Base64 string from LavaLink API\n     * @param {Object} [options] Other options\n     * @param {number} [options.startTime] Start time\n     * @param {number} [options.endTime] End time\n     * @returns {Player}\n     */","meta":{"range":[3046,3327],"filename":"Player.js","lineno":116,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000643","name":"Player#play","type":"MethodDefinition","paramnames":["track","options"]},"vars":{"":null}},"description":"Plays a song","params":[{"type":{"names":["string"]},"description":"A Base64 string from LavaLink API","name":"track"},{"type":{"names":["Object"]},"optional":true,"description":"Other options","name":"options"},{"type":{"names":["number"]},"optional":true,"description":"Start time","name":"options.startTime"},{"type":{"names":["number"]},"optional":true,"description":"End time","name":"options.endTime"}],"returns":[{"type":{"names":["Player"]}}],"name":"play","longname":"Player#play","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#play","$kind":"method","$docmaLink":"?api=lavalink#Player#play"},{"comment":"/**\n         * Playing boolean\n         * @type {boolean}\n         */","meta":{"range":[1453,1473],"filename":"Player.js","lineno":53,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000558","name":"this.playing","type":"Literal","value":false,"paramnames":[]}},"description":"Playing boolean","type":{"names":["boolean"]},"name":"playing","longname":"Player#playing","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#playing","$kind":"property","$docmaLink":"?api=lavalink#Player#playing"},{"comment":"/**\n     * Seeks to a specified position\n     * @param {number} position The position to seek to\n     * @returns {Player}\n     */","meta":{"range":[4434,4589],"filename":"Player.js","lineno":181,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000799","name":"Player#seek","type":"MethodDefinition","paramnames":["position"]},"vars":{"":null}},"description":"Seeks to a specified position","params":[{"type":{"names":["number"]},"description":"The position to seek to","name":"position"}],"returns":[{"type":{"names":["Player"]}}],"name":"seek","longname":"Player#seek","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#seek","$kind":"method","$docmaLink":"?api=lavalink#Player#seek"},{"comment":"/**\n         * LavaLink Player state\n         * @type {Object}\n         */","meta":{"range":[1694,1722],"filename":"Player.js","lineno":63,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000570","name":"this.state","type":"ObjectExpression","value":"{\"volume\":100}","paramnames":[]}},"description":"LavaLink Player state","type":{"names":["Object"]},"name":"state","longname":"Player#state","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#state","$kind":"property","$docmaLink":"?api=lavalink#Player#state"},{"comment":"/**\n     * stops the Player\n     * @returns {Player}\n     */","meta":{"range":[3398,3580],"filename":"Player.js","lineno":132,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000695","name":"Player#stop","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"stops the Player","returns":[{"type":{"names":["Player"]}}],"name":"stop","longname":"Player#stop","kind":"function","memberof":"Player","scope":"instance","params":[],"$longname":"Player#stop","$kind":"method","$docmaLink":"?api=lavalink#Player#stop"},{"comment":"/**\n     * Switch player channel\n     * @param {string} channel Channel id\n     * @param {boolean} [reactive=false] Whether to switch channel\n     * @return {boolean}\n     */","meta":{"range":[4979,5186],"filename":"Player.js","lineno":208,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000842","name":"Player#switchChannel","type":"MethodDefinition","paramnames":["channel","reactive"]},"vars":{"":null}},"description":"Switch player channel","params":[{"type":{"names":["string"]},"description":"Channel id","name":"channel"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Whether to switch channel","name":"reactive"}],"returns":[{"type":{"names":["boolean"]}}],"name":"switchChannel","longname":"Player#switchChannel","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#switchChannel","$kind":"method","$docmaLink":"?api=lavalink#Player#switchChannel"},{"comment":"/**\n         * The timestamp the Player started playing\n         * @type {number}\n         */","meta":{"range":[1968,1989],"filename":"Player.js","lineno":73,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000584","name":"this.timestamp","type":"Literal","value":null,"paramnames":[]}},"description":"The timestamp the Player started playing","type":{"names":["number"]},"name":"timestamp","longname":"Player#timestamp","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#timestamp","$kind":"property","$docmaLink":"?api=lavalink#Player#timestamp"},{"comment":"/**\n         * The current track that the Player is playing\n         * @type {?string}\n         */","meta":{"range":[1839,1856],"filename":"Player.js","lineno":68,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000578","name":"this.track","type":"Literal","value":null,"paramnames":[]}},"description":"The current track that the Player is playing","type":{"names":["string"]},"nullable":true,"name":"track","longname":"Player#track","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#track","$kind":"property","$docmaLink":"?api=lavalink#Player#track"},{"comment":"/**\n     * Sets the volume for the player\n     * @param {number} volume Volume\n     * @returns {Player}\n     */","meta":{"range":[4103,4294],"filename":"Player.js","lineno":166,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000768","name":"Player#volume","type":"MethodDefinition","paramnames":["volume"]},"vars":{"":null}},"description":"Sets the volume for the player","params":[{"type":{"names":["number"]},"description":"Volume","name":"volume"}],"returns":[{"type":{"names":["Player"]}}],"name":"volume","longname":"Player#volume","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#volume","$kind":"method","$docmaLink":"?api=lavalink#Player#volume"}],"$constructor":{"comment":"/**\n     * LavaLink Player Options\n     * @param {PlayerOptions} options Player Options\n     */","meta":{"range":[565,1996],"filename":"Player.js","lineno":22,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000495","name":"Player","type":"MethodDefinition","paramnames":["options"]},"vars":{"":null}},"description":"LavaLink Player Options","params":[{"type":{"names":["PlayerOptions"]},"description":"Player Options","name":"options"}],"name":"Player","longname":"Player","kind":"class","scope":"global","undocumented":true,"$longname":"Player","$kind":"constructor","$docmaLink":"?api=lavalink#Player"}},{"comment":"/**\n         * Emitted when the Player disconnects\n         * @event PLayer#disconnect\n         * @param {string} msg Disconnection reason\n         */","meta":{"filename":"Player.js","lineno":99,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted when the Player disconnects","kind":"event","name":"disconnect","params":[{"type":{"names":["string"]},"description":"Disconnection reason","name":"msg"}],"memberof":"PLayer","longname":"PLayer#event:disconnect","scope":"instance","$longname":"PLayer#event:disconnect","$kind":"event","$docmaLink":"?api=lavalink#PLayer#event:disconnect"},{"comment":"/**\n * Player Manager class\n * @extends {external:Collection}\n */","meta":{"range":[197,6444],"filename":"PlayerManager.js","lineno":9,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001040","name":"PlayerManager","type":"ClassDeclaration","paramnames":["client","nodes","options"]}},"classdesc":"Player Manager class","augments":["external:Collection"],"name":"PlayerManager","longname":"PlayerManager","kind":"class","scope":"global","description":"Constructs the PlayerManager","params":[{"type":{"names":["external:Client"]},"description":"Discord.js Client","name":"client"},{"type":{"names":["Array.<Object>"]},"description":"Array of Lavalink Nodes","name":"nodes"},{"type":{"names":["PlayerManagerOptions"]},"description":"PlayerManager Options","name":"options"}],"$longname":"PlayerManager","$kind":"class","$docmaLink":"?api=lavalink#PlayerManager","$members":[{"comment":"/**\n     * A function to create LavaLink nodes and set them to PlayerManager#nodes\n     * @param {Object} options Node options\n     * @returns {LavalinkNode}\n     */","meta":{"range":[2001,2274],"filename":"PlayerManager.js","lineno":67,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001153","name":"PlayerManager#createNode","type":"MethodDefinition","paramnames":["options"]},"vars":{"":null}},"description":"A function to create LavaLink nodes and set them to PlayerManager#nodes","params":[{"type":{"names":["Object"]},"description":"Node options","name":"options"}],"returns":[{"type":{"names":["LavalinkNode"]}}],"name":"createNode","longname":"PlayerManager#createNode","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#createNode","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#createNode"},{"comment":"/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object with guild, channel, host infomation\n     * @param {string} data.guild Guild id\n     * @param {string} data.channel Channel id\n     * @param {string} data.host host\n     * @param {Object} [options] Options\n     * @param {boolean} [options.selfmute=false] Selfmute\n     * @param {boolean} [options.selfdeaf=false] Selfdeaf\n     * @returns {Player}\n     * @example\n     * // Join voice channel\n     * PlayerManager.join({\n     *  guild: \"412180910587379712\",\n     *  channel: \"412180910587379716\",\n     *  host: \"localhost\"\n     * });\n     */","meta":{"range":[3898,4426],"filename":"PlayerManager.js","lineno":132,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001314","name":"PlayerManager#join","type":"MethodDefinition","paramnames":["data",""]},"vars":{"":null}},"description":"Joins the voice channel and spawns a new player","params":[{"type":{"names":["Object"]},"description":"Object with guild, channel, host infomation","name":"data"},{"type":{"names":["string"]},"description":"Guild id","name":"data.guild"},{"type":{"names":["string"]},"description":"Channel id","name":"data.channel"},{"type":{"names":["string"]},"description":"host","name":"data.host"},{"type":{"names":["Object"]},"optional":true,"description":"Options","name":"options"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Selfmute","name":"options.selfmute"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Selfdeaf","name":"options.selfdeaf"}],"returns":[{"type":{"names":["Player"]}}],"examples":["// Join voice channel\nPlayerManager.join({\n guild: \"412180910587379712\",\n channel: \"412180910587379716\",\n host: \"localhost\"\n});"],"name":"join","longname":"PlayerManager#join","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#join","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#join"},{"comment":"/**\n     * Leaves voice channel and deletes Player\n     * @param {string} guild Guild id\n     * @returns {boolean}\n     * @example\n     * // Leave the current channel\n     * PlayerManager.leave(\"412180910587379712\");\n     */","meta":{"range":[4661,5080],"filename":"PlayerManager.js","lineno":159,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001388","name":"PlayerManager#leave","type":"MethodDefinition","paramnames":["guild"]},"vars":{"":null}},"description":"Leaves voice channel and deletes Player","params":[{"type":{"names":["string"]},"description":"Guild id","name":"guild"}],"returns":[{"type":{"names":["boolean"]}}],"examples":["// Leave the current channel\nPlayerManager.leave(\"412180910587379712\");"],"name":"leave","longname":"PlayerManager#leave","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#leave","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#leave"},{"comment":"/**\n         * Collection of LavaLink Nodes\n         * @type {external:Collection<string, LavalinkNode>}\n         */","meta":{"range":[1171,1200],"filename":"PlayerManager.js","lineno":38,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001076","name":"this.nodes","type":"NewExpression","value":"","paramnames":[]}},"description":"Collection of LavaLink Nodes","type":{"names":["external:Collection.<string, LavalinkNode>"]},"name":"nodes","longname":"PlayerManager#nodes","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#nodes","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#nodes"},{"comment":"/**\n         * The Player class\n         * @type {Player}\n         */","meta":{"range":[1583,1621],"filename":"PlayerManager.js","lineno":53,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001110","name":"this.Player","type":"LogicalExpression","value":"","paramnames":[]}},"description":"The Player class","type":{"names":["Player"]},"name":"Player","longname":"PlayerManager#Player","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#Player","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#Player"},{"comment":"/**\n     * Removes a node by host\n     * @param {string} host Node host\n     * @returns {boolean}\n     */","meta":{"range":[2390,2565],"filename":"PlayerManager.js","lineno":83,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001207","name":"PlayerManager#removeNode","type":"MethodDefinition","paramnames":["host"]},"vars":{"":null}},"description":"Removes a node by host","params":[{"type":{"names":["string"]},"description":"Node host","name":"host"}],"returns":[{"type":{"names":["boolean"]}}],"name":"removeNode","longname":"PlayerManager#removeNode","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#removeNode","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#removeNode"},{"comment":"/**\n         * Total number of shards your bot is operating on\n         * @type {number}\n         */","meta":{"range":[1462,1495],"filename":"PlayerManager.js","lineno":48,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001100","name":"this.shards","type":"LogicalExpression","value":"","paramnames":[]}},"description":"Total number of shards your bot is operating on","type":{"names":["number"]},"name":"shards","longname":"PlayerManager#shards","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#shards","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#shards"},{"comment":"/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @param {string} data.guild Player guild id\n     * @param {string} data.channel Player channel id\n     * @param {string} data.host Player host id\n     * @returns {Player}\n     */","meta":{"range":[5945,6441],"filename":"PlayerManager.js","lineno":202,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001533","name":"PlayerManager#spawnPlayer","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Creates or returns a player","params":[{"type":{"names":["Object"]},"description":"Data for the player","name":"data"},{"type":{"names":["string"]},"description":"Player guild id","name":"data.guild"},{"type":{"names":["string"]},"description":"Player channel id","name":"data.channel"},{"type":{"names":["string"]},"description":"Player host id","name":"data.host"}],"returns":[{"type":{"names":["Player"]}}],"name":"spawnPlayer","longname":"PlayerManager#spawnPlayer","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#spawnPlayer","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#spawnPlayer"},{"comment":"/**\n         * This client's id\n         * @type {string}\n         */","meta":{"range":[1288,1343],"filename":"PlayerManager.js","lineno":43,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001083","name":"this.user","type":"ConditionalExpression","value":"","paramnames":[]}},"description":"This client's id","type":{"names":["string"]},"name":"user","longname":"PlayerManager#user","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#user","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#user"}],"$constructor":{"comment":"/**\n     * Constructs the PlayerManager\n     * @param {external:Client} client Discord.js Client\n     * @param {Object[]} nodes Array of Lavalink Nodes\n     * @param {PlayerManagerOptions} options PlayerManager Options\n     */","meta":{"range":[707,1825],"filename":"PlayerManager.js","lineno":24,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001044","name":"PlayerManager","type":"MethodDefinition","paramnames":["client","nodes","options"]},"vars":{"":null}},"description":"Constructs the PlayerManager","params":[{"type":{"names":["external:Client"]},"description":"Discord.js Client","name":"client"},{"type":{"names":["Array.<Object>"]},"description":"Array of Lavalink Nodes","name":"nodes"},{"type":{"names":["PlayerManagerOptions"]},"description":"PlayerManager Options","name":"options"}],"name":"PlayerManager","longname":"PlayerManager","kind":"class","scope":"global","undocumented":true,"$longname":"PlayerManager","$kind":"constructor","$docmaLink":"?api=lavalink#PlayerManager"}}],"symbols":["LavalinkNode","LavalinkNode#connect","LavalinkNode#destroy","LavalinkNode#event:disconnect","LavalinkNode#event:error","LavalinkNode#event:message","LavalinkNode#event:ready","LavalinkNode#event:reconnecting","LavalinkNode#ready","LavalinkNode#reconnect","LavalinkNode#reconnectInterval","LavalinkNode#region","LavalinkNode#send","LavalinkNode#stats","LavalinkNode#ws","LavaPlayer#event:error","Player","Player#channel","Player#connect","Player#destroy","Player#disconnect","PLayer#event:disconnect","Player#event:end","Player#id","Player#pause","Player#paused","Player#play","Player#playing","Player#seek","Player#state","Player#stop","Player#switchChannel","Player#timestamp","Player#track","Player#volume","PlayerManager","PlayerManager#createNode","PlayerManager#join","PlayerManager#leave","PlayerManager#nodes","PlayerManager#Player","PlayerManager#removeNode","PlayerManager#shards","PlayerManager#spawnPlayer","PlayerManager#user"]}},"app":{"title":"discord.js-lavalink","base":"/discord.js-lavalink/","entrance":"content:readme","routing":{"method":"query","caseSensitive":true},"server":"github","meta":null},"template":{"name":"docma-template-zebra","description":"Zebra - Default template for Docma. https://github.com/onury/docma","version":"2.1.0","supportedDocmaVersion":">=2.0.0","author":"Onur Yıldırım","license":"MIT","mainHTML":"index.html","options":{"title":"discord.js-lavalink","logo":null,"sidebar":{"enabled":true,"outline":"tree","collapsed":false,"toolbar":true,"itemsFolded":false,"itemsOverflow":"crop","badges":true,"search":true,"animations":true},"symbols":{"autoLink":true,"params":"list","enums":"list","props":"list","meta":false},"contentView":{"bookmarks":false},"navbar":{"enabled":true,"fixed":true,"dark":false,"animations":true,"menu":[{"label":"Readme","href":"?content=readme"},{"label":"Documentation","href":"?api=lavalink","iconClass":"ico-book"},{"label":"GitHub","href":"https://github.com/MrJacz/discord.js-lavalink#readme","target":"_blank","iconClass":"ico-md ico-github"}]}}},"partials":{"api":"docma-api","content":"docma-content","notFound":"docma-404"},"elementID":"docma-main","contentElementID":"docma-content","defaultApiName":"_def_","logsEnabled":true}));
+var docma = Object.freeze(new DocmaWeb({"version":"3.2.2","routes":[{"id":"api:","type":"api","name":"_def_","path":"?api","contentPath":null,"sourceType":"js"},{"id":"api:lavalink","type":"api","name":"lavalink","path":"?api=lavalink","contentPath":null,"sourceType":"js"},{"id":"content:readme","type":"content","name":"readme","path":"?content=readme","contentPath":"content/readme.html","sourceType":"md"}],"apis":{"_def_":{"documentation":[],"symbols":[]},"lavalink":{"documentation":[{"comment":"/**\n * Lavalink Websocket\n * @extends {EventEmitter}\n */","meta":{"range":[135,5857],"filename":"LavalinkNode.js","lineno":8,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000016","name":"LavalinkNode","type":"ClassDeclaration","paramnames":["manager","options"]}},"classdesc":"Lavalink Websocket","augments":["EventEmitter"],"name":"LavalinkNode","longname":"LavalinkNode","kind":"class","scope":"global","description":"LavaLink options","params":[{"type":{"names":["PlayerManager"]},"description":"The PlayerManager that created the Node","name":"manager"},{"type":{"names":["LavalinkNodeOptions"]},"description":"LavaLink options","name":"options"}],"$longname":"LavalinkNode","$kind":"class","$docmaLink":"?api=lavalink#LavalinkNode","$members":[{"comment":"/**\n     * Connects to the WebSocket server\n     */","meta":{"range":[2592,3064],"filename":"LavalinkNode.js","lineno":95,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000153","name":"LavalinkNode#connect","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Connects to the WebSocket server","name":"connect","longname":"LavalinkNode#connect","kind":"function","memberof":"LavalinkNode","scope":"instance","params":[],"$longname":"LavalinkNode#connect","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#connect"},{"comment":"/**\n     * Destroys the WebSocket\n     * @returns {boolean}\n     */","meta":{"range":[3794,3932],"filename":"LavalinkNode.js","lineno":145,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000307","name":"LavalinkNode#destroy","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Destroys the WebSocket","returns":[{"type":{"names":["boolean"]}}],"name":"destroy","longname":"LavalinkNode#destroy","kind":"function","memberof":"LavalinkNode","scope":"instance","params":[],"$longname":"LavalinkNode#destroy","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#destroy"},{"comment":"/**\n\t\t * Emmited when the node disconnects from the WebSocket and won't attempt to reconnect\n\t\t * @event LavalinkNode#disconnect\n\t\t * @param {string} reason The reason for the disconnect\n\t\t */","meta":{"filename":"LavalinkNode.js","lineno":179,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node disconnects from the WebSocket and won't attempt to reconnect","kind":"event","name":"disconnect","params":[{"type":{"names":["string"]},"description":"The reason for the disconnect","name":"reason"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:disconnect","scope":"instance","$longname":"LavalinkNode#event:disconnect","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:disconnect"},{"comment":"/**\n         * Emitted whenever the Node's WebSocket encounters a connection error.\n         * @event LavalinkNode#error\n         * @param {Error} error The encountered error\n         */","meta":{"filename":"LavalinkNode.js","lineno":214,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted whenever the Node's WebSocket encounters a connection error.","kind":"event","name":"error","params":[{"type":{"names":["Error"]},"description":"The encountered error","name":"error"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:error","scope":"instance","$longname":"LavalinkNode#event:error","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:error"},{"comment":"/**\n\t\t     * Emmited when a message is received and parsed\n\t\t     * @event LavalinkNode#message\n\t\t     * @param {Object} data The raw message data\n\t\t     */","meta":{"filename":"LavalinkNode.js","lineno":197,"columnno":12,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when a message is received and parsed","kind":"event","name":"message","params":[{"type":{"names":["Object"]},"description":"The raw message data","name":"data"}],"memberof":"LavalinkNode","longname":"LavalinkNode#event:message","scope":"instance","$longname":"LavalinkNode#event:message","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:message"},{"comment":"/**\n\t\t * Emmited when the node gets ready\n\t\t * @event LavalinkNode#ready\n\t\t */","meta":{"filename":"LavalinkNode.js","lineno":116,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node gets ready","kind":"event","name":"ready","memberof":"LavalinkNode","longname":"LavalinkNode#event:ready","scope":"instance","$longname":"LavalinkNode#event:ready","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:ready"},{"comment":"/**\n\t\t\t * Emmited when the node is attempting a reconnect\n\t\t\t * @event LavalinkNode#reconnecting\n\t\t\t */","meta":{"filename":"LavalinkNode.js","lineno":159,"columnno":12,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the node is attempting a reconnect","kind":"event","name":"reconnecting","memberof":"LavalinkNode","longname":"LavalinkNode#event:reconnecting","scope":"instance","$longname":"LavalinkNode#event:reconnecting","$kind":"event","$docmaLink":"?api=lavalink#LavalinkNode#event:reconnecting"},{"comment":"/**\n         * If the lavalink websocket is ready or not\n         * @type {boolean}\n         */","meta":{"range":[1985,2003],"filename":"LavalinkNode.js","lineno":67,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000115","name":"this.ready","type":"Literal","value":false,"paramnames":[]}},"description":"If the lavalink websocket is ready or not","type":{"names":["boolean"]},"name":"ready","longname":"LavalinkNode#ready","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#ready","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#ready"},{"comment":"/**\n         * Roconnection interval\n         * @type {?NodeJS.Timer}\n         */","meta":{"range":[2206,2227],"filename":"LavalinkNode.js","lineno":77,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000127","name":"this.reconnect","type":"Literal","value":null,"paramnames":[]}},"description":"Roconnection interval","type":{"names":["NodeJS.Timer"]},"nullable":true,"name":"reconnect","longname":"LavalinkNode#reconnect","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#reconnect","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#reconnect"},{"comment":"/**\n         * The interval to use for auto Reconnecting\n         * @type {number}\n         */","meta":{"range":[2340,2399],"filename":"LavalinkNode.js","lineno":82,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000133","name":"this.reconnectInterval","type":"LogicalExpression","value":"","paramnames":[]}},"description":"The interval to use for auto Reconnecting","type":{"names":["number"]},"name":"reconnectInterval","longname":"LavalinkNode#reconnectInterval","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#reconnectInterval","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#reconnectInterval"},{"comment":"/**\n         * Region\n         * @type {?string}\n         */","meta":{"range":[1625,1661],"filename":"LavalinkNode.js","lineno":56,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000091","name":"this.region","type":"LogicalExpression","value":"","paramnames":[]}},"description":"Region","type":{"names":["string"]},"nullable":true,"name":"region","longname":"LavalinkNode#region","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#region","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#region"},{"comment":"/**\n     * Sends data to the Lavalink Node\n     * @param {Object} data Object to send\n     * @returns {boolean}\n     */","meta":{"range":[3430,3716],"filename":"LavalinkNode.js","lineno":128,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000262","name":"LavalinkNode#send","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Sends data to the Lavalink Node","params":[{"type":{"names":["Object"]},"description":"Object to send","name":"data"}],"returns":[{"type":{"names":["boolean"]}}],"name":"send","longname":"LavalinkNode#send","kind":"function","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#send","$kind":"method","$docmaLink":"?api=lavalink#LavalinkNode#send"},{"comment":"/**\n         * Player stats\n         * @type {Object}\n         */","meta":{"range":[2483,2498],"filename":"LavalinkNode.js","lineno":87,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000143","name":"this.stats","type":"ObjectExpression","value":"{}","paramnames":[]}},"description":"Player stats","type":{"names":["Object"]},"name":"stats","longname":"LavalinkNode#stats","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#stats","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#stats"},{"comment":"/**\n         * The WebSocket\n         * @type {?WebSocket}\n         */","meta":{"range":[2092,2106],"filename":"LavalinkNode.js","lineno":72,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000121","name":"this.ws","type":"Literal","value":null,"paramnames":[]}},"description":"The WebSocket","type":{"names":["WebSocket"]},"nullable":true,"name":"ws","longname":"LavalinkNode#ws","kind":"member","memberof":"LavalinkNode","scope":"instance","$longname":"LavalinkNode#ws","$kind":"property","$docmaLink":"?api=lavalink#LavalinkNode#ws"}],"$constructor":{"comment":"/**\n     * LavaLink options\n     * @param {PlayerManager} manager The PlayerManager that created the Node\n     * @param {LavalinkNodeOptions} options LavaLink options\n     */","meta":{"range":[765,2530],"filename":"LavalinkNode.js","lineno":25,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000020","name":"LavalinkNode","type":"MethodDefinition","paramnames":["manager","options"]},"vars":{"":null}},"description":"LavaLink options","params":[{"type":{"names":["PlayerManager"]},"description":"The PlayerManager that created the Node","name":"manager"},{"type":{"names":["LavalinkNodeOptions"]},"description":"LavaLink options","name":"options"}],"name":"LavalinkNode","longname":"LavalinkNode","kind":"class","scope":"global","undocumented":true,"$longname":"LavalinkNode","$kind":"constructor","$docmaLink":"?api=lavalink#LavalinkNode"}},{"comment":"/**\n\t\t         * Emmited when the player encounters an error\n\t\t         * @event LavaPlayer#error\n\t\t         * @prop {object} message The raw message\n\t\t         */","meta":{"filename":"Player.js","lineno":239,"columnno":16,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emmited when the player encounters an error","kind":"event","name":"error","properties":[{"type":{"names":["object"]},"description":"The raw message","name":"message"}],"memberof":"LavaPlayer","longname":"LavaPlayer#event:error","scope":"instance","$longname":"LavaPlayer#event:error","$kind":"event","$docmaLink":"?api=lavalink#LavaPlayer#event:error"},{"comment":"/**\n * LavaLink Player\n * @extends {EventEmitter}\n */","meta":{"range":[99,7167],"filename":"Player.js","lineno":7,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000477","name":"Player","type":"ClassDeclaration","paramnames":["options"]}},"classdesc":"LavaLink Player","augments":["EventEmitter"],"name":"Player","longname":"Player","kind":"class","scope":"global","description":"LavaLink Player Options","params":[{"type":{"names":["PlayerOptions"]},"description":"Player Options","name":"options"}],"$longname":"Player","$kind":"class","$docmaLink":"?api=lavalink#Player","$members":[{"comment":"/**\n         * The current channel id\n         * @type {string}\n         */","meta":{"range":[1335,1365],"filename":"Player.js","lineno":48,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000536","name":"this.channel","type":"MemberExpression","value":"options.channel","paramnames":[]}},"description":"The current channel id","type":{"names":["string"]},"name":"channel","longname":"Player#channel","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#channel","$kind":"property","$docmaLink":"?api=lavalink#Player#channel"},{"comment":"/**\n     * Sends a packet to Lavalink for voiceUpdate\n     * @param {Object} data voiceUpdate event data\n     * @returns {Player}\n     */","meta":{"range":[2144,2351],"filename":"Player.js","lineno":81,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000575","name":"Player#connect","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Sends a packet to Lavalink for voiceUpdate","params":[{"type":{"names":["Object"]},"description":"voiceUpdate event data","name":"data"}],"returns":[{"type":{"names":["Player"]}}],"name":"connect","longname":"Player#connect","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#connect","$kind":"method","$docmaLink":"?api=lavalink#Player#connect"},{"comment":"/**\n     * Destroys the Player\n     * @returns {Player}\n     */","meta":{"range":[4663,4794],"filename":"Player.js","lineno":194,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000808","name":"Player#destroy","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"Destroys the Player","returns":[{"type":{"names":["Player"]}}],"name":"destroy","longname":"Player#destroy","kind":"function","memberof":"Player","scope":"instance","params":[],"$longname":"Player#destroy","$kind":"method","$docmaLink":"?api=lavalink#Player#destroy"},{"comment":"/**\n     * Disconnects the player\n     * @param {string} msg Disconnect reason\n     * @returns {Player}\n     */","meta":{"range":[2473,2765],"filename":"Player.js","lineno":96,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000604","name":"Player#disconnect","type":"MethodDefinition","paramnames":["msg"]},"vars":{"":null}},"description":"Disconnects the player","params":[{"type":{"names":["string"]},"description":"Disconnect reason","name":"msg"}],"returns":[{"type":{"names":["Player"]}}],"name":"disconnect","longname":"Player#disconnect","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#disconnect","$kind":"method","$docmaLink":"?api=lavalink#Player#disconnect"},{"comment":"/**\n                 * Emitted whenever the Player gets Stuck or ends\n                 * @event Player#end\n                 * @param {string} message Data containg reason\n                 */","meta":{"filename":"Player.js","lineno":249,"columnno":16,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted whenever the Player gets Stuck or ends","kind":"event","name":"end","params":[{"type":{"names":["string"]},"description":"Data containg reason","name":"message"}],"memberof":"Player","longname":"Player#event:end","scope":"instance","$longname":"Player#event:end","$kind":"event","$docmaLink":"?api=lavalink#Player#event:end"},{"comment":"/**\n         * Player id (Guild ID)\n         * @type {string}\n         */","meta":{"range":[700,720],"filename":"Player.js","lineno":28,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000492","name":"this.id","type":"MemberExpression","value":"options.id","paramnames":[]}},"description":"Player id (Guild ID)","type":{"names":["string"]},"name":"id","longname":"Player#id","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#id","$kind":"property","$docmaLink":"?api=lavalink#Player#id"},{"comment":"/**\n     * Pauses or Resumes the player\n     * @param {boolean} [pause=true] Whether to resume or pause the player\n     * @returns {Player}\n     */","meta":{"range":[3738,3925],"filename":"Player.js","lineno":147,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000713","name":"Player#pause","type":"MethodDefinition","paramnames":["pause"]},"vars":{"":null}},"description":"Pauses or Resumes the player","params":[{"type":{"names":["boolean"]},"optional":true,"defaultvalue":true,"description":"Whether to resume or pause the player","name":"pause"}],"returns":[{"type":{"names":["Player"]}}],"name":"pause","longname":"Player#pause","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#pause","$kind":"method","$docmaLink":"?api=lavalink#Player#pause"},{"comment":"/**\n         * Whether the Player is paused or not.\n         * @type {boolean}\n         */","meta":{"range":[1582,1601],"filename":"Player.js","lineno":58,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000550","name":"this.paused","type":"Literal","value":false,"paramnames":[]}},"description":"Whether the Player is paused or not.","type":{"names":["boolean"]},"name":"paused","longname":"Player#paused","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#paused","$kind":"property","$docmaLink":"?api=lavalink#Player#paused"},{"comment":"/**\n     * Plays a song\n     * @param {string} track A Base64 string from LavaLink API\n     * @param {Object} [options] Other options\n     * @param {number} [options.startTime] Start time\n     * @param {number} [options.endTime] End time\n     * @returns {Player}\n     */","meta":{"range":[3046,3327],"filename":"Player.js","lineno":116,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000629","name":"Player#play","type":"MethodDefinition","paramnames":["track","options"]},"vars":{"":null}},"description":"Plays a song","params":[{"type":{"names":["string"]},"description":"A Base64 string from LavaLink API","name":"track"},{"type":{"names":["Object"]},"optional":true,"description":"Other options","name":"options"},{"type":{"names":["number"]},"optional":true,"description":"Start time","name":"options.startTime"},{"type":{"names":["number"]},"optional":true,"description":"End time","name":"options.endTime"}],"returns":[{"type":{"names":["Player"]}}],"name":"play","longname":"Player#play","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#play","$kind":"method","$docmaLink":"?api=lavalink#Player#play"},{"comment":"/**\n         * Playing boolean\n         * @type {boolean}\n         */","meta":{"range":[1453,1473],"filename":"Player.js","lineno":53,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000544","name":"this.playing","type":"Literal","value":false,"paramnames":[]}},"description":"Playing boolean","type":{"names":["boolean"]},"name":"playing","longname":"Player#playing","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#playing","$kind":"property","$docmaLink":"?api=lavalink#Player#playing"},{"comment":"/**\n     * Seeks to a specified position\n     * @param {number} position The position to seek to\n     * @returns {Player}\n     */","meta":{"range":[4434,4589],"filename":"Player.js","lineno":181,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000785","name":"Player#seek","type":"MethodDefinition","paramnames":["position"]},"vars":{"":null}},"description":"Seeks to a specified position","params":[{"type":{"names":["number"]},"description":"The position to seek to","name":"position"}],"returns":[{"type":{"names":["Player"]}}],"name":"seek","longname":"Player#seek","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#seek","$kind":"method","$docmaLink":"?api=lavalink#Player#seek"},{"comment":"/**\n         * LavaLink Player state\n         * @type {Object}\n         */","meta":{"range":[1694,1722],"filename":"Player.js","lineno":63,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000556","name":"this.state","type":"ObjectExpression","value":"{\"volume\":100}","paramnames":[]}},"description":"LavaLink Player state","type":{"names":["Object"]},"name":"state","longname":"Player#state","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#state","$kind":"property","$docmaLink":"?api=lavalink#Player#state"},{"comment":"/**\n     * stops the Player\n     * @returns {Player}\n     */","meta":{"range":[3398,3580],"filename":"Player.js","lineno":132,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000681","name":"Player#stop","type":"MethodDefinition","paramnames":[]},"vars":{"":null}},"description":"stops the Player","returns":[{"type":{"names":["Player"]}}],"name":"stop","longname":"Player#stop","kind":"function","memberof":"Player","scope":"instance","params":[],"$longname":"Player#stop","$kind":"method","$docmaLink":"?api=lavalink#Player#stop"},{"comment":"/**\n     * Switch player channel\n     * @param {string} channel Channel id\n     * @param {boolean} [reactive=false] Whether to switch channel\n     * @return {boolean}\n     */","meta":{"range":[5140,5347],"filename":"Player.js","lineno":217,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000851","name":"Player#switchChannel","type":"MethodDefinition","paramnames":["channel","reactive"]},"vars":{"":null}},"description":"Switch player channel","params":[{"type":{"names":["string"]},"description":"Channel id","name":"channel"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Whether to switch channel","name":"reactive"}],"returns":[{"type":{"names":["boolean"]}}],"name":"switchChannel","longname":"Player#switchChannel","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#switchChannel","$kind":"method","$docmaLink":"?api=lavalink#Player#switchChannel"},{"comment":"/**\n         * The timestamp the Player started playing\n         * @type {number}\n         */","meta":{"range":[1968,1989],"filename":"Player.js","lineno":73,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000570","name":"this.timestamp","type":"Literal","value":null,"paramnames":[]}},"description":"The timestamp the Player started playing","type":{"names":["number"]},"name":"timestamp","longname":"Player#timestamp","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#timestamp","$kind":"property","$docmaLink":"?api=lavalink#Player#timestamp"},{"comment":"/**\n         * The current track that the Player is playing\n         * @type {?string}\n         */","meta":{"range":[1839,1856],"filename":"Player.js","lineno":68,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000564","name":"this.track","type":"Literal","value":null,"paramnames":[]}},"description":"The current track that the Player is playing","type":{"names":["string"]},"nullable":true,"name":"track","longname":"Player#track","kind":"member","memberof":"Player","scope":"instance","$longname":"Player#track","$kind":"property","$docmaLink":"?api=lavalink#Player#track"},{"comment":"/**\n     * Sets the volume for the player\n     * @param {number} volume Volume\n     * @returns {Player}\n     */","meta":{"range":[4103,4294],"filename":"Player.js","lineno":166,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000754","name":"Player#volume","type":"MethodDefinition","paramnames":["volume"]},"vars":{"":null}},"description":"Sets the volume for the player","params":[{"type":{"names":["number"]},"description":"Volume","name":"volume"}],"returns":[{"type":{"names":["Player"]}}],"name":"volume","longname":"Player#volume","kind":"function","memberof":"Player","scope":"instance","$longname":"Player#volume","$kind":"method","$docmaLink":"?api=lavalink#Player#volume"}],"$constructor":{"comment":"/**\n     * LavaLink Player Options\n     * @param {PlayerOptions} options Player Options\n     */","meta":{"range":[565,1996],"filename":"Player.js","lineno":22,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100000481","name":"Player","type":"MethodDefinition","paramnames":["options"]},"vars":{"":null}},"description":"LavaLink Player Options","params":[{"type":{"names":["PlayerOptions"]},"description":"Player Options","name":"options"}],"name":"Player","longname":"Player","kind":"class","scope":"global","undocumented":true,"$longname":"Player","$kind":"constructor","$docmaLink":"?api=lavalink#Player"}},{"comment":"/**\n         * Emitted when the Player disconnects\n         * @event PLayer#disconnect\n         * @param {string} msg Disconnection reason\n         */","meta":{"filename":"Player.js","lineno":99,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{}},"description":"Emitted when the Player disconnects","kind":"event","name":"disconnect","params":[{"type":{"names":["string"]},"description":"Disconnection reason","name":"msg"}],"memberof":"PLayer","longname":"PLayer#event:disconnect","scope":"instance","$longname":"PLayer#event:disconnect","$kind":"event","$docmaLink":"?api=lavalink#PLayer#event:disconnect"},{"comment":"/**\n * Player Manager class\n * @extends {external:Collection}\n */","meta":{"range":[197,6869],"filename":"PlayerManager.js","lineno":9,"columnno":0,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001032","name":"PlayerManager","type":"ClassDeclaration","paramnames":["client","nodes","options"]}},"classdesc":"Player Manager class","augments":["external:Collection"],"name":"PlayerManager","longname":"PlayerManager","kind":"class","scope":"global","description":"Constructs the PlayerManager","params":[{"type":{"names":["external:Client"]},"description":"Discord.js Client","name":"client"},{"type":{"names":["Array.<Object>"]},"description":"Array of Lavalink Nodes","name":"nodes"},{"type":{"names":["PlayerManagerOptions"]},"description":"PlayerManager Options","name":"options"}],"$longname":"PlayerManager","$kind":"class","$docmaLink":"?api=lavalink#PlayerManager","$members":[{"comment":"/**\n     * A function to create LavaLink nodes and set them to PlayerManager#nodes\n     * @param {Object} options Node options\n     * @returns {LavalinkNode}\n     */","meta":{"range":[2001,2274],"filename":"PlayerManager.js","lineno":67,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001145","name":"PlayerManager#createNode","type":"MethodDefinition","paramnames":["options"]},"vars":{"":null}},"description":"A function to create LavaLink nodes and set them to PlayerManager#nodes","params":[{"type":{"names":["Object"]},"description":"Node options","name":"options"}],"returns":[{"type":{"names":["LavalinkNode"]}}],"name":"createNode","longname":"PlayerManager#createNode","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#createNode","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#createNode"},{"comment":"/**\n     * Joins the voice channel and spawns a new player\n     * @param {Object} data Object with guild, channel, host infomation\n     * @param {string} data.guild Guild id\n     * @param {string} data.channel Channel id\n     * @param {string} data.host host\n     * @param {Object} [options] Options\n     * @param {boolean} [options.selfmute=false] Selfmute\n     * @param {boolean} [options.selfdeaf=false] Selfdeaf\n     * @returns {Player}\n     * @example\n     * // Join voice channel\n     * PlayerManager.join({\n     *  guild: \"412180910587379712\",\n     *  channel: \"412180910587379716\",\n     *  host: \"localhost\"\n     * });\n     */","meta":{"range":[3898,4418],"filename":"PlayerManager.js","lineno":132,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001306","name":"PlayerManager#join","type":"MethodDefinition","paramnames":["data",""]},"vars":{"":null}},"description":"Joins the voice channel and spawns a new player","params":[{"type":{"names":["Object"]},"description":"Object with guild, channel, host infomation","name":"data"},{"type":{"names":["string"]},"description":"Guild id","name":"data.guild"},{"type":{"names":["string"]},"description":"Channel id","name":"data.channel"},{"type":{"names":["string"]},"description":"host","name":"data.host"},{"type":{"names":["Object"]},"optional":true,"description":"Options","name":"options"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Selfmute","name":"options.selfmute"},{"type":{"names":["boolean"]},"optional":true,"defaultvalue":false,"description":"Selfdeaf","name":"options.selfdeaf"}],"returns":[{"type":{"names":["Player"]}}],"examples":["// Join voice channel\nPlayerManager.join({\n guild: \"412180910587379712\",\n channel: \"412180910587379716\",\n host: \"localhost\"\n});"],"name":"join","longname":"PlayerManager#join","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#join","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#join"},{"comment":"/**\n     * Leaves voice channel and deletes Player\n     * @param {string} guild Guild id\n     * @returns {boolean}\n     * @example\n     * // Leave the current channel\n     * PlayerManager.leave(\"412180910587379712\");\n     */","meta":{"range":[4653,5064],"filename":"PlayerManager.js","lineno":159,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001376","name":"PlayerManager#leave","type":"MethodDefinition","paramnames":["guild"]},"vars":{"":null}},"description":"Leaves voice channel and deletes Player","params":[{"type":{"names":["string"]},"description":"Guild id","name":"guild"}],"returns":[{"type":{"names":["boolean"]}}],"examples":["// Leave the current channel\nPlayerManager.leave(\"412180910587379712\");"],"name":"leave","longname":"PlayerManager#leave","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#leave","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#leave"},{"comment":"/**\n         * Collection of LavaLink Nodes\n         * @type {external:Collection<string, LavalinkNode>}\n         */","meta":{"range":[1171,1200],"filename":"PlayerManager.js","lineno":38,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001068","name":"this.nodes","type":"NewExpression","value":"","paramnames":[]}},"description":"Collection of LavaLink Nodes","type":{"names":["external:Collection.<string, LavalinkNode>"]},"name":"nodes","longname":"PlayerManager#nodes","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#nodes","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#nodes"},{"comment":"/**\n         * The Player class\n         * @type {Player}\n         */","meta":{"range":[1583,1621],"filename":"PlayerManager.js","lineno":53,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001102","name":"this.Player","type":"LogicalExpression","value":"","paramnames":[]}},"description":"The Player class","type":{"names":["Player"]},"name":"Player","longname":"PlayerManager#Player","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#Player","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#Player"},{"comment":"/**\n     * Removes a node by host\n     * @param {string} host Node host\n     * @returns {boolean}\n     */","meta":{"range":[2390,2565],"filename":"PlayerManager.js","lineno":83,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001199","name":"PlayerManager#removeNode","type":"MethodDefinition","paramnames":["host"]},"vars":{"":null}},"description":"Removes a node by host","params":[{"type":{"names":["string"]},"description":"Node host","name":"host"}],"returns":[{"type":{"names":["boolean"]}}],"name":"removeNode","longname":"PlayerManager#removeNode","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#removeNode","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#removeNode"},{"comment":"/**\n         * Total number of shards your bot is operating on\n         * @type {number}\n         */","meta":{"range":[1462,1495],"filename":"PlayerManager.js","lineno":48,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001092","name":"this.shards","type":"LogicalExpression","value":"","paramnames":[]}},"description":"Total number of shards your bot is operating on","type":{"names":["number"]},"name":"shards","longname":"PlayerManager#shards","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#shards","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#shards"},{"comment":"/**\n     * Creates or returns a player\n     * @param {Object} data Data for the player\n     * @param {string} data.guild Player guild id\n     * @param {string} data.channel Player channel id\n     * @param {string} data.host Player host id\n     * @returns {Player}\n     */","meta":{"range":[5929,6425],"filename":"PlayerManager.js","lineno":202,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001517","name":"PlayerManager#spawnPlayer","type":"MethodDefinition","paramnames":["data"]},"vars":{"":null}},"description":"Creates or returns a player","params":[{"type":{"names":["Object"]},"description":"Data for the player","name":"data"},{"type":{"names":["string"]},"description":"Player guild id","name":"data.guild"},{"type":{"names":["string"]},"description":"Player channel id","name":"data.channel"},{"type":{"names":["string"]},"description":"Player host id","name":"data.host"}],"returns":[{"type":{"names":["Player"]}}],"name":"spawnPlayer","longname":"PlayerManager#spawnPlayer","kind":"function","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#spawnPlayer","$kind":"method","$docmaLink":"?api=lavalink#PlayerManager#spawnPlayer"},{"comment":"/**\n         * This client's id\n         * @type {string}\n         */","meta":{"range":[1288,1343],"filename":"PlayerManager.js","lineno":43,"columnno":8,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001075","name":"this.user","type":"ConditionalExpression","value":"","paramnames":[]}},"description":"This client's id","type":{"names":["string"]},"name":"user","longname":"PlayerManager#user","kind":"member","memberof":"PlayerManager","scope":"instance","$longname":"PlayerManager#user","$kind":"property","$docmaLink":"?api=lavalink#PlayerManager#user"}],"$constructor":{"comment":"/**\n     * Constructs the PlayerManager\n     * @param {external:Client} client Discord.js Client\n     * @param {Object[]} nodes Array of Lavalink Nodes\n     * @param {PlayerManagerOptions} options PlayerManager Options\n     */","meta":{"range":[707,1825],"filename":"PlayerManager.js","lineno":24,"columnno":4,"path":"/home/travis/build/MrJacz/discord.js-lavalink/src/lib","code":{"id":"astnode100001036","name":"PlayerManager","type":"MethodDefinition","paramnames":["client","nodes","options"]},"vars":{"":null}},"description":"Constructs the PlayerManager","params":[{"type":{"names":["external:Client"]},"description":"Discord.js Client","name":"client"},{"type":{"names":["Array.<Object>"]},"description":"Array of Lavalink Nodes","name":"nodes"},{"type":{"names":["PlayerManagerOptions"]},"description":"PlayerManager Options","name":"options"}],"name":"PlayerManager","longname":"PlayerManager","kind":"class","scope":"global","undocumented":true,"$longname":"PlayerManager","$kind":"constructor","$docmaLink":"?api=lavalink#PlayerManager"}}],"symbols":["LavalinkNode","LavalinkNode#connect","LavalinkNode#destroy","LavalinkNode#event:disconnect","LavalinkNode#event:error","LavalinkNode#event:message","LavalinkNode#event:ready","LavalinkNode#event:reconnecting","LavalinkNode#ready","LavalinkNode#reconnect","LavalinkNode#reconnectInterval","LavalinkNode#region","LavalinkNode#send","LavalinkNode#stats","LavalinkNode#ws","LavaPlayer#event:error","Player","Player#channel","Player#connect","Player#destroy","Player#disconnect","PLayer#event:disconnect","Player#event:end","Player#id","Player#pause","Player#paused","Player#play","Player#playing","Player#seek","Player#state","Player#stop","Player#switchChannel","Player#timestamp","Player#track","Player#volume","PlayerManager","PlayerManager#createNode","PlayerManager#join","PlayerManager#leave","PlayerManager#nodes","PlayerManager#Player","PlayerManager#removeNode","PlayerManager#shards","PlayerManager#spawnPlayer","PlayerManager#user"]}},"app":{"title":"discord.js-lavalink","base":"/discord.js-lavalink/","entrance":"content:readme","routing":{"method":"query","caseSensitive":true},"server":"github","meta":null,"favicon":""},"template":{"name":"docma-template-zebra","description":"Zebra - Default template for Docma. https://github.com/onury/docma","version":"2.3.1","supportedDocmaVersion":">=2.0.0","author":"Onur Yıldırım","license":"MIT","mainHTML":"index.html","options":{"title":"discord.js-lavalink","logo":null,"sidebar":{"enabled":true,"outline":"tree","collapsed":false,"toolbar":true,"itemsFolded":false,"itemsOverflow":"crop","badges":true,"search":true,"animations":true},"symbols":{"autoLink":true,"params":"list","enums":"list","props":"list","meta":false},"contentView":{"bookmarks":false,"faVersion":"5.5.0","faLibs":"all"},"navbar":{"enabled":true,"fixed":true,"dark":false,"animations":true,"menu":[{"label":"Readme","href":"?content=readme"},{"label":"Documentation","href":"?api=lavalink","iconClass":"ico-book"},{"label":"GitHub","href":"https://github.com/MrJacz/discord.js-lavalink#readme","target":"_blank","iconClass":"ico-md ico-github"}]}}},"partials":{"api":"docma-api","content":"docma-content","notFound":"docma-404"},"elementID":"docma-main","contentElementID":"docma-content","defaultApiName":"_def_","logsEnabled":true}));
 
 /* global docma, DocmaWeb, page, sessionStorage */
 /* eslint no-nested-ternary:0, max-depth:0, no-var:0, prefer-template:0, prefer-arrow-callback:0, prefer-spread:0, object-shorthand:0 */
@@ -6466,6 +6655,10 @@ var docma = Object.freeze(new DocmaWeb({"version":"2.1.0","routes":[{"id":"api:"
         return qs || null;
     }
 
+    function getRouteName(context) {
+        return (context.params[1] || '').replace(/\/$/, ''); // remove end slash
+    }
+
     // Setup page.js routes
 
     // if routing method is "path"; e.g. for `/guide` we render `docma-content`
@@ -6482,20 +6675,20 @@ var docma = Object.freeze(new DocmaWeb({"version":"2.1.0","routes":[{"id":"api:"
     if (docma.app.base) page.base(docma.app.base);
     page.redirect('(/)?' + docma.template.main, '');
 
-    if (PATH_ROUTING) {
-        page('(/)?api/:apiName?', function (context, next) {
-            // console.log(context);
-            var apiName = context.params.apiName || docma._.defaultApiName,
-                routeInfo = docma.createRoute(apiName, DocmaWeb.Route.Type.API);
-            // route not found, send to next (not-found)
-            if (!routeInfo || !routeInfo.exists()) return next();
-            routeInfo.apply();
-        });
+    function apiRouteHandler(context, next) {
+        var apiName = getRouteName(context) || docma._.defaultApiName; // e.g. api or api/web
+        var routeInfo = docma.createRoute(apiName, DocmaWeb.Route.Type.API);
+        // route not found, send to next (not-found)
+        if (!routeInfo || !routeInfo.exists()) return next();
+        routeInfo.apply();
+    }
 
-        page('(/)?:content', function (context, next) {
-            // console.log(context);
-            var content = context.params.content,
-                routeInfo = docma.createRoute(content, DocmaWeb.Route.Type.CONTENT);
+    if (PATH_ROUTING) {
+        page('(/)?api/(.+)', apiRouteHandler);
+        page('(/)?api(/)?', apiRouteHandler);
+        page('(/)?(.*)', function (context, next) {
+            var content = getRouteName(context); // e.g. cli or templates/filters
+            var routeInfo = docma.createRoute(content, DocmaWeb.Route.Type.CONTENT);
             // route not found, send to next (not-found)
             if (!routeInfo || !routeInfo.exists()) return next();
             routeInfo.apply();
@@ -6530,23 +6723,31 @@ var docma = Object.freeze(new DocmaWeb({"version":"2.1.0","routes":[{"id":"api:"
 
             var is404 = !routeInfo || !routeInfo.exists();
 
-            // on route-change or hashchange
-            docma._trigger(DocmaWeb.Event.Navigate, [is404 ? null : routeInfo]);
-
             // route not found, send to next (not-found)
             if (is404) return next();
 
+            function triggerNav() {
+                // on route-change or hashchange
+                docma._trigger(DocmaWeb.Event.Navigate, [routeInfo]);
+            }
+
             // if this is already the current route, do nothing...
-            if (routeInfo.isCurrent()) return;
+            if (routeInfo.isCurrent()) {
+                triggerNav();
+                return;
+            }
 
             // now, we can apply the route
-            routeInfo.apply();
+            routeInfo.apply(function (status) {
+                if (status === 200) triggerNav();
+            });
 
         }, 100);
     });
 
     page('*', function (context) { // (context, next)
         docma.warn('Unknown Route:', context.path);
+        docma.log('context:', context);
         docma.createRoute(null).apply();
     });
 

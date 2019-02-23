@@ -1,5 +1,14 @@
 
-<html><head></head><body><p><a href="https://discord.gg/QJnGhnn"><img src="https://discordapp.com/api/guilds/412180910587379712/embed.png" alt="Discord" style="max-width: 100%;"></a><br><a href="https://www.npmjs.com/package/discord.js-lavalink"><img src="https://img.shields.io/npm/v/npm.svg" alt="npm" style="max-width: 100%;"></a><br><a href="https://www.npmjs.com/package/discord.js-lavalink"><img src="https://img.shields.io/npm/dt/discord.js-lavalink.svg?maxAge=3600" alt="npm downloads" style="max-width: 100%;"></a><br><a href="http://badge.fury.io/js/discord.js-lavalink"><img src="https://badge.fury.io/js/discord.js-lavalink.svg" alt="NPM version" style="max-width: 100%;"></a><br><a href="https://travis-ci.org/MrJacz/discord.js-lavalink"><img src="https://travis-ci.org/MrJacz/discord.js-lavalink.svg?branch=master" alt="Build Status" style="max-width: 100%;"></a><br><a href="https://www.codacy.com/app/MrJacz/discord.js-lavalink?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MrJacz/discord.js-lavalink&amp;utm_campaign=Badge_Grade"><img src="https://api.codacy.com/project/badge/Grade/b50839d781c24a94a4e1c17342a147bd" alt="Codacy Badge" style="max-width: 100%;"></a><br><a href="https://github.com/ellerbrock/open-source-badge/"><img src="https://badges.frapsoft.com/os/mit/mit.svg?v=102" alt="Open Source Love" style="max-width: 100%;"></a><br><a href="https://david-dm.org/mrjacz/discord.js-lavalink"><img src="https://david-dm.org/mrjacz/discord.js-lavalink/status.svg" alt="dependencies Status" style="max-width: 100%;"></a><br><a href="https://david-dm.org/mrjacz/discord.js-lavalink?type=dev"><img src="https://david-dm.org/mrjacz/discord.js-lavalink/dev-status.svg" alt="devDependencies Status" style="max-width: 100%;"></a><br><a href="https://nodei.co/npm/discord.js-lavalink/"><img src="https://nodei.co/npm/discord.js-lavalink.png?downloads=true&amp;downloadRank=true&amp;stars=true" alt="NPM" style="max-width: 100%;"></a></p>
+<html><head></head><body><p><a href="https://discord.gg/QJnGhnn"><img src="https://discordapp.com/api/guilds/412180910587379712/embed.png" alt="Discord" style="max-width: 100%;"></a>
+<a href="https://www.npmjs.com/package/discord.js-lavalink"><img src="https://img.shields.io/npm/v/npm.svg" alt="npm" style="max-width: 100%;"></a>
+<a href="https://www.npmjs.com/package/discord.js-lavalink"><img src="https://img.shields.io/npm/dt/discord.js-lavalink.svg?maxAge=3600" alt="npm downloads" style="max-width: 100%;"></a>
+<a href="http://badge.fury.io/js/discord.js-lavalink"><img src="https://badge.fury.io/js/discord.js-lavalink.svg" alt="NPM version" style="max-width: 100%;"></a>
+<a href="https://travis-ci.org/MrJacz/discord.js-lavalink"><img src="https://travis-ci.org/MrJacz/discord.js-lavalink.svg?branch=master" alt="Build Status" style="max-width: 100%;"></a>
+<a href="https://www.codacy.com/app/MrJacz/discord.js-lavalink?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MrJacz/discord.js-lavalink&amp;utm_campaign=Badge_Grade"><img src="https://api.codacy.com/project/badge/Grade/b50839d781c24a94a4e1c17342a147bd" alt="Codacy Badge" style="max-width: 100%;"></a>
+<a href="https://github.com/ellerbrock/open-source-badge/"><img src="https://badges.frapsoft.com/os/mit/mit.svg?v=102" alt="Open Source Love" style="max-width: 100%;"></a>
+<a href="https://david-dm.org/mrjacz/discord.js-lavalink"><img src="https://david-dm.org/mrjacz/discord.js-lavalink/status.svg" alt="dependencies Status" style="max-width: 100%;"></a>
+<a href="https://david-dm.org/mrjacz/discord.js-lavalink?type=dev"><img src="https://david-dm.org/mrjacz/discord.js-lavalink/dev-status.svg" alt="devDependencies Status" style="max-width: 100%;"></a>
+<a href="https://nodei.co/npm/discord.js-lavalink/"><img src="https://nodei.co/npm/discord.js-lavalink.png?downloads=true&amp;downloadRank=true&amp;stars=true" alt="NPM" style="max-width: 100%;"></a></p>
 <h1 id="discordjs-lavalink">discord.js-lavalink</h1>
 <hr />
 <p>A Discord.js lavalink client</p>
@@ -8,8 +17,10 @@
 <p><a href="https://mrjacz.github.io/discord.js-lavalink/"><strong>mrjacz.github.io/discord.js-lavalink</strong></a></p>
 <h2 id="installation">Installation</h2>
 <hr />
-<p><strong>For stable</strong><br><code>npm install discord.js-lavalink</code></p>
-<p><strong>For Development</strong><br><code>npm install mrjacz/discord.js-lavalink</code></p>
+<p><strong>For stable</strong>
+<code>npm install discord.js-lavalink</code></p>
+<p><strong>For Development</strong>
+<code>npm install mrjacz/discord.js-lavalink</code></p>
 <h2 id="lavalink-configuration">LavaLink configuration</h2>
 <hr />
 <p>Download from <a href="https://ci.fredboat.com/viewLog.html?buildId=lastSuccessful&amp;buildTypeId=Lavalink_Build&amp;tab=artifacts&amp;guest=1">the CI server</a></p>
@@ -21,52 +32,46 @@
 <h1 id="implementation">Implementation</h1>
 <hr />
 <p>Start by creating a new <code>PlayerManager</code> passing an array of nodes and an object with <code>user</code> the client’s user id and <code>shards</code> The total number of shards your bot is operating on.</p>
-<pre><code class="lang-javascript">const { PlayerManager } = require("discord.js-lavalink");
-
-const nodes = [
-    { host: "localhost", port: 80, region: "asia", password: "youshallnotpass" }
-];
-
-const manager = new PlayerManager(client, nodes, {
+<p>```javascript
+const { PlayerManager } = require(“discord.js-lavalink”);</p>
+<p>const nodes = [
+    { host: “localhost”, port: 80, region: “asia”, password: “youshallnotpass” }
+];</p>
+<p>const manager = new PlayerManager(client, nodes, {
     user: client.user.id, // Client id
     shards: shardCount // Total number of shards your bot is operating on
 });
-</code></pre>
-<p>Resolving tracks using LavaLink REST API</p>
-<pre><code class="lang-javascript">async function getSongs(string) {
-    const res = await snekfetch.get(`http://localhost:2333/loadtracks?identifier=${string}`)
-        .set("Authorization", "youshallnotpass")
+<code>Resolving tracks using LavaLink REST API</code>javascript
+async function getSongs(string) {
+    const res = await snekfetch.get(<code>http://localhost:2333/loadtracks?identifier=${string}</code>)
+        .set(“Authorization”, “youshallnotpass”)
         .catch(err =&gt; {
             console.error(err);
             return null;
         });
-    if (!res) throw "There was an error, try again";
-    if (!res.body.length) throw "No tracks found";
+    if (!res) throw “There was an error, try again”;
+    if (!res.body.length) throw “No tracks found”;
     return res.body;
-}
-
-getSongs("ytsearch:30 second song").then(songs =&gt; {
-    // handle loading of the tracks somehow ¯\_(ツ)_/¯
+}</p>
+<p>getSongs(“ytsearch:30 second song”).then(songs =&gt; {
+    // handle loading of the tracks somehow ¯_(ツ)_/¯
 });
-</code></pre>
-<p>Joining and Leaving channels</p>
-<pre><code class="lang-javascript">// Join
+<code>Joining and Leaving channels</code>javascript
+// Join
 manager.join({
     guild: guildId // Guild id
     channel: channelId // Channel id
-    host: "localhost" // lavalink host, based on array of nodes
+    host: “localhost” // lavalink host, based on array of nodes
 }).then(player =&gt; {
-    player.play(track); // Track is a base64 string we get from Lavalink REST API
-
-    player.once("error", error =&gt; console.error(error));
-    player.once("end", data =&gt; {
-        if (data.reason === "REPLACED") return; // Ignore REPLACED reason to prevent skip loops
-        // Play next song
-    });
+    player.play(track); // Track is a base64 string we get from Lavalink REST API</p>
+<pre><code>player.once("error", error =&gt; console.error(error));
+player.once("end", data =&gt; {
+    if (data.reason === "REPLACED") return; // Ignore REPLACED reason to prevent skip loops
+    // Play next song
 });
-
-// Leave voice channel and destory Player
+</code></pre><p>});</p>
+<p>// Leave voice channel and destory Player
 manager.leave(guildId); // Player ID aka guild id
-</code></pre>
+```</p>
 <p>For a proper example look at <a href="https://github.com/MrJacz/discord.js-lavalink/blob/master/testing/app.js"><strong>Testing/app.js</strong></a></p>
 </body></html>
