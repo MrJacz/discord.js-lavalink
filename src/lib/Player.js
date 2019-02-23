@@ -198,7 +198,7 @@ class Player extends EventEmitter {
         });
         return this;
     }
-	
+
     setEQ(bands) {
         this.node.send({
             op: "equalizer",
@@ -266,7 +266,7 @@ class Player extends EventEmitter {
      * @private
      */
     updateVoiceState(channel, { selfmute = false, selfdeaf = false } = {}) {
-        this.client.guilds.get(data.guild).shard.send({
+        this.client.guilds.get(this.id).shard.send({
             op: 4,
             shard: this.client.shard ? this.client.shard.id : 0,
             d: {
