@@ -826,6 +826,36 @@
         "$docmaLink": "?api=lavalink#Player#disconnect"
       },
       {
+        "comment": "/**\n         * Emitted when the Player disconnects\n         * @event Player#disconnect\n         * @param {string} msg Disconnection reason\n         */",
+        "meta": {
+          "filename": "Player.js",
+          "lineno": 99,
+          "columnno": 8,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {}
+        },
+        "description": "Emitted when the Player disconnects",
+        "kind": "event",
+        "name": "disconnect",
+        "params": [
+          {
+            "type": {
+              "names": [
+                "string"
+              ]
+            },
+            "description": "Disconnection reason",
+            "name": "msg"
+          }
+        ],
+        "memberof": "Player",
+        "longname": "Player#event:disconnect",
+        "scope": "instance",
+        "$longname": "Player#event:disconnect",
+        "$kind": "event",
+        "$docmaLink": "?api=lavalink#Player#event:disconnect"
+      },
+      {
         "comment": "/**\n                 * Emitted whenever the Player gets Stuck or ends\n                 * @event Player#end\n                 * @param {string} message Data containg reason\n                 */",
         "meta": {
           "filename": "Player.js",
@@ -1456,36 +1486,6 @@
       "$kind": "constructor",
       "$docmaLink": "?api=lavalink#Player"
     }
-  },
-  {
-    "comment": "/**\n         * Emitted when the Player disconnects\n         * @event PLayer#disconnect\n         * @param {string} msg Disconnection reason\n         */",
-    "meta": {
-      "filename": "Player.js",
-      "lineno": 99,
-      "columnno": 8,
-      "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
-      "code": {}
-    },
-    "description": "Emitted when the Player disconnects",
-    "kind": "event",
-    "name": "disconnect",
-    "params": [
-      {
-        "type": {
-          "names": [
-            "string"
-          ]
-        },
-        "description": "Disconnection reason",
-        "name": "msg"
-      }
-    ],
-    "memberof": "PLayer",
-    "longname": "PLayer#event:disconnect",
-    "scope": "instance",
-    "$longname": "PLayer#event:disconnect",
-    "$kind": "event",
-    "$docmaLink": "?api=lavalink#PLayer#event:disconnect"
   },
   {
     "comment": "/**\n * Player Manager class\n * @extends {external:Collection}\n */",
