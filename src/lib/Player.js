@@ -98,7 +98,7 @@ class Player extends EventEmitter {
         this.stop();
         /**
          * Emitted when the Player disconnects
-         * @event PLayer#disconnect
+         * @event Player#disconnect
          * @param {string} msg Disconnection reason
          */
         this.emit("disconnect", msg);
