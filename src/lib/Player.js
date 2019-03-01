@@ -1,8 +1,8 @@
 const { EventEmitter } = require("events");
 
 /**
- * LavaLink Player
- * @extends {EventEmitter}
+ * Player
+ * @extends EventEmitter
  */
 class Player extends EventEmitter {
 

@@ -26,7 +26,6 @@ Docma.create()
             { lavalink: "./src/*/**/*.js" }
         ],
         dest: "./docs",
-        debug: true,
         jsdoc: { plugins: ["jsdoc-dynamic"] },
         template: {
             options: {
