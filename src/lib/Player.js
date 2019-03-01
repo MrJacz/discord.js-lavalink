@@ -7,7 +7,7 @@ const { EventEmitter } = require("events");
 class Player extends EventEmitter {
 
     /**
-	 * @typedef {Object} PlayerOptions
+	 * @typedef {object} PlayerOptions
      * @memberof Player
 	 * @property {string} id Client user id
 	 * @property {external:Client} client Client
@@ -59,7 +59,7 @@ class Player extends EventEmitter {
         this.paused = false;
         /**
          * LavaLink Player state
-         * @type {Object}
+         * @type {object}
          */
         this.state = { volume: 100 };
         /**
@@ -76,7 +76,7 @@ class Player extends EventEmitter {
 
     /**
      * Sends a packet to Lavalink for voiceUpdate
-     * @param {Object} data voiceUpdate event data
+     * @param {object} data voiceUpdate event data
      * @returns {Player}
      */
     connect(data) {
@@ -109,7 +109,7 @@ class Player extends EventEmitter {
     /**
      * Plays a song
      * @param {string} track A Base64 string from LavaLink API
-     * @param {Object} [options] Other options
+     * @param {object} [options] Other options
      * @param {number} [options.startTime] Start time
      * @param {number} [options.endTime] End time
      * @returns {Player}
@@ -223,7 +223,7 @@ class Player extends EventEmitter {
     }
 
     /**
-     * @param {Object} message a packet
+     * @param {object} message a packet
      * @returns {void}
      * @private
      */
@@ -261,7 +261,7 @@ class Player extends EventEmitter {
     /**
      * Updates the Client's voice state
      * @param {string} channel Channel id
-     * @param {Object} [options] selfmute and selfdeaf options
+     * @param {object} [options] selfmute and selfdeaf options
      * @param {boolean} [options.selfmute=false] selfmute option
      * @param {boolean} [options.selfdeaf=false] selfdeaf option
      * @private

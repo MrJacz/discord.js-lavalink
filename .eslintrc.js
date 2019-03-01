@@ -29,7 +29,7 @@ module.exports = {
                     Boolean: "boolean",
                     Symbol: "symbol",
                     function: "Function",
-                    object: "Object",
+                    object: "object",
                     Date: "date",
                     error: "Error"
                 }
