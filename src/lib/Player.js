@@ -21,7 +21,7 @@ class Player extends EventEmitter {
      * LavaLink Player Options
      * @param {PlayerOptions} options Player Options
      */
-    constructor(options = {}) {
+    constructor(options) {
         super();
         /**
          * Player id (Guild ID)
