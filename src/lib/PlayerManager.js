@@ -9,7 +9,7 @@ const LavalinkNode = require("./LavalinkNode");
 class PlayerManager extends Collection {
 
     /**
-	 * @typedef {object} PlayerManagerOptions
+	 * @typedef {Object} PlayerManagerOptions
      * @memberof PlayerManager
 	 * @property {string} user Client user id
 	 * @property {number} shards Total number of shards your bot is operating on
@@ -62,7 +62,7 @@ class PlayerManager extends Collection {
 
     /**
      * A function to create LavaLink nodes and set them to PlayerManager#nodes
-     * @param {object} options Node options
+     * @param {Object} options Node options
      * @returns {LavalinkNode}
      */
     createNode(options) {
@@ -90,7 +90,7 @@ class PlayerManager extends Collection {
 
     /**
      * Used for the Node message event
-     * @param {object} message Parsed message object
+     * @param {Object} message Parsed message object
      * @returns {*}
      * @private
      */
@@ -114,11 +114,11 @@ class PlayerManager extends Collection {
 
     /**
      * Joins the voice channel and spawns a new player
-     * @param {object} data Object with guild, channel, host infomation
+     * @param {Object} data Object with guild, channel, host infomation
      * @param {string} data.guild Guild id
      * @param {string} data.channel Channel id
      * @param {string} data.host host
-     * @param {object} [options] Options
+     * @param {Object} [options] Options
      * @param {boolean} [options.selfmute=false] Selfmute
      * @param {boolean} [options.selfdeaf=false] Selfdeaf
      * @returns {Player}
@@ -176,7 +176,7 @@ class PlayerManager extends Collection {
 
     /**
      * Used for the Voice Server Update event
-     * @param {object} data Data
+     * @param {Object} data Data
      * @returns {void}
      * @private
      */
@@ -194,7 +194,7 @@ class PlayerManager extends Collection {
 
     /**
      * Creates or returns a player
-     * @param {object} data Data for the player
+     * @param {Object} data Data for the player
      * @param {string} data.guild Player guild id
      * @param {string} data.channel Player channel id
      * @param {string} data.host Player host id
@@ -218,9 +218,9 @@ class PlayerManager extends Collection {
 
     /**
      * Private function for sending WS packets.
-     * @param {object} data Data for the player
+     * @param {Object} data Data for the player
      * @param {number} data.op OP for WS
-     * @param {object} data.d The actual data for the WS
+     * @param {Object} data.d The actual data for the WS
      * @returns {void}
      * @private
      */

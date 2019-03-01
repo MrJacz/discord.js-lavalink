@@ -8,7 +8,7 @@ const { EventEmitter } = require("events");
 class LavalinkNode extends EventEmitter {
 
     /**
-	 * @typedef {object} LavalinkNodeOptions
+	 * @typedef {Object} LavalinkNodeOptions
      * @memberof LavalinkNode
      * @property {string} host Lavalink host
      * @property {number|string} [port=2333] Lavalink port
@@ -83,7 +83,7 @@ class LavalinkNode extends EventEmitter {
         this.reconnectInterval = options.reconnectInterval || 15000;
         /**
          * Player stats
-         * @type {object}
+         * @type {Object}
          */
         this.stats = {};
 
@@ -123,7 +123,7 @@ class LavalinkNode extends EventEmitter {
 
     /**
      * Sends data to the Lavalink Node
-     * @param {object} data Object to send
+     * @param {Object} data Object to send
      * @returns {boolean}
      */
     send(data) {
@@ -187,7 +187,7 @@ class LavalinkNode extends EventEmitter {
 
     /**
      * Function for the onMessage event
-     * @param {object} msg Message object
+     * @param {Object} msg Message object
      * @returns {void}
      * @private
      */
@@ -198,7 +198,7 @@ class LavalinkNode extends EventEmitter {
             /**
 		     * Emmited when a message is received and parsed
 		     * @event LavalinkNode#message
-		     * @param {object} data The raw message data
+		     * @param {Object} data The raw message data
 		     */
             this.emit("message", data);
         } catch (error) {
