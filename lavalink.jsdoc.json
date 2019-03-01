@@ -571,7 +571,7 @@
     }
   },
   {
-    "comment": "/**\n\t\t         * Emmited when the player encounters an error\n\t\t         * @event LavaPlayer#error\n\t\t         * @prop {object} message The raw message\n\t\t         */",
+    "comment": "/**\n\t\t         * Emmited when the player encounters an error\n\t\t         * @event LavaPlayer#error\n\t\t         * @prop {Object} message The raw message\n\t\t         */",
     "meta": {
       "filename": "Player.js",
       "lineno": 240,
@@ -586,7 +586,7 @@
       {
         "type": {
           "names": [
-            "object"
+            "Object"
           ]
         },
         "description": "The raw message",
