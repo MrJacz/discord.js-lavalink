@@ -7,6 +7,7 @@ const { EventEmitter } = require("events");
 class Player extends EventEmitter {
 
     /**
+     * Options to pass to Player
 	 * @typedef {Object} PlayerOptions
      * @memberof Player
 	 * @property {string} id Client user id
