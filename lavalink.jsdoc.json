@@ -574,7 +574,7 @@
     "comment": "/**\n\t\t         * Emmited when the player encounters an error\n\t\t         * @event LavaPlayer#error\n\t\t         * @prop {Object} message The raw message\n\t\t         */",
     "meta": {
       "filename": "Player.js",
-      "lineno": 240,
+      "lineno": 241,
       "columnno": 16,
       "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
       "code": {}
@@ -605,7 +605,7 @@
     "meta": {
       "range": [
         99,
-        7191
+        7224
       ],
       "filename": "Player.js",
       "lineno": 7,
@@ -648,11 +648,11 @@
         "comment": "/**\n         * The current channel id\n         * @type {string}\n         */",
         "meta": {
           "range": [
-            1359,
-            1389
+            1392,
+            1422
           ],
           "filename": "Player.js",
-          "lineno": 49,
+          "lineno": 50,
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -682,11 +682,11 @@
         "comment": "/**\n     * Sends a packet to Lavalink for voiceUpdate\n     * @param {Object} data voiceUpdate event data\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            2168,
-            2375
+            2201,
+            2408
           ],
           "filename": "Player.js",
-          "lineno": 82,
+          "lineno": 83,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -735,11 +735,11 @@
         "comment": "/**\n     * Destroys the Player\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            4687,
-            4818
+            4720,
+            4851
           ],
           "filename": "Player.js",
-          "lineno": 195,
+          "lineno": 196,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -776,11 +776,11 @@
         "comment": "/**\n     * Disconnects the player\n     * @param {string} msg Disconnect reason\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            2497,
-            2789
+            2530,
+            2822
           ],
           "filename": "Player.js",
-          "lineno": 97,
+          "lineno": 98,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -829,7 +829,7 @@
         "comment": "/**\n         * Emitted when the Player disconnects\n         * @event Player#disconnect\n         * @param {string} msg Disconnection reason\n         */",
         "meta": {
           "filename": "Player.js",
-          "lineno": 100,
+          "lineno": 101,
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {}
@@ -859,7 +859,7 @@
         "comment": "/**\n                 * Emitted whenever the Player gets Stuck or ends\n                 * @event Player#end\n                 * @param {string} message Data containg reason\n                 */",
         "meta": {
           "filename": "Player.js",
-          "lineno": 250,
+          "lineno": 251,
           "columnno": 16,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {}
@@ -889,11 +889,11 @@
         "comment": "/**\n         * Player id (Guild ID)\n         * @type {string}\n         */",
         "meta": {
           "range": [
-            724,
-            744
+            757,
+            777
           ],
           "filename": "Player.js",
-          "lineno": 29,
+          "lineno": 30,
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -923,11 +923,11 @@
         "comment": "/**\n     * Pauses or Resumes the player\n     * @param {boolean} [pause=true] Whether to resume or pause the player\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            3762,
-            3949
+            3795,
+            3982
           ],
           "filename": "Player.js",
-          "lineno": 148,
+          "lineno": 149,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -978,11 +978,11 @@
         "comment": "/**\n         * Whether the Player is paused or not.\n         * @type {boolean}\n         */",
         "meta": {
           "range": [
-            1606,
-            1625
+            1639,
+            1658
           ],
           "filename": "Player.js",
-          "lineno": 59,
+          "lineno": 60,
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1012,11 +1012,11 @@
         "comment": "/**\n     * Plays a song\n     * @param {string} track A Base64 string from LavaLink API\n     * @param {Object} [options] Other options\n     * @param {number} [options.startTime] Start time\n     * @param {number} [options.endTime] End time\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            3070,
-            3351
+            3103,
+            3384
           ],
           "filename": "Player.js",
-          "lineno": 117,
+          "lineno": 118,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1093,14 +1093,85 @@
         "$docmaLink": "?api=lavalink#Player#play"
       },
       {
+        "comment": "/**\n     * Options to pass to Player\n\t * @typedef {Object} PlayerOptions\n     * @memberof Player\n\t * @property {string} id Client user id\n\t * @property {external:Client} client Client\n     * @property {PlayerManager} manager The player's manager\n     * @property {LavalinkNode} node Lavalink node for the Player\n     * @property {string} channel Channel id for the player\n\t */",
+        "meta": {
+          "filename": "Player.js",
+          "lineno": 9,
+          "columnno": 4,
+          "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
+          "code": {}
+        },
+        "description": "Options to pass to Player",
+        "kind": "typedef",
+        "name": "PlayerOptions",
+        "type": {
+          "names": [
+            "Object"
+          ]
+        },
+        "memberof": "Player",
+        "properties": [
+          {
+            "type": {
+              "names": [
+                "string"
+              ]
+            },
+            "description": "Channel id for the player",
+            "name": "channel"
+          },
+          {
+            "type": {
+              "names": [
+                "external:Client"
+              ]
+            },
+            "description": "Client",
+            "name": "client"
+          },
+          {
+            "type": {
+              "names": [
+                "string"
+              ]
+            },
+            "description": "Client user id",
+            "name": "id"
+          },
+          {
+            "type": {
+              "names": [
+                "PlayerManager"
+              ]
+            },
+            "description": "The player's manager",
+            "name": "manager"
+          },
+          {
+            "type": {
+              "names": [
+                "LavalinkNode"
+              ]
+            },
+            "description": "Lavalink node for the Player",
+            "name": "node"
+          }
+        ],
+        "scope": "static",
+        "longname": "Player.PlayerOptions",
+        "$longname": "Player.PlayerOptions",
+        "$kind": "typedef",
+        "$docmaLink": "?api=lavalink#Player.PlayerOptions"
+      },
+      {
         "comment": "/**\n         * Playing boolean\n         * @type {boolean}\n         */",
         "meta": {
           "range": [
-            1477,
-            1497
+            1510,
+            1530
           ],
           "filename": "Player.js",
-          "lineno": 54,
+          "lineno": 55,
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1130,11 +1201,11 @@
         "comment": "/**\n     * Seeks to a specified position\n     * @param {number} position The position to seek to\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            4458,
-            4613
+            4491,
+            4646
           ],
           "filename": "Player.js",
-          "lineno": 182,
+          "lineno": 183,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1183,11 +1254,11 @@
         "comment": "/**\n         * LavaLink Player state\n         * @type {Object}\n         */",
         "meta": {
           "range": [
-            1718,
-            1746
+            1751,
+            1779
           ],
           "filename": "Player.js",
-          "lineno": 64,
+          "lineno": 65,
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1217,11 +1288,11 @@
         "comment": "/**\n     * stops the Player\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            3422,
-            3604
+            3455,
+            3637
           ],
           "filename": "Player.js",
-          "lineno": 133,
+          "lineno": 134,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1258,11 +1329,11 @@
         "comment": "/**\n     * Switch player channel\n     * @param {string} channel Channel id\n     * @param {boolean} [reactive=false] Whether to switch channel\n     * @return {boolean}\n     */",
         "meta": {
           "range": [
-            5164,
-            5371
+            5197,
+            5404
           ],
           "filename": "Player.js",
-          "lineno": 218,
+          "lineno": 219,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1323,11 +1394,11 @@
         "comment": "/**\n         * The timestamp the Player started playing\n         * @type {number}\n         */",
         "meta": {
           "range": [
-            1992,
-            2013
+            2025,
+            2046
           ],
           "filename": "Player.js",
-          "lineno": 74,
+          "lineno": 75,
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1357,11 +1428,11 @@
         "comment": "/**\n         * The current track that the Player is playing\n         * @type {?string}\n         */",
         "meta": {
           "range": [
-            1863,
-            1880
+            1896,
+            1913
           ],
           "filename": "Player.js",
-          "lineno": 69,
+          "lineno": 70,
           "columnno": 8,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1392,11 +1463,11 @@
         "comment": "/**\n     * Sets the volume for the player\n     * @param {number} volume Volume\n     * @returns {Player}\n     */",
         "meta": {
           "range": [
-            4127,
-            4318
+            4160,
+            4351
           ],
           "filename": "Player.js",
-          "lineno": 167,
+          "lineno": 168,
           "columnno": 4,
           "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
           "code": {
@@ -1446,11 +1517,11 @@
       "comment": "/**\n     * LavaLink Player Options\n     * @param {PlayerOptions} options Player Options\n     */",
       "meta": {
         "range": [
-          589,
-          2020
+          622,
+          2053
         ],
         "filename": "Player.js",
-        "lineno": 23,
+        "lineno": 24,
         "columnno": 4,
         "path": "/home/travis/build/MrJacz/discord.js-lavalink/src/lib",
         "code": {
