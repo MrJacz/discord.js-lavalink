@@ -9,6 +9,7 @@ class LavalinkNode extends EventEmitter {
 
     /**
 	 * @typedef {Object} LavalinkNodeOptions
+     * @memberof LavalinkNode
      * @property {string} host Lavalink host
      * @property {number|string} [port=2333] Lavalink port
      * @property {string} [address] Lavalink address

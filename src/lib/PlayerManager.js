@@ -10,6 +10,7 @@ class PlayerManager extends Collection {
 
     /**
 	 * @typedef {Object} PlayerManagerOptions
+     * @memberof PlayerManager
 	 * @property {string} user Client user id
 	 * @property {number} shards Total number of shards your bot is operating on
      * @property {Player} [player] Custom player class

@@ -8,6 +8,7 @@ class Player extends EventEmitter {
 
     /**
 	 * @typedef {Object} PlayerOptions
+     * @memberof Player
 	 * @property {string} id Client user id
 	 * @property {external:Client} client Client
      * @property {PlayerManager} manager The player's manager
