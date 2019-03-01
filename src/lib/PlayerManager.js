@@ -9,6 +9,7 @@ const LavalinkNode = require("./LavalinkNode");
 class PlayerManager extends Collection {
 
     /**
+     * PlayerManager options
 	 * @typedef {Object} PlayerManagerOptions
      * @memberof PlayerManager
 	 * @property {string} user Client user id

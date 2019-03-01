@@ -8,6 +8,7 @@ const { EventEmitter } = require("events");
 class LavalinkNode extends EventEmitter {
 
     /**
+     * LavalinkNode Options
 	 * @typedef {Object} LavalinkNodeOptions
      * @memberof LavalinkNode
      * @property {string} host Lavalink host
