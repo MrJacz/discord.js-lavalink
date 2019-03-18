@@ -7,9 +7,12 @@
 		"comment-format": [
 			true, "check-space"
 		],
-		"indent": [true, "spaces", 4],
+		"indent": [
+			true, "spaces", 4
+		],
 		"curly": false,
 		"class-name": true,
+		"semicolon": [true, "always"],
 		"triple-equals": true,
 		"eofline": true,
 		"no-bitwise": false,
@@ -20,8 +23,8 @@
 		"one-line": [
 			false
 		],
-		"variable-name": [false],
-		"interface-name": [false],
+		"variable-name": [true, "ban-keywords", "allow-leading-underscore"],
+		"interface-name": [true, "always-prefix"],
 		"no-conditional-assignment": true,
 		"use-isnan": true,
 		"no-trailing-whitespace": true,
@@ -52,7 +55,6 @@
 				"property-declaration": "onespace",
 				"variable-declaration": "onespace"
 			}
-        ],
-        "semicolon": [true, "always"]
+		]
 	}
 }

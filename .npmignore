@@ -8,3 +8,4 @@ testing
 docs.js
 tslint.json
 example
+azure-pipelines.yml

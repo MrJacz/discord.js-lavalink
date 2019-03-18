@@ -1,10 +1,24 @@
-const { EventEmitter } = require("events");
+import { EventEmitter } from "events";
+import { Client } from "discord.js";
+import { PlayerManager } from "./PlayerManager";
+import { LavalinkNode } from "./LavalinkNode";
+import { Base64, PlayerOptions, VoiceServerUpdateData, LavalinkEQ } from "./Types";
 
 /**
  * Player
  * @extends EventEmitter
  */
-class Player extends EventEmitter {
+export class Player extends EventEmitter {
+    public id: string;
+    public client: Client;
+    public manager: PlayerManager;
+    public node: LavalinkNode;
+    public channel: string;
+    public playing: boolean;
+    public paused: boolean;
+    public state: any;
+    public track?: Base64;
+    public timestamp?: number;
 
     /**
      * Options to pass to Player
@@ -21,7 +35,7 @@ class Player extends EventEmitter {
      * LavaLink Player Options
      * @param {PlayerOptions} options Player Options
      */
-    constructor(options) {
+    public constructor(options: PlayerOptions) {
         super();
         /**
          * Player id (Guild ID)
@@ -80,7 +94,7 @@ class Player extends EventEmitter {
      * @param {Object} data voiceUpdate event data
      * @returns {Player}
      */
-    connect(data) {
+    public connect(data: { session: string; event: VoiceServerUpdateData }): Player {
         this.node.send({
             op: "voiceUpdate",
             guildId: this.id,
@@ -92,18 +106,18 @@ class Player extends EventEmitter {
 
     /**
      * Disconnects the player
-     * @param {string} msg Disconnect reason
+     * @param {string} message Disconnect reason
      * @returns {Player}
      */
-    disconnect(msg) {
+    public disconnect(message: string): Player {
         this.playing = false;
         this.stop();
         /**
          * Emitted when the Player disconnects
          * @event Player#disconnect
-         * @param {string} msg Disconnection reason
+         * @param {string} message Disconnection reason
          */
-        this.emit("disconnect", msg);
+        this.emit("disconnect", message);
         return this;
     }
 
@@ -115,7 +129,7 @@ class Player extends EventEmitter {
      * @param {number} [options.endTime] End time
      * @returns {Player}
      */
-    play(track, options = {}) {
+    public play(track: Base64, options?: { startTime?: number, endTime?: number }): Player {
         this.track = track;
         this.node.send(Object.assign({
             op: "play",
@@ -131,7 +145,7 @@ class Player extends EventEmitter {
      * stops the Player
      * @returns {Player}
      */
-    stop() {
+    public stop(): Player {
         this.node.send({
             op: "stop",
             guildId: this.id
@@ -146,7 +160,7 @@ class Player extends EventEmitter {
      * @param {boolean} [pause=true] Whether to resume or pause the player
      * @returns {Player}
      */
-    pause(pause = true) {
+    public pause(pause: boolean = true): Player {
         this.node.send({
             op: "pause",
             guildId: this.id,
@@ -156,7 +170,7 @@ class Player extends EventEmitter {
         return this;
     }
 
-    resume() {
+    public resume(): Player {
         return this.pause(false);
     }
 
@@ -165,7 +179,7 @@ class Player extends EventEmitter {
      * @param {number} volume Volume
      * @returns {Player}
      */
-    volume(volume) {
+    public volume(volume: number): Player {
         this.node.send({
             op: "volume",
             guildId: this.id,
@@ -180,7 +194,7 @@ class Player extends EventEmitter {
      * @param {number} position The position to seek to
      * @returns {Player}
      */
-    seek(position) {
+    public seek(position: number): Player {
         this.node.send({
             op: "seek",
             guildId: this.id,
@@ -193,7 +207,7 @@ class Player extends EventEmitter {
      * Destroys the Player
      * @returns {Player}
      */
-    destroy() {
+    public destroy(): Player {
         this.node.send({
             op: "destroy",
             guildId: this.id
@@ -201,7 +215,7 @@ class Player extends EventEmitter {
         return this;
     }
 
-    setEQ(bands) {
+    public setEQ(bands: LavalinkEQ): Player {
         this.node.send({
             op: "equalizer",
             guildId: this.id,
@@ -216,7 +230,7 @@ class Player extends EventEmitter {
      * @param {boolean} [reactive=false] Whether to switch channel
      * @return {boolean}
      */
-    switchChannel(channel, reactive = false) {
+    public switchChannel(channel: string, reactive: boolean = false): boolean {
         if (this.channel === channel) return false;
         this.channel = channel;
         if (reactive) this.updateVoiceState(channel);
@@ -225,10 +239,10 @@ class Player extends EventEmitter {
 
     /**
      * @param {Object} message a packet
-     * @returns {void}
+     * @returns {boolean}
      * @private
      */
-    event(message) {
+    public event(message): boolean {
         switch (message.type) {
             case "TrackEndEvent": {
                 if (message.reason !== "REPLACED") {
@@ -244,7 +258,7 @@ class Player extends EventEmitter {
 		         * @prop {Object} message The raw message
 		         */
                 if (this.listenerCount("error")) return this.emit("error", message);
-                return;
+                return false;
             }
             case "TrackStuckEvent": {
                 this.stop();
@@ -267,18 +281,16 @@ class Player extends EventEmitter {
      * @param {boolean} [options.selfdeaf=false] selfdeaf option
      * @private
      */
-    updateVoiceState(channel, { selfmute = false, selfdeaf = false } = {}) {
+    private updateVoiceState(channel: string, options: { selfmute?: boolean, selfdeaf?: boolean } = {}) {
         this.manager.sendWS({
             op: 4,
             d: {
                 guild_id: this.id,
                 channel_id: channel,
-                self_mute: selfmute,
-                self_deaf: selfdeaf
+                self_mute: options.selfmute,
+                self_deaf: options.selfdeaf
             }
         });
     }
 
 }
-
-module.exports = Player;

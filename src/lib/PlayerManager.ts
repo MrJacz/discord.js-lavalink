@@ -1,58 +1,24 @@
-const { Collection } = require("discord.js");
-const Player = require("./Player");
-const LavalinkNode = require("./LavalinkNode");
+import { Client, Collection } from "discord.js";
+import { Player } from "./Player";
+import { LavalinkNode } from "./LavalinkNode";
+import { PlayerManagerOptions, PlayerManagerNodes, NodeOptions, LavalinkWebSocketMessage, PlayerManagerJoinData, PlayerManagerJoinOptions, VoiceServerUpdateData } from "./Types";
 
-/**
- * Player Manager class
- * @extends {external:Collection}
- */
-class PlayerManager extends Collection {
+export class PlayerManager extends Collection<string, Player> {
+    private client: Client;
+    public nodes = new Collection<string, LavalinkNode>();
+    public user: string;
+    public shards: number;
+    private Player: any; // tslint:disable-line: variable-name
 
-    /**
-     * PlayerManager options
-	 * @typedef {Object} PlayerManagerOptions
-     * @memberof PlayerManager
-	 * @property {string} user Client user id
-	 * @property {number} shards Total number of shards your bot is operating on
-     * @property {Player} [player] Custom player class
-	 */
-
-    /**
-     * Constructs the PlayerManager
-     * @param {external:Client} client Discord.js Client
-     * @param {Object[]} nodes Array of Lavalink Nodes
-     * @param {PlayerManagerOptions} options PlayerManager Options
-     */
-    constructor(client, nodes = [], options = {}) {
+    public constructor(client: Client, nodes: PlayerManagerNodes[], options: PlayerManagerOptions) {
         super();
+
         if (!client) throw new Error("INVALID_CLIENT: No client provided.");
 
-        /**
-         * The client of the PlayerManager
-         * @type {external:Client}
-         * @private
-         */
-        Object.defineProperty(this, "client", { value: client });
-        /**
-         * Collection of LavaLink Nodes
-         * @type {external:Collection<string, LavalinkNode>}
-         */
-        this.nodes = new Collection();
-        /**
-         * This client's id
-         * @type {string}
-         */
+        this.client = client;
         this.user = client.user ? client.user.id : options.user;
-        /**
-         * Total number of shards your bot is operating on
-         * @type {number}
-         */
-        this.shards = options.shards || 1;
-        /**
-         * The Player class
-         * @type {Player}
-         */
-        this.Player = options.player || Player;
+        this.shards = client.shard ? client.shard.count : options.shards;
+        this.Player = options.Player || Player;
 
         for (const node of nodes) this.createNode(node);
 
@@ -61,12 +27,7 @@ class PlayerManager extends Collection {
         });
     }
 
-    /**
-     * A function to create LavaLink nodes and set them to PlayerManager#nodes
-     * @param {Object} options Node options
-     * @returns {LavalinkNode}
-     */
-    createNode(options) {
+    private createNode(options: NodeOptions): LavalinkNode {
         const node = new LavalinkNode(this, options);
 
         node.on("error", error => this.client.emit("error", error));
@@ -77,25 +38,14 @@ class PlayerManager extends Collection {
         return node;
     }
 
-    /**
-     * Removes a node by host
-     * @param {string} host Node host
-     * @returns {boolean}
-     */
-    removeNode(host) {
-        const node = this.nodes.get(host);
+    public removeNode(host: string | LavalinkNode): boolean {
+        const node = host instanceof LavalinkNode ? host : this.nodes.get(host);
         if (!node) return false;
         node.removeAllListeners();
-        return this.nodes.delete(host);
+        return this.nodes.delete(node.host);
     }
 
-    /**
-     * Used for the Node message event
-     * @param {Object} message Parsed message object
-     * @returns {*}
-     * @private
-     */
-    onMessage(message) {
+    private onMessage(message: LavalinkWebSocketMessage): any {
         if (!message || !message.op) return;
 
         switch (message.op) {
@@ -113,25 +63,7 @@ class PlayerManager extends Collection {
         }
     }
 
-    /**
-     * Joins the voice channel and spawns a new player
-     * @param {Object} data Object with guild, channel, host infomation
-     * @param {string} data.guild Guild id
-     * @param {string} data.channel Channel id
-     * @param {string} data.host host
-     * @param {Object} [options] Options
-     * @param {boolean} [options.selfmute=false] Selfmute
-     * @param {boolean} [options.selfdeaf=false] Selfdeaf
-     * @returns {Player}
-     * @example
-     * // Join voice channel
-     * PlayerManager.join({
-     *  guild: "412180910587379712",
-     *  channel: "412180910587379716",
-     *  host: "localhost"
-     * });
-     */
-    join(data, { selfmute = false, selfdeaf = false } = {}) {
+    public join(data: PlayerManagerJoinData, options?: PlayerManagerJoinOptions): Player {
         const player = this.get(data.guild);
         if (player) return player;
         this.sendWS({
@@ -139,26 +71,14 @@ class PlayerManager extends Collection {
             d: {
                 guild_id: data.guild,
                 channel_id: data.channel,
-                self_mute: selfmute,
-                self_deaf: selfdeaf
+                self_mute: options.selfmute,
+                self_deaf: options.selfdeaf
             }
         });
-        return this.spawnPlayer({
-            host: data.host,
-            guild: data.guild,
-            channel: data.channel
-        });
+        return this.spawnPlayer(data);
     }
 
-    /**
-     * Leaves voice channel and deletes Player
-     * @param {string} guild Guild id
-     * @returns {boolean}
-     * @example
-     * // Leave the current channel
-     * PlayerManager.leave("412180910587379712");
-     */
-    leave(guild) {
+    public leave(guild: string): boolean {
         this.sendWS({
             op: 4,
             d: {
@@ -181,13 +101,14 @@ class PlayerManager extends Collection {
      * @returns {void}
      * @private
      */
-    async voiceServerUpdate(data) {
+    private async voiceServerUpdate(data: VoiceServerUpdateData): Promise<void> {
         const guild = this.client.guilds.get(data.guild_id);
         if (!guild) return;
         const player = this.get(data.guild_id);
         if (!player) return;
         if (!guild.me) await guild.members.fetch(this.client.user.id).catch(() => null);
         player.connect({
+            // @ts-ignore: support both versions of discord.js
             session: guild.me.voice ? guild.me.voice.sessionID : guild.me.voiceSessionID,
             event: data
         });
@@ -201,12 +122,12 @@ class PlayerManager extends Collection {
      * @param {string} data.host Player host id
      * @returns {Player}
      */
-    spawnPlayer(data) {
+    private spawnPlayer(data: PlayerManagerJoinData) {
         const exists = this.get(data.guild);
         if (exists) return exists;
         const node = this.nodes.get(data.host);
         if (!node) throw new Error(`INVALID_HOST: No available node with ${data.host}`);
-        const player = new this.Player({
+        const player: Player = new this.Player({
             id: data.guild,
             client: this.client,
             manager: this,
@@ -225,14 +146,9 @@ class PlayerManager extends Collection {
      * @returns {void}
      * @private
      */
-    sendWS(data) {
+    public sendWS(data): void {
+        // @ts-ignore: support both versions of discord.js
         return typeof this.client.ws.send === "function" ? this.client.ws.send(data) : this.client.guilds.get(data.d.guild_id).shard.send(data);
     }
 
-    static get [Symbol.species]() {
-        return PlayerManager;
-    }
-
 }
-
-module.exports = PlayerManager;

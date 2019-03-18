@@ -1,32 +1,52 @@
-# Node.js
-# Build a general Node.js project with npm.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
-
-trigger:
-- master
-
 pool:
   vmImage: 'ubuntu-16.04'
 strategy:
   matrix:
-    node_10_x:
-      node_version: 10.x
     node_11_x:
       node_version: 11.x
+    node_10_x:
+      node_version: 10.x
 
 steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: $(node_version)
-  displayName: 'Install Node.js'
+  - task: NodeTool@0
+    inputs:
+      versionSpec: $(node_version)
+    displayName: 'Install Node.js'
+  - script: yarn
+    displayName: 'Install Dependencies'
+  - script: yarn run test:lint
+    displayName: 'Run test lint'
+    condition: succeededOrFailed()
+  - bash: |
+      set -e
 
-- script: |
-    npm install
-  displayName: 'npm install'
+      if [ "$TRAVIS_BRANCH" != "master" -o -n "$TRAVIS_TAG" -o "$TRAVIS_PULL_REQUEST" != "false" ]; then
+        echo -e "Not building for a non master branch push - building without deploying."
+        npm run docs
+        exit 0
+      fi
 
-- script: |
-    npm run test
-  displayName: 'run tests'
+      echo -e "Building for a master branch push - building and deploying."
+
+      REPO=$(git config remote.origin.url)
+      SHA=$(git rev-parse --verify HEAD)
+
+      TARGET_BRANCH="gh-pages"
+      git clone $REPO out -b $TARGET_BRANCH
+
+      yarn run docs
+
+      rsync -vau docs/ out/
+
+      cd out
+      git add --all .
+      git config user.name "Azure Pipelines"
+      git config user.email "${COMMIT_EMAIL}"
+      git commit -m "Docs build: ${SHA}" || true
+      git push "https://${GH_TOKEN}@github.com/MrJacz/discord.js-lavalink.git" $TARGET_BRANCH
+    env:
+      COMMIT_EMAIL: $(commitEmail)
+      GH_TOKEN: $(githubToken)
+    displayName: 'Build docs'
 
   

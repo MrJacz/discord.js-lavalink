@@ -2,7 +2,7 @@ const config = require("./config.json");
 const fetch = require("node-fetch");
 const { URLSearchParams } = require("url");
 const { Client } = require("discord.js");
-const { PlayerManager } = require("../src/index");
+const { PlayerManager } = require("../dist/index.js");
 
 class MusicClient extends Client {
 
