@@ -1,24 +1,10 @@
-import { EventEmitter } from "events";
-import { Client } from "discord.js";
-import { PlayerManager } from "./PlayerManager";
-import { LavalinkNode } from "./LavalinkNode";
-import { Base64, PlayerOptions, VoiceServerUpdateData, LavalinkEQ } from "./Types";
+const { EventEmitter } = require("events");
 
 /**
  * Player
  * @extends EventEmitter
  */
-export class Player extends EventEmitter {
-    public id: string;
-    public client: Client;
-    public manager: PlayerManager;
-    public node: LavalinkNode;
-    public channel: string;
-    public playing: boolean;
-    public paused: boolean;
-    public state: any;
-    public track?: Base64;
-    public timestamp?: number;
+class Player extends EventEmitter {
 
     /**
      * Options to pass to Player
@@ -35,7 +21,7 @@ export class Player extends EventEmitter {
      * LavaLink Player Options
      * @param {PlayerOptions} options Player Options
      */
-    public constructor(options: PlayerOptions) {
+    constructor(options) {
         super();
         /**
          * Player id (Guild ID)
@@ -94,7 +80,7 @@ export class Player extends EventEmitter {
      * @param {Object} data voiceUpdate event data
      * @returns {Player}
      */
-    public connect(data: { session: string; event: VoiceServerUpdateData }): Player {
+    connect(data) {
         this.node.send({
             op: "voiceUpdate",
             guildId: this.id,
@@ -106,18 +92,18 @@ export class Player extends EventEmitter {
 
     /**
      * Disconnects the player
-     * @param {string} message Disconnect reason
+     * @param {string} msg Disconnect reason
      * @returns {Player}
      */
-    public disconnect(message: string): Player {
+    disconnect(msg) {
         this.playing = false;
         this.stop();
         /**
          * Emitted when the Player disconnects
          * @event Player#disconnect
-         * @param {string} message Disconnection reason
+         * @param {string} msg Disconnection reason
          */
-        this.emit("disconnect", message);
+        this.emit("disconnect", msg);
         return this;
     }
 
@@ -129,7 +115,7 @@ export class Player extends EventEmitter {
      * @param {number} [options.endTime] End time
      * @returns {Player}
      */
-    public play(track: Base64, options?: { startTime?: number, endTime?: number }): Player {
+    play(track, options = {}) {
         this.track = track;
         this.node.send(Object.assign({
             op: "play",
@@ -145,7 +131,7 @@ export class Player extends EventEmitter {
      * stops the Player
      * @returns {Player}
      */
-    public stop(): Player {
+    stop() {
         this.node.send({
             op: "stop",
             guildId: this.id
@@ -160,7 +146,7 @@ export class Player extends EventEmitter {
      * @param {boolean} [pause=true] Whether to resume or pause the player
      * @returns {Player}
      */
-    public pause(pause: boolean = true): Player {
+    pause(pause = true) {
         this.node.send({
             op: "pause",
             guildId: this.id,
@@ -170,7 +156,7 @@ export class Player extends EventEmitter {
         return this;
     }
 
-    public resume(): Player {
+    resume() {
         return this.pause(false);
     }
 
@@ -179,7 +165,7 @@ export class Player extends EventEmitter {
      * @param {number} volume Volume
      * @returns {Player}
      */
-    public volume(volume: number): Player {
+    volume(volume) {
         this.node.send({
             op: "volume",
             guildId: this.id,
@@ -194,7 +180,7 @@ export class Player extends EventEmitter {
      * @param {number} position The position to seek to
      * @returns {Player}
      */
-    public seek(position: number): Player {
+    seek(position) {
         this.node.send({
             op: "seek",
             guildId: this.id,
@@ -207,7 +193,7 @@ export class Player extends EventEmitter {
      * Destroys the Player
      * @returns {Player}
      */
-    public destroy(): Player {
+    destroy() {
         this.node.send({
             op: "destroy",
             guildId: this.id
@@ -215,7 +201,7 @@ export class Player extends EventEmitter {
         return this;
     }
 
-    public setEQ(bands: LavalinkEQ): Player {
+    setEQ(bands) {
         this.node.send({
             op: "equalizer",
             guildId: this.id,
@@ -230,7 +216,7 @@ export class Player extends EventEmitter {
      * @param {boolean} [reactive=false] Whether to switch channel
      * @return {boolean}
      */
-    public switchChannel(channel: string, reactive: boolean = false): boolean {
+    switchChannel(channel, reactive = false) {
         if (this.channel === channel) return false;
         this.channel = channel;
         if (reactive) this.updateVoiceState(channel);
@@ -239,10 +225,10 @@ export class Player extends EventEmitter {
 
     /**
      * @param {Object} message a packet
-     * @returns {boolean}
+     * @returns {void}
      * @private
      */
-    public event(message): boolean {
+    event(message) {
         switch (message.type) {
             case "TrackEndEvent": {
                 if (message.reason !== "REPLACED") {
@@ -258,7 +244,7 @@ export class Player extends EventEmitter {
 		         * @prop {Object} message The raw message
 		         */
                 if (this.listenerCount("error")) return this.emit("error", message);
-                return false;
+                return;
             }
             case "TrackStuckEvent": {
                 this.stop();
@@ -281,16 +267,18 @@ export class Player extends EventEmitter {
      * @param {boolean} [options.selfdeaf=false] selfdeaf option
      * @private
      */
-    private updateVoiceState(channel: string, options: { selfmute?: boolean, selfdeaf?: boolean } = {}) {
+    updateVoiceState(channel, { selfmute = false, selfdeaf = false } = {}) {
         this.manager.sendWS({
             op: 4,
             d: {
                 guild_id: this.id,
                 channel_id: channel,
-                self_mute: options.selfmute,
-                self_deaf: options.selfdeaf
+                self_mute: selfmute,
+                self_deaf: selfdeaf
             }
         });
     }
 
 }
+
+module.exports = Player;

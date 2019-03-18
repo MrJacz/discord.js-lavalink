@@ -23,7 +23,7 @@ Docma.create()
         },
         src: [
             { readme: "./README.md" },
-            { lavalink: "./dist/*/**/*.js" }
+            { lavalink: "./src/*/**/*.js" }
         ],
         dest: "./docs",
         jsdoc: { plugins: ["jsdoc-dynamic"] },

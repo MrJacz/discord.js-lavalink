@@ -58,5 +58,3 @@ jspm_packages/
 package-lock.json
 example/config.json
 
-dist/
-

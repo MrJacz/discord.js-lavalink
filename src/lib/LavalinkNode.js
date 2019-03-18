@@ -1,23 +1,30 @@
+const WebSocket = require("ws");
+const { EventEmitter } = require("events");
 
-import * as WebSocket from "ws";
-import { EventEmitter } from "events";
-import { PlayerManager } from "./PlayerManager";
-import { NodeStats, NodeOptions } from "./Types";
+/**
+ * Lavalink Websocket
+ * @extends {EventEmitter}
+ */
+class LavalinkNode extends EventEmitter {
 
-export class LavalinkNode extends EventEmitter {
-    public manager: PlayerManager;
-    public host: string;
-    public port?: number | string;
-    public address: string;
-    public region?: string;
-    public password?: string;
-    public ready: boolean;
-    public ws?: WebSocket;
-    public reconnect?: NodeJS.Timer;
-    public reconnectInterval?: number;
-    public stats: NodeStats;
+    /**
+     * LavalinkNode Options
+	 * @typedef {Object} LavalinkNodeOptions
+     * @memberof LavalinkNode
+     * @property {string} host Lavalink host
+     * @property {number|string} [port=2333] Lavalink port
+     * @property {string} [address] Lavalink address
+     * @property {string} [region] Lavalink region
+     * @property {string} [password="youshallnotpass"] Lavalink password
+     * @property {number} [reconnectInterval=5000] Reconnectinterval
+	 */
 
-    public constructor(manager: PlayerManager, options: NodeOptions) {
+    /**
+     * LavaLink options
+     * @param {PlayerManager} manager The PlayerManager that created the Node
+     * @param {LavalinkNodeOptions} options LavaLink options
+     */
+    constructor(manager, options = {}) {
         super();
 
         /**
@@ -79,22 +86,19 @@ export class LavalinkNode extends EventEmitter {
          * Player stats
          * @type {Object}
          */
-        this.stats = {
-            players: 0,
-            playingPlayers: 0
-        };
+        this.stats = {};
 
-        this._connect();
+        this.connect();
     }
 
     /**
      * Connects to the WebSocket server
      */
-    private _connect() {
+    connect() {
         this.ws = new WebSocket(this.address, {
             headers: {
                 "User-Id": this.manager.user,
-                "Num-Shards": String(this.manager.shards),
+                "Num-Shards": this.manager.shards,
                 Authorization: this.password
             }
         });
@@ -109,7 +113,7 @@ export class LavalinkNode extends EventEmitter {
      * Function for the onOpen WS event
      * @private
      */
-    private _ready() {
+    _ready() {
         this.ready = true;
         /**
 		 * Emmited when the node gets ready
@@ -123,7 +127,7 @@ export class LavalinkNode extends EventEmitter {
      * @param {Object} data Object to send
      * @returns {boolean}
      */
-    public send(data: object): boolean {
+    send(data) {
         if (!this.ws) return false;
         let payload;
         try {
@@ -140,7 +144,7 @@ export class LavalinkNode extends EventEmitter {
      * Destroys the WebSocket
      * @returns {boolean}
      */
-    public destroy(): boolean {
+    destroy() {
         if (!this.ws) return false;
         this.ws.close(1000, "destroy");
         this.ws = null;
@@ -151,7 +155,7 @@ export class LavalinkNode extends EventEmitter {
      * Reconnects the websocket
      * @private
      */
-    private _reconnect() {
+    _reconnect() {
         this.reconnect = setTimeout(() => {
             this.ws.removeAllListeners();
             /**
@@ -159,7 +163,7 @@ export class LavalinkNode extends EventEmitter {
 			 * @event LavalinkNode#reconnecting
 			 */
             this.emit("reconnecting");
-            this._connect();
+            this.connect();
         }, this.reconnectInterval);
     }
 
@@ -170,8 +174,8 @@ export class LavalinkNode extends EventEmitter {
      * @returns {void}
      * @private
      */
-    private _close(code, reason) {
-        this.ready = false;
+    _close(code, reason) {
+        this.connected = false;
         if (code !== 1000 || reason !== "destroy") return this._reconnect();
         this.ws = null;
         /**
@@ -188,7 +192,7 @@ export class LavalinkNode extends EventEmitter {
      * @returns {void}
      * @private
      */
-    private _message(msg) {
+    _message(msg) {
         try {
             const data = JSON.parse(msg);
             if (data.op === "stats") this.stats = data;
@@ -208,7 +212,7 @@ export class LavalinkNode extends EventEmitter {
      * @param {Error} error error from WS
      * @private
      */
-    private _error(error) {
+    _error(error) {
         /**
          * Emitted whenever the Node's WebSocket encounters a connection error.
          * @event LavalinkNode#error
@@ -217,4 +221,7 @@ export class LavalinkNode extends EventEmitter {
         this.emit("error", error);
     }
 
+
 }
+
+module.exports = LavalinkNode;
