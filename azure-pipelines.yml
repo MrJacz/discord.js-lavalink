@@ -47,6 +47,8 @@ steps:
     env:
       COMMIT_EMAIL: $(commitEmail)
       GH_TOKEN: $(githubToken)
+    trigger:
+      - master
     displayName: 'Build docs'
 
   
