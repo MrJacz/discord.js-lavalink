@@ -1,54 +1,66 @@
-pool:
-  vmImage: 'ubuntu-16.04'
-strategy:
-  matrix:
-    node_11_x:
-      node_version: 11.x
-    node_10_x:
-      node_version: 10.x
+jobs:
+  - job: Lint
+  pool:
+    vmImage: 'ubuntu-16.04'
+  strategy:
+    matrix:
+      node_11_x:
+        node_version: 11.x
+      node_10_x:
+        node_version: 10.x
 
-steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: $(node_version)
-    displayName: 'Install Node.js'
-  - script: yarn
-    displayName: 'Install Dependencies'
-  - script: yarn test:lint
-    displayName: 'Run test lint'
-    condition: succeededOrFailed()
-  - bash: |
-      set -e
+  steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: $(node_version)
+      displayName: 'Install Node.js'
+    - script: yarn
+      displayName: 'Install Dependencies'
+    - script: yarn test:lint
+      displayName: 'Run test lint'
 
-      if [ "$TRAVIS_BRANCH" != "master" -o -n "$TRAVIS_TAG" -o "$TRAVIS_PULL_REQUEST" != "false" ]; then
-        echo -e "Not building for a non master branch push - building without deploying."
-        npm run docs
-        exit 0
-      fi
+  - job: Build
+  trigger:
+  - master
+  dependsOn: Lint
+  pool:
+    vmImage: 'ubuntu-16.04'
+  strategy:
+    matrix:
+      node_11_x:
+        node_version: 11.x
+      node_10_x:
+        node_version: 10.x
 
-      echo -e "Building for a master branch push - building and deploying."
+  steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: $(node_version)
+      displayName: 'Install Node.js'
+    - script: yarn
+      displayName: 'Install Dependencies'
+    - bash: |
+        set -e
 
-      REPO=$(git config remote.origin.url)
-      SHA=$(git rev-parse --verify HEAD)
+        echo -e "Building for a master branch push - building and deploying."
 
-      TARGET_BRANCH="gh-pages"
-      git clone $REPO out -b $TARGET_BRANCH
+        REPO=$(git config remote.origin.url)
+        SHA=$(git rev-parse --verify HEAD)
 
-      yarn docs
+        TARGET_BRANCH="gh-pages"
+        git clone $REPO out -b $TARGET_BRANCH
 
-      rsync -vau docs/ out/
+        yarn docs
 
-      cd out
-      git add --all .
-      git config user.name "Azure Pipelines"
-      git config user.email "${COMMIT_EMAIL}"
-      git commit -m "Docs build: ${SHA}" || true
-      git push "https://${GH_TOKEN}@github.com/MrJacz/discord.js-lavalink.git" $TARGET_BRANCH
-    env:
-      COMMIT_EMAIL: $(commitEmail)
-      GH_TOKEN: $(githubToken)
-    trigger:
-      - master
-    displayName: 'Build docs'
+        rsync -vau docs/ out/
 
-  
+        cd out
+        git add --all .
+        git config user.name "Azure Pipelines"
+        git config user.email "${COMMIT_EMAIL}"
+        git commit -m "Docs build: ${SHA}" || true
+        git push "https://${GH_TOKEN}@github.com/MrJacz/discord.js-lavalink.git" $TARGET_BRANCH
+      env:
+        COMMIT_EMAIL: $(commitEmail)
+        GH_TOKEN: $(githubToken)
+      displayName: 'Build docs'
