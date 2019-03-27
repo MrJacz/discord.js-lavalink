@@ -41,7 +41,9 @@ const { PlayerManager } = require(“discord.js-lavalink”);</p>
     user: client.user.id, // Client id
     shards: shardCount // Total number of shards your bot is operating on
 });
-<code>Resolving tracks using LavaLink REST API</code>javascript
+```</p>
+<p>Resolving tracks using LavaLink REST API</p>
+<p>```javascript
 const fetch = require(“node-fetch”);
 const { URLSearchParams } = require(“url”);</p>
 <p>async function getSongs(search) {
@@ -60,7 +62,9 @@ return fetch(`http://${node.host}:${node.port}/loadtracks?${params.toString()}`,
 <p>getSongs(“ytsearch:30 second song”).then(songs =&gt; {
     // handle loading of the tracks somehow ¯_(ツ)_/¯
 });
-<code>Joining and Leaving channels</code>javascript
+```</p>
+<p>Joining and Leaving channels</p>
+<p>```javascript
 // Join
 manager.join({
     guild: guildId, // Guild id
