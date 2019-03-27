@@ -10,7 +10,7 @@ install: yarn
 jobs:
   include:
     - stage: test
-      script: 'yarn test:lint'
+      script: yarn test:lint
     - stage: deploy
       script: bash ./scripts/travis-deploy.sh
 cache:
