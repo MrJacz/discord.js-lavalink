@@ -48,7 +48,9 @@ const manager = new PlayerManager(client, nodes, {
     shards: shardCount // Total number of shards your bot is operating on
 });
 ```
+
 Resolving tracks using LavaLink REST API
+
 ```javascript
 const fetch = require("node-fetch");
 const { URLSearchParams } = require("url");
@@ -72,7 +74,9 @@ getSongs("ytsearch:30 second song").then(songs => {
     // handle loading of the tracks somehow ¯\_(ツ)_/¯
 });
 ```
+
 Joining and Leaving channels
+
 ```javascript
 // Join
 manager.join({
