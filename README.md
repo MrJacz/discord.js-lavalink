@@ -1,4 +1,4 @@
-[![Discord](https://discordapp.com/api/guilds/412180910587379712/embed.png)](https://discord.gg/QJnGhnn)
+[![Discord](https://discordapp.com/api/guilds/323779330033319941/embed.png)](https://discord.gg/J8AqH4A)
 [![npm](https://img.shields.io/npm/v/npm.svg)](https://www.npmjs.com/package/discord.js-lavalink)
 [![npm downloads](https://img.shields.io/npm/dt/discord.js-lavalink.svg?maxAge=3600)](https://www.npmjs.com/package/discord.js-lavalink)
 [![NPM version](https://badge.fury.io/js/discord.js-lavalink.svg)](http://badge.fury.io/js/discord.js-lavalink)
@@ -10,7 +10,7 @@
 [![NPM](https://nodei.co/npm/discord.js-lavalink.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/discord.js-lavalink/)
 
 # discord.js-lavalink
-A Discord.js lavalink client
+A lavalink client for Discord.js
 
 ## Documentation
 [**mrjacz.github.io/discord.js-lavalink**](https://mrjacz.github.io/discord.js-lavalink/)
