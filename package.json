@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
   "devDependencies": {
-    "@types/node": "^11.9.5",
+    "@types/node": "^12.0.0",
     "@types/ws": "^6.0.1",
     "discord.js": "discordjs/discord.js",
     "docma": "^3.2.2",
