@@ -2,13 +2,20 @@ language: node_js
 node_js:
   - "10"
   - "11"
-install: npm install
+sudo: required
+before_install:
+  - curl -o- -L https://yarnpkg.com/install.sh | bash
+  - export PATH="$HOME/.yarn/bin:$PATH"
+install: yarn
 jobs:
   include:
     - stage: test
-      script: npm test
+      script: yarn test
     - stage: deploy
       script: bash ./scripts/travis-deploy.sh
 cache:
+  yarn: true
   directories:
     - node_modules
+notifications:
+  email: false

@@ -10,7 +10,7 @@
 [![NPM](https://nodei.co/npm/discord.js-lavalink.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/discord.js-lavalink/)
 
 # discord.js-lavalink
-A Discord.js lavalink client
+A lavalink client for Discord.js
 
 ## Documentation
 [**mrjacz.github.io/discord.js-lavalink**](https://mrjacz.github.io/discord.js-lavalink/)
@@ -60,7 +60,9 @@ const manager = new PlayerManager(client, nodes, {
     shards: shardCount // Total number of shards your bot is operating on
 });
 ```
+
 Resolving tracks using LavaLink REST API
+
 ```javascript
 const fetch = require("node-fetch");
 const { URLSearchParams } = require("url");
@@ -84,7 +86,9 @@ getSongs("ytsearch:30 second song").then(songs => {
     // handle loading of the tracks somehow ¯\_(ツ)_/¯
 });
 ```
+
 Joining and Leaving channels
+
 ```javascript
 // Join
 manager.join({
