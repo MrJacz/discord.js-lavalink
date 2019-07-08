@@ -1,12 +1,12 @@
 {
   "name": "discord.js-lavalink",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "A discord.js lavalink client",
   "main": "src/index.js",
   "types": "typings/index.d.ts",
   "scripts": {
-    "test": "eslint src && tslint 'typings/*.ts'",
-    "lint": "eslint --fix src test && tslint --fix 'typings/*.ts'",
+    "test": "eslint src",
+    "lint": "eslint --fix src",
     "docs": "node docs.js"
   },
   "repository": {
@@ -30,21 +30,17 @@
   },
   "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
   "devDependencies": {
-    "@types/node": "^11.9.5",
+    "@types/node": "^12.0.12",
     "@types/ws": "^6.0.1",
     "discord.js": "discordjs/discord.js",
     "docma": "^3.2.2",
-    "eslint": "^5.14.1",
-    "eslint-plugin-node": "^8.0.1",
-    "eslint-plugin-promise": "^4.0.1",
+    "eslint": "^6.0.1",
+    "eslint-plugin-node": "^9.1.0",
+    "eslint-plugin-promise": "^4.2.1",
     "jsdoc-dynamic": "^1.0.4",
-    "tslint": "^5.12.1",
-    "typescript": "^3.3.3333"
+    "typescript": "^3.5.2"
   },
   "dependencies": {
     "ws": "^6.1.4"
-  },
-  "peerDependencies": {
-    "discord.js": "^11.4.2"
   }
 }
