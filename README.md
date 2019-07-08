@@ -1,4 +1,4 @@
-[![Discord](https://discordapp.com/api/guilds/412180910587379712/embed.png)](https://discord.gg/QJnGhnn)
+[![Discord](https://discordapp.com/api/guilds/323779330033319941/embed.png)](https://discord.gg/J8AqH4A)
 [![npm](https://img.shields.io/npm/v/npm.svg)](https://www.npmjs.com/package/discord.js-lavalink)
 [![npm downloads](https://img.shields.io/npm/dt/discord.js-lavalink.svg?maxAge=3600)](https://www.npmjs.com/package/discord.js-lavalink)
 [![NPM version](https://badge.fury.io/js/discord.js-lavalink.svg)](http://badge.fury.io/js/discord.js-lavalink)
@@ -18,10 +18,22 @@ A Discord.js lavalink client
 ## Installation
 
 **For stable**
-```npm install discord.js-lavalink```
+```bash
+# Using yarn
+yarn add discord.js-lavalink
+
+# Using npm
+npm install discord.js-lavalink
+```
 
 **For Development**
-```npm install mrjacz/discord.js-lavalink```
+```bash
+# Using yarn
+yarn add MrJacz/discord.js-lavalink
+
+# Using npm
+npm install MrJacz/discord.js-lavalink
+```
 
 ## LavaLink configuration
 Download from [the CI server](https://ci.fredboat.com/viewLog.html?buildId=lastSuccessful&buildTypeId=Lavalink_Build&tab=artifacts&guest=1)
@@ -31,7 +43,7 @@ Put an `application.yml` file in your working directory. [Example](https://githu
 Run with `java -jar Lavalink.jar`
 
 ## The issue tracker is for issues only
-If you're having a problem with the module contact us in the [**Discord Server**](https://discord.gg/QJnGhnn)
+If you're having a problem with the module contact us in the [**Discord Server**](https://discord.gg/J8AqH4A)
 
 # Implementation
 Start by creating a new `PlayerManager` passing an array of nodes and an object with `user` the client's user id and `shards` The total number of shards your bot is operating on.
