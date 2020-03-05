@@ -57,4 +57,5 @@ jspm_packages/
 # Custom
 package-lock.json
 example/config.json
+yarn.lock
 

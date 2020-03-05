@@ -1,10 +1,10 @@
 node_modules
 scripts
-testing
 .eslintrc.js
 .gitattributes
 .gitignore
 .travis.yml
 docs.js
-tslint.json
 example
+.npmrc
+yarn.lock

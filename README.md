@@ -59,6 +59,11 @@ const manager = new PlayerManager(client, nodes, {
     user: client.user.id, // Client id
     shards: shardCount // Total number of shards your bot is operating on
 });
+
+manager.on("error", (node, error) => {
+    node // is the node which the error is from
+    error // is the error;
+});
 ```
 
 Resolving tracks using LavaLink REST API
@@ -73,7 +78,7 @@ async function getSongs(search) {
     const params = new URLSearchParams();
     params.append("identifier", search);
 
-    return fetch(`http://${node.host}:${node.port}/loadtracks?${params.toString()}`, { headers: { Authorization: node.password } })
+    return fetch(`http://${node.host}:${node.port}/loadtracks?${params}`, { headers: { Authorization: node.password } })
         .then(res => res.json())
         .then(data => data.tracks)
         .catch(err => {
@@ -91,22 +96,22 @@ Joining and Leaving channels
 
 ```javascript
 // Join
-manager.join({
+const player = await manager.join({
     guild: guildId, // Guild id
     channel: channelId, // Channel id
     host: "localhost" // lavalink host, based on array of nodes
-}).then(player => {
-    player.play(track); // Track is a base64 string we get from Lavalink REST API
+});
 
-    player.once("error", error => console.error(error));
-    player.once("end", data => {
-        if (data.reason === "REPLACED") return; // Ignore REPLACED reason to prevent skip loops
-        // Play next song
-    });
+await player.play(track); // Track is a base64 string we get from Lavalink REST API
+
+player.once("error", error => console.error(error));
+player.once("end", data => {
+    if (data.reason === "REPLACED") return; // Ignore REPLACED reason to prevent skip loops
+    // Play next song
 });
 
 // Leave voice channel and destory Player
-manager.leave(guildId); // Player ID aka guild id
+await manager.leave(guildId); // Player ID aka guild id
 ```
 
 For a proper example look at [**example/app.js**](https://github.com/MrJacz/discord.js-lavalink/blob/master/example/app.js)

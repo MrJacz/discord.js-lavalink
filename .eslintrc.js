@@ -1,23 +1,59 @@
 module.exports = {
-    extends: "eslint:recommended",
+    parser: "@typescript-eslint/parser",
+    extends: [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
     env: {
         node: true,
         es6: true
     },
     parserOptions: {
-        ecmaVersion: 9,
+        ecmaVersion: 2019,
         sourceType: "module"
     },
     plugins: [
         "promise",
-        "node"
+        "node",
+        "@typescript-eslint"
     ],
     rules: {
-        "no-extra-parens": [
-            "warn",
-            "all",
-            { nestedBinaryExpressions: false }
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/camelcase": "off",
+        "@typescript-eslint/explicit-function-return-type": ["error", { allowExpressions: true }],
+        "@typescript-eslint/interface-name-prefix": 0,
+        indent: "off",
+        "@typescript-eslint/indent": [
+            "error",
+            4,
+            { SwitchCase: 1 }
         ],
+        "@typescript-eslint/no-explicit-any": 0,
+        "@typescript-eslint/no-use-before-define": 0,
+        "@typescript-eslint/member-delimiter-style": ["error", {
+            multiline: {
+                delimiter: "semi",
+                requireLast: true
+            },
+            singleline: {
+                delimiter: "semi",
+                requireLast: true
+            },
+            overrides: {
+                interface: {
+                    multiline: {
+                        delimiter: "semi",
+                        requireLast: true
+                    },
+                    singleline: {
+                        delimiter: "semi",
+                        requireLast: true
+                    }
+                }
+            }
+        }],
+        "no-extra-parens": "off",
+        "@typescript-eslint/no-extra-parens": ["error"],
         "valid-jsdoc": [
             "warn",
             {
@@ -108,11 +144,6 @@ module.exports = {
             "error",
             "declaration",
             { allowArrowFunctions: true }
-        ],
-        indent: [
-            "error",
-            4,
-            { SwitchCase: 1 }
         ],
         "key-spacing": "error",
         "keyword-spacing": [
