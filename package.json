@@ -10,7 +10,7 @@
         "test": "eslint --ext ts src",
         "compile": "tsc -p .",
         "watch": "tsc -p . -w",
-		"docs": "typedoc"
+        "docs": "typedoc"
     },
     "repository": {
         "type": "git",
@@ -53,8 +53,7 @@
     },
     "files": [
         "dist",
-        "example/example-app.js",
-        "!dist/tsconfig.tsbuildinfo"
+        "example/example-app.js"
     ],
     "engines": {
         "node": ">=10",

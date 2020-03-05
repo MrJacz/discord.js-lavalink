@@ -20,7 +20,8 @@
         "strictFunctionTypes": true,
         "strictBindCallApply": true,
         "target": "esnext",
-        "types": ["node"]
+        "types": ["node"],
+        "rootDir": "src"
     },
     "exclude": ["node_modules", "example", "scripts"],
     "include": ["src/**/*"],

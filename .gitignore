@@ -27,7 +27,8 @@ coverage/
 *.iml
 
 # Transpiled files
-# dist/
+dist/
+tsconfig.tsbuildinfo
 
 # Optional npm cache directory
 .npm
@@ -38,12 +39,7 @@ coverage/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
-
 # Custom
 package-lock.json
 example/config.json
-yarn.lock
 docs/
-dist
