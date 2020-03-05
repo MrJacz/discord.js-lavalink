@@ -1,8 +1,8 @@
-import { Client, Collection, ClientUser } from "discord.js";
+import { Client, ClientUser, Collection } from "discord.js";
 import { EventEmitter } from "events";
 import { LavalinkNode } from "./LavalinkNode";
 import { Player } from "./Player";
-import { VoiceServerUpdate, VoiceStateUpdate, LavalinkNodeOptions, PlayerManagerOptions, DiscordPacket, PlayerManagerJoinData, PlayerManagerJoinOptions, PlayerUpdateVoiceState } from "./Types";
+import { DiscordPacket, LavalinkNodeOptions, PlayerManagerJoinData, PlayerManagerJoinOptions, PlayerManagerOptions, PlayerUpdateVoiceState, VoiceServerUpdate, VoiceStateUpdate } from "./Types";
 
 export class PlayerManager extends EventEmitter {
 
@@ -144,11 +144,13 @@ export class PlayerManager extends EventEmitter {
     }
 
     public get idealNodes(): Collection<string, LavalinkNode> {
-        return this.nodes.filter(node => node.connected).sort((a, b) => {
-            const aload = a.stats.cpu ? a.stats.cpu.systemLoad / a.stats.cpu.cores * 100 : 0;
-            const bload = b.stats.cpu ? b.stats.cpu.systemLoad / b.stats.cpu.cores * 100 : 0;
-            return aload - bload;
-        });
+        return this.nodes
+            .filter(node => node.connected)
+            .sort((a, b) => {
+                const aload = a.stats.cpu ? a.stats.cpu.systemLoad / a.stats.cpu.cores * 100 : 0;
+                const bload = b.stats.cpu ? b.stats.cpu.systemLoad / b.stats.cpu.cores * 100 : 0;
+                return aload - bload;
+            }) as Collection<string, LavalinkNode>;
     }
 
     public sendWS(data: DiscordPacket): void {

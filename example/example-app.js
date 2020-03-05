@@ -6,7 +6,6 @@ const { Client } = require("discord.js");
 const { PlayerManager, Player } = require("../dist/index.js");
 
 class MusicClient extends Client {
-
     constructor(...args) {
         super(...args);
 
@@ -25,16 +24,20 @@ class MusicClient extends Client {
             this.player.on("error", (node, error) => console.error(node.host, error));
 
             console.log("Bot is online!");
-        }).on("error", console.error).on("warn", console.warn);
+        })
+            .on("error", console.error)
+            .on("warn", console.warn);
     }
-
 }
 const client = new MusicClient();
 
 client.on("message", async msg => {
     if (msg.author.bot || !msg.guild) return;
     if (!msg.content.startsWith(config.prefix)) return;
-    const args = msg.content.slice(config.prefix.length).trim().split(/ +/g);
+    const args = msg.content
+        .slice(config.prefix.length)
+        .trim()
+        .split(/ +/g);
     const command = args.shift().toLowerCase();
 
     if (command === "play") {
@@ -44,11 +47,14 @@ client.on("message", async msg => {
         const [song] = await getSongs(`ytsearch:${track}`);
         if (!song) return msg.reply("No songs found. try again!");
 
-        const player = client.player.join({
-            guild: msg.guild.id,
-            channel: msg.member.voice.channel.id,
-            host: client.player.nodes.first().host
-        }, { selfdeaf: true });
+        const player = client.player.join(
+            {
+                guild: msg.guild.id,
+                channel: msg.member.voice.channel.id,
+                host: client.player.nodes.first().host
+            },
+            { selfdeaf: true }
+        );
 
         if (!player) return msg.reply("Could not join");
 
@@ -78,7 +84,10 @@ client.on("message", async msg => {
         const player = client.player.players.get(msg.guild.id);
         if (!player) return msg.reply("No lavalink player found");
         // [0, 0.30, 1, 0.20]
-        await player.equalizer([{ band: 0, gain: 0.30 }, { band: 1, gain: 0.20 }]);
+        await player.equalizer([
+            { band: 0, gain: 0.3 },
+            { band: 1, gain: 0.2 }
+        ]);
         return msg.reply("Have now bass boosted sick beat");
     }
 });
@@ -99,7 +108,6 @@ function getSongs(search) {
 }
 
 class ExamplePlayer extends Player {
-
     constructor(...args) {
         super(...args);
 
@@ -111,7 +119,6 @@ class ExamplePlayer extends Player {
             await this.textChannel.send("Song has ended...");
         }).on("error", console.error);
     }
-
 }
 
 client.login(config.token);

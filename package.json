@@ -1,53 +1,63 @@
 {
-  "name": "discord.js-lavalink",
-  "version": "3.0.0",
-  "description": "A discord.js lavalink client",
-  "main": "dist/index",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "prepublishOnly": "yarn compile",
-    "lint": "eslint --fix --ext ts src",
-    "test": "eslint --ext ts src",
-    "compile": "tsc -p .",
-    "watch": "tsc -p . -w",
-    "docs": "node docs.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/MrJacz/discord.js-lavalink.git"
-  },
-  "keywords": [
-    "bot",
-    "music",
-    "discord",
-    "api",
-    "lava",
-    "link",
-    "lavalink",
-    "lavalink.js",
-    "discord.js"
-  ],
-  "author": "Jacz",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/MrJacz/discord.js-lavalink/issues"
-  },
-  "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
-  "devDependencies": {
-    "@types/node": "^13.7.7",
-    "@types/ws": "^7.2.2",
-    "@typescript-eslint/eslint-plugin": "^2.22.0",
-    "@typescript-eslint/parser": "^2.22.0",
-    "discord.js": "^12.0.1",
-    "eslint": "^6.8.0",
-    "eslint-plugin-node": "^11.0.0",
-    "eslint-plugin-promise": "^4.2.1",
-    "typescript": "^3.8.3"
-  },
-  "dependencies": {
-    "ws": "^7.2.1"
-  },
-  "peerDependencies": {
-    "discord.js": "^12.0.1"
-  }
+    "name": "discord.js-lavalink",
+    "version": "3.0.0",
+    "description": "A discord.js lavalink client",
+    "main": "dist/index",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "prepublishOnly": "yarn compile",
+        "lint": "eslint --fix --ext ts src",
+        "test": "eslint --ext ts src",
+        "compile": "tsc -p .",
+        "watch": "tsc -p . -w",
+		"docs": "typedoc"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/MrJacz/discord.js-lavalink.git"
+    },
+    "keywords": [
+        "bot",
+        "music",
+        "discord",
+        "api",
+        "lava",
+        "link",
+        "lavalink",
+        "lavalink.js",
+        "discord.js"
+    ],
+    "author": "Jacz",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/MrJacz/discord.js-lavalink/issues"
+    },
+    "homepage": "https://github.com/MrJacz/discord.js-lavalink#readme",
+    "devDependencies": {
+        "@types/node": "^13.7.7",
+        "@types/ws": "^7.2.2",
+        "@typescript-eslint/eslint-plugin": "^2.22.0",
+        "@typescript-eslint/parser": "^2.22.0",
+        "discord.js": "^12.0.1",
+        "eslint": "^6.8.0",
+        "eslint-plugin-node": "^11.0.0",
+        "eslint-plugin-promise": "^4.2.1",
+        "typedoc": "^0.16.11",
+        "typescript": "^3.8.3"
+    },
+    "dependencies": {
+        "ws": "^7.2.1"
+    },
+    "peerDependencies": {
+        "discord.js": "^12.0.1"
+    },
+    "files": [
+        "dist",
+        "example/example-app.js",
+        "!dist/tsconfig.tsbuildinfo"
+    ],
+    "engines": {
+        "node": ">=10",
+        "npm": ">=5"
+    }
 }

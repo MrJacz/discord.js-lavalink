@@ -1,7 +1,7 @@
-import * as WebSocket from "ws";
-import { PlayerManager } from "./PlayerManager";
+import WebSocket from "ws";
 import { Player } from "./Player";
-import { LavalinkNodeStats, LavalinkNodeOptions } from "./Types";
+import { PlayerManager } from "./PlayerManager";
+import { LavalinkNodeOptions, LavalinkNodeStats } from "./Types";
 
 export class LavalinkNode {
 
@@ -113,7 +113,7 @@ export class LavalinkNode {
         });
     }
 
-    public configureResuming(key: string = Math.random().toString(36).substring(7), timeout = 120): Promise<boolean> {
+    public configureResuming(key = Math.random().toString(36).substring(7), timeout = 120): Promise<boolean> {
         this.resumeKey = key;
 
         return this.send({ op: "configureResuming", key, timeout });

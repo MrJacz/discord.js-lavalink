@@ -1,8 +1,7 @@
-import { EventEmitter } from "events";
-import { PlayerManager } from "./PlayerManager";
-import { LavalinkNode } from "./LavalinkNode";
 import { Client } from "discord.js";
-import { PlayerState, PlayerUpdateVoiceState, PlayerOptions, PlayerPlayOptions, PlayerEqualizerBand } from "..";
+import { EventEmitter } from "events";
+import { PlayerEqualizerBand, PlayerManager, PlayerOptions, PlayerPlayOptions, PlayerState, PlayerUpdateVoiceState } from "..";
+import { LavalinkNode } from "./LavalinkNode";
 
 export class Player extends EventEmitter {
 
@@ -57,10 +56,9 @@ export class Player extends EventEmitter {
                     if (this.listenerCount("warn")) this.emit("warn", `Unexpected event type: ${data.type}`);
                     break;
             }
-        })
-            .on("playerUpdate", data => {
-                this.state = { volume: this.state.volume, equalizer: this.state.equalizer, ...data.state };
-            });
+        }).on("playerUpdate", data => {
+            this.state = { volume: this.state.volume, equalizer: this.state.equalizer, ...data.state };
+        });
     }
 
     public async play(track: string, options: PlayerPlayOptions = {}): Promise<boolean> {

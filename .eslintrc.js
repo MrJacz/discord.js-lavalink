@@ -1,9 +1,6 @@
 module.exports = {
     parser: "@typescript-eslint/parser",
-    extends: [
-        "eslint:recommended",
-        "plugin:@typescript-eslint/recommended"
-    ],
+    extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
     env: {
         node: true,
         es6: true
@@ -12,46 +9,41 @@ module.exports = {
         ecmaVersion: 2019,
         sourceType: "module"
     },
-    plugins: [
-        "promise",
-        "node",
-        "@typescript-eslint"
-    ],
+    plugins: ["promise", "node", "@typescript-eslint"],
     rules: {
         "@typescript-eslint/no-non-null-assertion": "off",
         "@typescript-eslint/camelcase": "off",
         "@typescript-eslint/explicit-function-return-type": ["error", { allowExpressions: true }],
         "@typescript-eslint/interface-name-prefix": 0,
         indent: "off",
-        "@typescript-eslint/indent": [
-            "error",
-            4,
-            { SwitchCase: 1 }
-        ],
+        "@typescript-eslint/indent": ["error", 4, { SwitchCase: 1 }],
         "@typescript-eslint/no-explicit-any": 0,
         "@typescript-eslint/no-use-before-define": 0,
-        "@typescript-eslint/member-delimiter-style": ["error", {
-            multiline: {
-                delimiter: "semi",
-                requireLast: true
-            },
-            singleline: {
-                delimiter: "semi",
-                requireLast: true
-            },
-            overrides: {
-                interface: {
-                    multiline: {
-                        delimiter: "semi",
-                        requireLast: true
-                    },
-                    singleline: {
-                        delimiter: "semi",
-                        requireLast: true
+        "@typescript-eslint/member-delimiter-style": [
+            "error",
+            {
+                multiline: {
+                    delimiter: "semi",
+                    requireLast: true
+                },
+                singleline: {
+                    delimiter: "semi",
+                    requireLast: true
+                },
+                overrides: {
+                    interface: {
+                        multiline: {
+                            delimiter: "semi",
+                            requireLast: true
+                        },
+                        singleline: {
+                            delimiter: "semi",
+                            requireLast: true
+                        }
                     }
                 }
             }
-        }],
+        ],
         "no-extra-parens": "off",
         "@typescript-eslint/no-extra-parens": ["error"],
         "valid-jsdoc": [
@@ -74,25 +66,14 @@ module.exports = {
         "accessor-pairs": "warn",
         "array-callback-return": "error",
         complexity: "warn",
-        curly: [
-            "error",
-            "multi-line",
-            "consistent"
-        ],
-        "dot-location": [
-            "error",
-            "property"
-        ],
+        curly: ["error", "multi-line", "consistent"],
+        "dot-location": ["error", "property"],
         "dot-notation": "error",
         eqeqeq: "error",
         "no-console": [
             "error",
             {
-                allow: [
-                    "log",
-                    "warn",
-                    "error"
-                ]
+                allow: ["log", "warn", "error"]
             }
         ],
         "no-empty-function": "error",
@@ -128,11 +109,7 @@ module.exports = {
         "no-process-env": "error",
         "array-bracket-spacing": "error",
         "block-spacing": "error",
-        "brace-style": [
-            "error",
-            "1tbs",
-            { allowSingleLine: true }
-        ],
+        "brace-style": ["error", "1tbs", { allowSingleLine: true }],
         "comma-dangle": "error",
         "comma-spacing": "error",
         "comma-style": "error",
@@ -140,11 +117,7 @@ module.exports = {
         "consistent-this": "error",
         "eol-last": "error",
         "func-names": "error",
-        "func-style": [
-            "error",
-            "declaration",
-            { allowArrowFunctions: true }
-        ],
+        "func-style": ["error", "declaration", { allowArrowFunctions: true }],
         "key-spacing": "error",
         "keyword-spacing": [
             "error",
@@ -159,24 +132,11 @@ module.exports = {
             }
         ],
         "max-depth": "error",
-        "max-len": [
-            "error",
-            1500,
-            2
-        ],
-        "max-nested-callbacks": [
-            "error",
-            { max: 4 }
-        ],
-        "max-statements-per-line": [
-            "error",
-            { max: 2 }
-        ],
+        "max-len": ["error", 1500, 2],
+        "max-nested-callbacks": ["error", { max: 4 }],
+        "max-statements-per-line": ["error", { max: 2 }],
         "new-cap": "error",
-        "newline-per-chained-call": [
-            "error",
-            { ignoreChainWithDepth: 6 }
-        ],
+        "newline-per-chained-call": ["error", { ignoreChainWithDepth: 6 }],
         "no-array-constructor": "error",
         "no-bitwise": "warn",
         "no-inline-comments": "error",
@@ -196,15 +156,9 @@ module.exports = {
         "no-unneeded-ternary": "error",
         "no-whitespace-before-property": "error",
         "object-curly-newline": "error",
-        "object-curly-spacing": [
-            "error",
-            "always"
-        ],
+        "object-curly-spacing": ["error", "always"],
         "operator-assignment": "error",
-        "operator-linebreak": [
-            "error",
-            "after"
-        ],
+        "operator-linebreak": ["error", "after"],
         "padded-blocks": [
             "error",
             {
@@ -213,10 +167,7 @@ module.exports = {
                 switches: "never"
             }
         ],
-        "quote-props": [
-            "error",
-            "as-needed"
-        ],
+        "quote-props": ["error", "as-needed"],
         quotes: [
             "error",
             "double",
@@ -275,17 +226,20 @@ module.exports = {
         "promise/no-promise-in-callback": "warn",
         "promise/no-callback-in-promise": "warn",
         "promise/no-return-in-finally": "warn",
+        "require-atomic-updates": "off",
         "node/no-missing-require": "off",
         "node/no-unpublished-bin": "error",
         "node/no-deprecated-api": "error",
-        "node/exports-style": [
-            "error",
-            "module.exports"
-        ],
+        "node/exports-style": ["error", "module.exports"],
         "no-var": "error",
-        "arrow-parens": [
-            "error",
-            "as-needed"
-        ]
-    }
+        "arrow-parens": ["error", "as-needed"]
+    },
+    overrides: [
+        {
+            files: ["example/example-app.js"],
+            rules: {
+                "@typescript-eslint/no-var-requires": 0
+            }
+        }
+    ]
 };
