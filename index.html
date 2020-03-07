@@ -1,0 +1,296 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>discord.js-lavalink</title>
+	<meta name="description" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="assets/js/search.js" data-base=".">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="index.html" class="title">discord.js-lavalink</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="globals.html">Globals</a>
+				</li>
+			</ul>
+			<h1>discord.js-lavalink</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<div class="tsd-panel tsd-typography">
+				<p><a href="https://discord.gg/J8AqH4A"><img src="https://discordapp.com/api/guilds/323779330033319941/embed.png" alt="Discord"></a>
+					<a href="https://www.npmjs.com/package/discord.js-lavalink"><img src="https://img.shields.io/npm/v/npm.svg" alt="npm"></a>
+					<a href="https://www.npmjs.com/package/discord.js-lavalink"><img src="https://img.shields.io/npm/dt/discord.js-lavalink.svg?maxAge=3600" alt="npm downloads"></a>
+					<a href="http://badge.fury.io/js/discord.js-lavalink"><img src="https://badge.fury.io/js/discord.js-lavalink.svg" alt="NPM version"></a>
+					<a href="https://travis-ci.org/MrJacz/discord.js-lavalink"><img src="https://travis-ci.org/MrJacz/discord.js-lavalink.svg?branch=master" alt="Build Status"></a>
+					<a href="https://www.codacy.com/app/MrJacz/discord.js-lavalink"><img src="https://api.codacy.com/project/badge/Grade/b50839d781c24a94a4e1c17342a147bd" alt="Codacy Badge"></a>
+					<a href="https://github.com/ellerbrock/open-source-badge/"><img src="https://badges.frapsoft.com/os/mit/mit.svg?v=102" alt="Open Source Love"></a>
+					<a href="https://david-dm.org/mrjacz/discord.js-lavalink"><img src="https://david-dm.org/mrjacz/discord.js-lavalink/status.svg" alt="dependencies Status"></a>
+					<a href="https://david-dm.org/mrjacz/discord.js-lavalink?type=dev"><img src="https://david-dm.org/mrjacz/discord.js-lavalink/dev-status.svg" alt="devDependencies Status"></a>
+				<a href="https://nodei.co/npm/discord.js-lavalink"><img src="https://nodei.co/npm/discord.js-lavalink.png?downloads=true&downloadRank=true&stars=true" alt="NPM"></a></p>
+				<a href="#discordjs-lavalink" id="discordjs-lavalink" style="color: inherit; text-decoration: none;">
+					<h1>discord.js-lavalink</h1>
+				</a>
+				<p>A lavalink client for Discord.js</p>
+				<a href="#documentation" id="documentation" style="color: inherit; text-decoration: none;">
+					<h2>Documentation</h2>
+				</a>
+				<p><a href="https://mrjacz.github.io/discord.js-lavalink/"><strong>mrjacz.github.io/discord.js-lavalink</strong></a></p>
+				<a href="#installation" id="installation" style="color: inherit; text-decoration: none;">
+					<h2>Installation</h2>
+				</a>
+				<p><strong>For stable</strong></p>
+				<pre><code class="language-bash"><span class="hljs-comment"># Using yarn</span>
+yarn add discord.js-lavalink
+
+<span class="hljs-comment"># Using npm</span>
+npm install discord.js-lavalink</code></pre>
+				<p><strong>For Development</strong></p>
+				<pre><code class="language-bash"><span class="hljs-comment"># Using yarn</span>
+yarn add MrJacz/discord.js-lavalink
+
+<span class="hljs-comment"># Using npm</span>
+npm install MrJacz/discord.js-lavalink</code></pre>
+				<a href="#lavalink-configuration" id="lavalink-configuration" style="color: inherit; text-decoration: none;">
+					<h2>LavaLink configuration</h2>
+				</a>
+				<p>Download from <a href="https://ci.fredboat.com/viewLog.html?buildId=lastSuccessful&amp;buildTypeId=Lavalink_Build&amp;tab=artifacts&amp;guest=1">the CI server</a></p>
+				<p>Put an <code>application.yml</code> file in your working directory. <a href="https://github.com/Frederikam/Lavalink/blob/master/LavalinkServer/application.yml.example">Example</a></p>
+				<p>Run with <code>java -jar Lavalink.jar</code></p>
+				<a href="#the-issue-tracker-is-for-issues-only" id="the-issue-tracker-is-for-issues-only" style="color: inherit; text-decoration: none;">
+					<h2>The issue tracker is for issues only</h2>
+				</a>
+				<p>If you&#39;re having a problem with the module contact us in the <a href="https://discord.gg/J8AqH4A"><strong>Discord Server</strong></a></p>
+				<a href="#implementation" id="implementation" style="color: inherit; text-decoration: none;">
+					<h1>Implementation</h1>
+				</a>
+				<p>Start by creating a new <code>PlayerManager</code> passing an array of nodes and an object with <code>user</code> the client&#39;s user id and <code>shards</code> The total number of shards your bot is operating on.</p>
+				<pre><code class="language-javascript"><span class="hljs-keyword">const</span> { PlayerManager } = <span class="hljs-built_in">require</span>(<span class="hljs-string">"discord.js-lavalink"</span>);
+
+<span class="hljs-keyword">const</span> nodes = [{ <span class="hljs-attr">host</span>: <span class="hljs-string">"localhost"</span>, <span class="hljs-attr">port</span>: <span class="hljs-number">2333</span>, <span class="hljs-attr">password</span>: <span class="hljs-string">"youshallnotpass"</span> }];
+
+<span class="hljs-keyword">const</span> manager = <span class="hljs-keyword">new</span> PlayerManager(client, nodes, {
+    <span class="hljs-attr">user</span>: client.user.id, <span class="hljs-comment">// Client id</span>
+    <span class="hljs-attr">shards</span>: shardCount <span class="hljs-comment">// Total number of shards your bot is operating on</span>
+});
+
+manager.on(<span class="hljs-string">"error"</span>, (node, error) =&gt; {
+    node; <span class="hljs-comment">// is the node which the error is from</span>
+    error; <span class="hljs-comment">// is the error;</span>
+});</code></pre>
+				<p>Resolving tracks using LavaLink REST API</p>
+				<pre><code class="language-javascript"><span class="hljs-keyword">const</span> fetch = <span class="hljs-built_in">require</span>(<span class="hljs-string">"node-fetch"</span>);
+<span class="hljs-keyword">const</span> { URLSearchParams } = <span class="hljs-built_in">require</span>(<span class="hljs-string">"url"</span>);
+
+<span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getSongs</span>(<span class="hljs-params">search</span>) </span>{
+    <span class="hljs-keyword">const</span> node = client.player.nodes.first();
+
+    <span class="hljs-keyword">const</span> params = <span class="hljs-keyword">new</span> URLSearchParams();
+    params.append(<span class="hljs-string">"identifier"</span>, search);
+
+    <span class="hljs-keyword">return</span> fetch(<span class="hljs-string">`http://<span class="hljs-subst">${node.host}</span>:<span class="hljs-subst">${node.port}</span>/loadtracks?<span class="hljs-subst">${params}</span>`</span>, { <span class="hljs-attr">headers</span>: { <span class="hljs-attr">Authorization</span>: node.password } })
+        .then(<span class="hljs-function"><span class="hljs-params">res</span> =&gt;</span> res.json())
+        .then(<span class="hljs-function"><span class="hljs-params">data</span> =&gt;</span> data.tracks)
+        .catch(<span class="hljs-function"><span class="hljs-params">err</span> =&gt;</span> {
+            <span class="hljs-built_in">console</span>.error(err);
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+        });
+}
+
+getSongs(<span class="hljs-string">"ytsearch:30 second song"</span>).then(<span class="hljs-function"><span class="hljs-params">songs</span> =&gt;</span> {
+    <span class="hljs-comment">// handle loading of the tracks somehow ¯\_(ツ)_/¯</span>
+});</code></pre>
+				<p>Joining and Leaving channels</p>
+				<pre><code class="language-javascript"><span class="hljs-comment">// Join</span>
+<span class="hljs-keyword">const</span> player = <span class="hljs-keyword">await</span> manager.join({
+    <span class="hljs-attr">guild</span>: guildId, <span class="hljs-comment">// Guild id</span>
+    <span class="hljs-attr">channel</span>: channelId, <span class="hljs-comment">// Channel id</span>
+    <span class="hljs-attr">host</span>: <span class="hljs-string">"localhost"</span> <span class="hljs-comment">// lavalink host, based on array of nodes</span>
+});
+
+<span class="hljs-keyword">await</span> player.play(track); <span class="hljs-comment">// Track is a base64 string we get from Lavalink REST API</span>
+
+player.once(<span class="hljs-string">"error"</span>, error =&gt; <span class="hljs-built_in">console</span>.error(error));
+player.once(<span class="hljs-string">"end"</span>, data =&gt; {
+    <span class="hljs-keyword">if</span> (data.reason === <span class="hljs-string">"REPLACED"</span>) <span class="hljs-keyword">return</span>; <span class="hljs-comment">// Ignore REPLACED reason to prevent skip loops</span>
+    <span class="hljs-comment">// Play next song</span>
+});
+
+<span class="hljs-comment">// Leave voice channel and destory Player</span>
+<span class="hljs-keyword">await</span> manager.leave(guildId); <span class="hljs-comment">// Player ID aka guild id</span></code></pre>
+				<p>For a proper example look at <a href="https://github.com/MrJacz/discord.js-lavalink/blob/master/example/app.js"><strong>example/app.js</strong></a></p>
+			</div>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class="globals  ">
+						<a href="globals.html"><em>Globals</em></a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-class">
+						<a href="classes/lavalinknode.html" class="tsd-kind-icon">Lavalink<wbr>Node</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/player.html" class="tsd-kind-icon">Player</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/playermanager.html" class="tsd-kind-icon">Player<wbr>Manager</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/discordpacket.html" class="tsd-kind-icon">Discord<wbr>Packet</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/lavalinknodeoptions.html" class="tsd-kind-icon">Lavalink<wbr>Node<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/lavalinknodestats.html" class="tsd-kind-icon">Lavalink<wbr>Node<wbr>Stats</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/playerequalizerband.html" class="tsd-kind-icon">Player<wbr>Equalizer<wbr>Band</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/playermanagerjoindata.html" class="tsd-kind-icon">Player<wbr>Manager<wbr>Join<wbr>Data</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/playermanagerjoinoptions.html" class="tsd-kind-icon">Player<wbr>Manager<wbr>Join<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/playermanageroptions.html" class="tsd-kind-icon">Player<wbr>Manager<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/playeroptions.html" class="tsd-kind-icon">Player<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/playerplayoptions.html" class="tsd-kind-icon">Player<wbr>Play<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/playerstate.html" class="tsd-kind-icon">Player<wbr>State</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/playerupdatevoicestate.html" class="tsd-kind-icon">Player<wbr>Update<wbr>Voice<wbr>State</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/voiceserverupdate.html" class="tsd-kind-icon">Voice<wbr>Server<wbr>Update</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/voicestateupdate.html" class="tsd-kind-icon">Voice<wbr>State<wbr>Update</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-module"><span class="tsd-kind-icon">Module</span></li>
+				<li class="tsd-kind-object-literal"><span class="tsd-kind-icon">Object literal</span></li>
+				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
+				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
+				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
+				<li class="tsd-kind-index-signature"><span class="tsd-kind-icon">Index signature</span></li>
+				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
+				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
+				<li class="tsd-kind-enum-member"><span class="tsd-kind-icon">Enumeration member</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-enum"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-enum"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
+				<li class="tsd-kind-interface tsd-has-type-parameter"><span class="tsd-kind-icon">Interface with type parameter</span></li>
+				<li class="tsd-kind-constructor tsd-parent-kind-interface"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
+				<li class="tsd-kind-index-signature tsd-parent-kind-interface"><span class="tsd-kind-icon">Index signature</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
+				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
+				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class"><span class="tsd-kind-icon">Accessor</span></li>
+				<li class="tsd-kind-index-signature tsd-parent-kind-class"><span class="tsd-kind-icon">Index signature</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
+				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private accessor</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static property</span></li>
+				<li class="tsd-kind-call-signature tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="assets/js/main.js"></script>
+<script>if (location.protocol == 'file:') document.write('<script src="assets/js/search.js"><' + '/script>');</script>
+</body>
+</html>
