@@ -1,4 +1,4 @@
-[![Discord](https://discordapp.com/api/guilds/323779330033319941/embed.png)](https://discord.gg/J8AqH4A)
+[![Discord](https://discordapp.com/api/guilds/690521477514264577/embed.png)](https://discord.gg/wXrjZmV)
 [![npm](https://img.shields.io/npm/v/npm.svg)](https://www.npmjs.com/package/discord.js-lavalink)
 [![npm downloads](https://img.shields.io/npm/dt/discord.js-lavalink.svg?maxAge=3600)](https://www.npmjs.com/package/discord.js-lavalink)
 [![NPM version](https://badge.fury.io/js/discord.js-lavalink.svg)](http://badge.fury.io/js/discord.js-lavalink)
@@ -49,7 +49,7 @@ Run with `java -jar Lavalink.jar`
 
 ## The issue tracker is for issues only
 
-If you're having a problem with the module contact us in the [**Discord Server**](https://discord.gg/J8AqH4A)
+If you're having a problem with the module contact us in the [**Discord Server**](https://discord.gg/wXrjZmV)
 
 # Implementation
 
